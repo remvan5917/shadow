@@ -139,7 +139,7 @@ const voice = {
       let done = false;
       const end = () => {
         if (done) return;
-        done = true; this.speaking = false;
+        done = true; this.speaking = false; this.endedAt = Date.now();
         face.talk(false); face.el.classList.remove('lipsync', 'syl');
         OREILLES.mute(false);
         res();
@@ -178,6 +178,7 @@ function subtitle(html, heard) {
 }
 // Shadow parle (et affiche des sous-titres si papa les a activés)
 function say(text) {
+  if (dlg.interrupt) return Promise.resolve(); // on vient de lui parler : il se tait et écoute
   lastSaid = text;
   $('#bubble').classList.remove('alert');
   $('#heard').textContent = '';
@@ -231,8 +232,9 @@ const fx = {
 async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = false, endSilence = 0 } = {}) {
   if (face.state !== 'sleep' || f === 'sleep') face.set(f);
   // Whisper comprend mieux s'il sait de quoi on parle : on lui donne la dernière phrase de Shadow
-  const ctxPrompt = prompt || `Conversation en français avec Shadow, un robot, et ${name()}. Shadow : ${voice.clean(lastSaid).slice(-200)}`;
-  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, cheap, endSilence: endSilence || (prompt === SPELL_PROMPT ? 2.2 : 0.9) });
+  dlg.interrupt = false; // on écoute à nouveau : Shadow peut reparler
+  const ctxPrompt = prompt || `${name()} parle en français à Shadow, son robot.`;
+  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, cheap, endSilence: endSilence || (prompt === SPELL_PROMPT ? 2.2 : 1.15) });
   if (typeof r === 'string' && r && isEcho(r)) { OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
@@ -260,16 +262,22 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = 
     return '';
   }
   mustShow = false;
-  if (r) { subtitle(null, `🎤 « ${r} »`); whoSpoke(); }
+  if (r) {
+    subtitle(null, `🎤 « ${r} »`); whoSpoke();
+    heardLog.push({ at: Date.now(), t: r, ok: AI.lastConfident !== false }); // pour papa (en mémoire vive seulement)
+    if (heardLog.length > 20) heardLog.shift();
+  }
   return r;
 }
 // Sa propre voix qui revient du haut-parleur : on la reconnaît et on l'ignore
 function isEcho(t) {
+  if (Date.now() - (voice.endedAt || 0) > 2500) return false; // l'écho arrive juste après qu'il a parlé
   const words = s => N(s).split(' ').filter(w => w.length > 2);
   const a = words(t), b = new Set(words(lastSaid));
-  if (a.length < 2 || !b.size) return false;
-  return a.filter(w => b.has(w)).length / a.length > 0.7;
+  if (a.length < 4 || !b.size) return false; // une réponse courte qui reprend ses mots (« la baleine bleue ») n'est pas un écho
+  return a.filter(w => b.has(w)).length / a.length > 0.85;
 }
+const heardLog = [];
 // Qui vient de parler ? (empreinte de voix + ce que voit la caméra)
 let lastPrint = null, voiceLearnAt = 0;
 function whoSpoke() {
@@ -286,6 +294,13 @@ function whoSpoke() {
 }
 const speakerNow = () => (dlg.speaker && Date.now() - dlg.speakerAt < 90000 ? dlg.speaker : '');
 
+// Quelqu'un parle fort pendant que Shadow parle : il se tait tout de suite et écoute
+OREILLES.on('bargein', () => {
+  if (!voice.speaking) return;
+  dlg.interrupt = true;
+  voice.stop();
+  face.set('listen');
+});
 OREILLES.on('thinking', () => {
   face.el.classList.remove('hearing');
   if (['listen', 'idle'].includes(face.state)) { face.set('think'); fx.tone([[1175, 0.06]]); } // « bip » : je t'ai entendu
@@ -301,7 +316,7 @@ const dlg = { state: 'sleep', busy: false, silence: 0, lastActive: Date.now(), s
 class Stop extends Error {}
 const RE = {
   wake: /\b(he |hey |eh |e |o |oh |bonjour |salut |coucou )?(shadow|shadows|chadow|shado|chado|shadoo|shadoe|shadou|chadou|chadoo|chadeau|chat d eau|chat dos|sha do|cha do|chat do|shad|chad|chadow|shadow s)\b/,
-  stop: /\b(stop|arrete|arretes|arreter|ca suffit|j en ai marre|on arrete)\b/,
+  stop: /\b(stop+|stoppe|arrete|arretes|arretez|arreter|arrete toi|ca suffit|assez|j en ai marre|on arrete|tais toi|taisez vous|chut+|silence|laisse tomber|fin du jeu|c est fini|pause)\b/,
   repeat: /\b(repete|repeter|redis|redire|pas compris|j ai pas entendu|tu peux repeter)\b/,
   yes: /\b(oui|ouais|ouai|yes|ok|okay|d accord|dac|c est ca|exact|exactement|bien sur|voila|carrement|vas y|allez|go)\b/,
   no: /\b(non|nan|nope|pas ca|c est pas ca|pas du tout|faux)\b/,
@@ -543,7 +558,7 @@ async function handle(text) {
   dlg.moodPending = false;
   if (RE.bedtime.test(n)) return histoireSoirFlow();
   if (RE.sleep.test(n)) return goSleep();
-  if (RE.stop.test(n)) { closeJournal(); return say("D'accord ! Je t'écoute si tu as besoin."); }
+  if (RE.stop.test(n)) { closeJournal(); hideBoard(); face.set('idle'); await say("D'accord, je me tais. Dis « Shadow » quand tu veux me parler."); dlg.state = 'standby'; return; }
   if (RE.repeat.test(n)) return say(lastSaid || "Je n'ai encore rien dit !");
   if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Dis-moi ce que tu veux !");
   if (RE.motJour.test(n)) return say(motDuJourText());
@@ -649,6 +664,7 @@ async function chatReply(text, hidden = false) {
     const now = new Date();
     const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités, ni de corps pour l'instant. ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
     const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
+      + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
     const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
@@ -661,10 +677,10 @@ async function chatReply(text, hidden = false) {
     };
     let raw;
     try {
-      raw = await AI.chatStream(msgs, { maxTokens: 200, temperature: 0.55 }, onSentence);
+      raw = await AI.chatStream(msgs, { maxTokens: 150, temperature: 0.55 }, onSentence);
     } catch (e) {
       if (spoken) throw e;
-      raw = await AI.chat(msgs, { maxTokens: 200, temperature: 0.55 }); // secours sans « mot à mot »
+      raw = await AI.chat(msgs, { maxTokens: 150, temperature: 0.55 }); // secours sans « mot à mot »
       onSentence(raw);
     }
     await queue;
@@ -1324,6 +1340,7 @@ function readSettingsForm() {
     sound: $('#s-sound').checked, slow: $('#s-slow').checked, subtitles: $('#s-subtitles').checked,
     ears: $('#s-ears').value,
     micSens: $('#s-mic-sens').value,
+    bargeIn: $('#s-barge').checked,
     lock: $('#s-lock').checked,
     pause: +$('#s-pause').value,
     vision: $('#s-vision').checked,
@@ -1424,6 +1441,8 @@ function openSettings() {
   $('#s-sound').checked = s.sound; $('#s-slow').checked = s.slow; $('#s-subtitles').checked = s.subtitles;
   $('#s-ears').value = s.ears;
   $('#s-mic-sens').value = s.micSens;
+  $('#s-barge').checked = s.bargeIn !== false;
+  $('#s-heard').innerHTML = heardLog.length ? heardLog.slice().reverse().map(h => `<div class="person"><span>${h.ok ? '🎤' : '❓'} ${new Date(h.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} « ${esc(h.t)} »</span></div>`).join('') : '<p class="small muted">Rien encore depuis l’ouverture de l’appli.</p>';
   $('#s-lock').checked = s.lock;
   meterLoop();
   $('#s-pause').value = String(s.pause);

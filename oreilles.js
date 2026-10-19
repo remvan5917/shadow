@@ -18,11 +18,13 @@ const OREILLES = (() => {
   let muted = false, muteUntil = 0;
   let noise = 0.004, speaking = false, voiced = 0, silent = 0, buf = [], pre = [], peak = 0, frames = 0;
   let level = 0, threshold = 0.012, lastHeard = '', lastPrint = null;
+  // Interrompre Shadow en lui parlant : on écoute aussi pendant qu'il parle (en gardant ~1,7 s de son)
+  let ring = [], ttsFrames = 0, ttsPeak = 0, loud = 0, bargedAt = 0;
   // Sensibilité du micro (réglage de papa) : seuil minimum et marge au-dessus du bruit de la pièce
   const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2] };
   let pending = null; // la demande d'écoute en cours
   let rec = null;
-  const handlers = { thinking: [], speech: [], speechend: [] };
+  const handlers = { thinking: [], speech: [], speechend: [], bargein: [] };
   const emit = ev => handlers[ev].forEach(fn => fn());
 
   function choose() {
@@ -75,14 +77,27 @@ const OREILLES = (() => {
     const now = performance.now();
     // le bruit de la pièce s'apprend vite au début, puis doucement
     const alpha = ++frames < 40 ? 0.15 : 0.03;
+    const ds0 = downsample(f, ctx.sampleRate);
+    ring.push(ds0);
+    if (ring.length > 40) ring.shift();
+    if (muted && S.settings.bargeIn !== false) {
+      // Shadow parle : sa propre voix revient dans le micro. On apprend son niveau pendant ~1 s,
+      // puis une voix nettement PLUS FORTE que la sienne = quelqu'un lui parle → il se tait.
+      ttsFrames++;
+      const [min0, k0] = SENS[S.settings.micSens] || SENS.haute;
+      const need = Math.max(ttsPeak * (S.settings.bargeRatio || 1.6), Math.max(noise * k0, min0) * 1.5);
+      if (ttsFrames > 24 && rms > need) { if (++loud >= 3) { loud = 0; ttsFrames = 0; bargedAt = now; emit('bargein'); } }
+      else { loud = 0; ttsPeak = Math.max(ttsPeak * 0.997, rms); } // son niveau à lui (une voix plus forte ne compte pas)
+    } else if (!muted) { ttsFrames = 0; ttsPeak = 0; loud = 0; }
     if (muted || now < muteUntil || !pending || pending.busy) {
-      if (!speaking) noise = noise * (1 - alpha) + rms * alpha;
+      // le bruit de la pièce ne s'apprend PAS pendant qu'il parle (sa propre voix n'est pas du bruit)
+      if (!speaking && !muted && now >= muteUntil) noise = noise * (1 - alpha) + rms * alpha;
       pre = []; buf = []; speaking = false; voiced = 0;
       return;
     }
     // la toute première seconde : il écoute juste le bruit de la pièce, pour l'apprendre
     if (frames < 25) { noise = noise * (1 - alpha) + rms * alpha; return; }
-    const ds = downsample(f, ctx.sampleRate);
+    const ds = ds0;
     const [min, k] = SENS[S.settings.micSens] || SENS.haute;
     const on = Math.max(noise * k, min), off = Math.max(noise * (k * 0.66), min * 0.66);
     threshold = on;
@@ -205,6 +220,8 @@ const OREILLES = (() => {
       if (!engine) return finish({ error: 'no-ears' });
       if (engine === 'chrome') chromeListen(p);
       else {
+        // on vient de l'interrompre : ce qu'on a dit pendant qu'il parlait est déjà dans la réserve
+        if (performance.now() - bargedAt < 2500) { speaking = true; silent = 0; voiced = 0; peak = 0; buf = ring.slice(-30); for (const c of buf) { let q = 0; for (let i = 0; i < c.length; i++) q += c[i] * c[i]; peak = Math.max(peak, Math.sqrt(q / c.length)); } bargedAt = 0; }
         // Le téléphone peut mettre le son en pause : on le réveille…
         if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
         // …et une minuterie garantit qu'il n'attend jamais pour toujours
@@ -223,7 +240,7 @@ const OREILLES = (() => {
   function mute(on) {
     muted = on;
     if (on && rec) { const r = rec; rec = null; r.abort(); }
-    if (!on) muteUntil = performance.now() + 350; // le temps que l'écho de sa voix s'éteigne
+    if (!on) muteUntil = performance.now() - bargedAt < 1500 ? 0 : performance.now() + 350; // le temps que l'écho de sa voix s'éteigne (sauf si on vient de l'interrompre)
   }
 
   return {

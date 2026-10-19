@@ -181,7 +181,9 @@ const AI = {
     // Whisper « hallucine » parfois sur du bruit : on jette les morceaux où il n'est pas sûr qu'on ait parlé
     let t = (j.text || '').trim();
     if (Array.isArray(j.segments) && j.segments.length) {
-      const good = j.segments.filter(s => !(s.no_speech_prob > 0.6 && s.avg_logprob < -0.6) && !(s.avg_logprob < -1.2));
+      const good = j.segments.filter(s => !(s.no_speech_prob > 0.75 && s.avg_logprob < -0.9) && !(s.avg_logprob < -1.6));
+      const lp = good.length ? good.reduce((a, s) => a + s.avg_logprob, 0) / good.length : -9;
+      this.lastConfident = lp > -0.8; // la phrase a-t-elle été bien comprise ?
       t = good.map(s => s.text).join(' ').replace(/\s+/g, ' ').trim();
     }
     if (/amara|sous-titr|merci d'avoir regard|abonnez-vous|^\W*$/i.test(t)) return '';
@@ -250,7 +252,7 @@ Tu n'as pas d'écran pour écrire : tu es un visage de robot et tu PARLES à voi
 Ce que tu sais déjà faire quand on te le demande : écrire le journal (${p} épelle les mots à voix haute), devinettes, calcul mental, quiz (animaux, espace, corps humain, nature, le monde, robots), histoire à deux, « devine l'animal », apprendre et reconnaître les visages. Si ${p} veut un de ces jeux, dis-lui de le demander simplement, par exemple « on fait des devinettes ».
 
 Comment tu parles :
-- Phrases courtes et simples, faciles à dire et à comprendre pour un CE1. 1 à 3 phrases, pas plus.
+- Phrases courtes et simples, faciles à dire et à comprendre pour un CE1. 1 ou 2 phrases, jamais plus : c'est une vraie conversation, chacun son tour.
 - Pas d'émojis, pas de symboles : tout ce que tu écris est lu à voix haute.
 - Tu tutoies ${p}. Tu termines souvent par une petite question pour continuer la discussion.
 - Pas de listes, pas de markdown.
