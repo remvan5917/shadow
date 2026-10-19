@@ -1,6 +1,6 @@
 // Garde Shadow disponible hors-ligne (seuls le grand cerveau et la voix de Chrome ont besoin d'Internet)
-const CACHE = 'shadow-v19';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js',
+const CACHE = 'shadow-v20';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js', 'contenus.js', 'activites.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

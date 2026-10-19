@@ -224,11 +224,11 @@ const fx = {
 
 /* =================== ÉCOUTER =================== */
 // Écoute une phrase. Renvoie le texte, '' si personne n'a parlé, null si l'écoute a été interrompue.
-async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = false } = {}) {
+async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = false, endSilence = 0 } = {}) {
   if (face.state !== 'sleep' || f === 'sleep') face.set(f);
   // Whisper comprend mieux s'il sait de quoi on parle : on lui donne la dernière phrase de Shadow
   const ctxPrompt = prompt || `Conversation en français avec Shadow, un robot, et ${name()}. Shadow : ${voice.clean(lastSaid).slice(-200)}`;
-  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, cheap, endSilence: prompt === SPELL_PROMPT ? 2.2 : 0.9 });
+  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, cheap, endSilence: endSilence || (prompt === SPELL_PROMPT ? 2.2 : 0.9) });
   if (typeof r === 'string' && r && isEcho(r)) { OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
@@ -298,10 +298,10 @@ const RE = {
   help: /\b(qu est ce que tu sais faire|que sais tu faire|tu sais faire quoi|qu est ce qu on peut faire|on fait quoi|qu est ce qu on fait|propose moi|j ai rien a faire|je m ennuie)\b/,
   readJournal: /\b(lis|lire|relis|montre|affiche|ouvre)\b.*\bjournal\b/,
   closeJournal: /\b(ferme|cache|range)\b.*\bjournal\b/,
-  journal: /\b(mon journal|le journal|dans le journal|dictee|on ecrit|ecrire une phrase|ecrire dans|epeler|on epelle|orthographe)\b/,
+  journal: /\b(mon journal|le journal|dans le journal|on ecrit|ecrire une phrase|ecrire dans|epeler|on epelle|orthographe)\b/,
   animal: /\b(devine l animal|je pense a un animal|pense a un animal|devine a quel animal)\b/,
   devinette: /\bdevinette/,
-  calc: /\b(calcul|calculs|maths|math|mathematiques|addition|additions|soustraction|soustractions|multiplication|compter)\b/,
+  calc: /\b(calcul|calculs|maths|math|mathematiques|addition|additions|soustraction|soustractions|multiplication|multiplications|tables?|complements?)\b/,
   quiz: /\b(quiz|quizz|questionnaire|pose moi des questions|on fait des questions)\b/,
   learn: /\b(apprends moi|parle moi|explique moi|raconte moi des choses|je veux apprendre|tu m apprends)\b/,
   story: /\b(une histoire|invente une histoire|inventer une histoire|on invente)\b/,
@@ -321,6 +321,22 @@ const RE = {
   thanks: /\b(merci)\b/,
   voiceLearn: /\b(apprends ma voix|retiens ma voix|enregistre ma voix|memorise ma voix|apprends a reconnaitre ma voix|apprendre ma voix)\b/,
   whoTalks: /\b(qui parle|tu reconnais ma voix|c est qui qui parle|qui c est qui parle|tu sais qui parle|c est quelle voix)\b/,
+  bedtime: /\b(histoire du soir|histoire pour dormir|histoire pour m endormir|je vais me coucher|je vais dormir|je vais au lit)\b/,
+  motJour: /\bmot du jour\b/,
+  dicteeMots: /\b(dictee|dictees|mots de l ecole|mots du ce1|mots du ce un|une dictee)\b/,
+  lecture: /\b(lecture|on lit|je veux lire|lire un texte|lire une histoire|je vais lire|je lis)\b/,
+  heureJeu: /\b(lire l heure|apprendre l heure|apprends moi l heure|jeu de l heure|l horloge|une horloge)\b/,
+  anglais: /\b(anglais|english)\b/,
+  jacques: /\bjacques a dit\b/,
+  emotions: /\b(jeu des emotions|les emotions|des grimaces|faire des grimaces)\b/,
+  pfc: /\b(pierre feuille ciseaux?|chifoumi|pierre papier ciseaux?)\b/,
+  cris: /\b(cris? d animaux|cris? des animaux|bruits? d animaux|devine l animal a son cri)\b/,
+  doigts: /\b(doigts|avec mes doigts|avec les doigts)\b/,
+  couleur: /\b(de quelle couleur|c est quelle couleur|quelle couleur (est|a|il|elle))\b/,
+  chanter: /\b(chante|chanter|chanson|chansons|comptine|comptines)\b/,
+  calendrier: /\b(combien de (jours|dodos)|dans combien de|c est quand|mon anniversaire|calendrier)\b/,
+  visites: /\b(qui est venu|qui est passe|tu as vu qui|qui tu as vu)\b/,
+  heros: /\b(dont je suis le heros|ou je suis le heros|je suis le heros|histoire a choix|une aventure|mon aventure)\b/,
   remember: /\b(souviens toi que|retiens que|n oublie pas que|rappelle toi que|souviens toi bien que|note que)\b/,
   recall: /\b(qu est ce que tu sais (sur|de) moi|tu te souviens de quoi|qu est ce que tu te rappelles|tu te souviens de moi|qu est ce que tu sais de moi|ta memoire)\b/,
   forget: /\b(oublie tout|efface ta memoire|vide ta memoire)\b/,
@@ -431,11 +447,26 @@ function toStandby() {
 }
 function wake(who) {
   if (dlg.state !== 'sleep') return;
+  if (limitReached()) { // temps de jeu du jour fini : il reste endormi
+    if (Date.now() - (dlg.limitSaidAt || 0) > 120000) { dlg.limitSaidAt = Date.now(); say(`On a bien joué aujourd'hui, ${name()} ! On se retrouve demain.`).then(() => face.set('sleep')); }
+    return;
+  }
   sessionStart = Date.now(); pauseDone = false;
   dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
   fx.wake(); face.set('happy');
-  dlg.sayNext = () => memoryGreeting(who);
+  dlg.sayNext = async () => { await memoryGreeting(who); await dailyNews(); };
   OREILLES.cancel();
+}
+// Les nouvelles du jour, une fois par jour : mot du jour, calendrier, humeur
+async function dailyNews() {
+  const d = daily(), k = dayKey();
+  if (d.cal !== k) {
+    d.cal = k; save();
+    const up = upcoming(14)[0];
+    if (up) { if (!up.days) { face.set('happy'); fx.confetti(60); } await say(dodos(up)); }
+  }
+  if (d.mot !== k) { d.mot = k; save(); await say(motDuJourText()); }
+  if (moodQuestionDue()) { dlg.moodPending = true; await say("Au fait, comment s'est passée ta journée ?"); }
 }
 function goSleep(withWords = true) {
   memorize(true);
@@ -466,11 +497,11 @@ async function memoryGreeting(who) {
 }
 function greeting(who) {
   const n = who || name();
+  const pod = partOfDay();
+  const hello = pod === 'matin' ? pick([`Bonjour ${n} ! Tu as bien dormi ?`, `Bip ! Bonjour ${n}, mes circuits se réveillent avec toi !`]) : pod === 'soir' ? pick([`Bonsoir ${n} !`, `Bip ! Bonsoir ${n}, tu as passé une bonne journée ?`]) : pick([`Coucou ${n} !`, `Bip-bip ! Salut ${n} !`]);
   dlg.greeted++;
-  if (dlg.greeted === 1) {
-    return `Bip ! Salut ${n} ! C'est moi, Shadow. On peut discuter, écrire ton journal, faire des devinettes, du calcul, un quiz, ou chercher des objets. Qu'est-ce qui te ferait plaisir ?`;
-  }
-  return pick([`Coucou ${n} ! Mes circuits sont réveillés. Qu'est-ce qu'on fait ?`, `Bip-bip ! Content de te voir, ${n} ! On joue ?`, `Salut ${n} ! Je t'écoute.`]);
+  if (dlg.greeted === 1) return `${hello} C'est moi, Shadow. On peut discuter, écrire ton journal, faire une dictée, lire, jouer à Jacques a dit, des devinettes, du calcul, de l'anglais… Qu'est-ce qui te ferait plaisir ?`;
+  return `${hello} ${pick(["Qu'est-ce qu'on fait ?", 'On joue ?', "Je t'écoute."])}`;
 }
 
 /* ---------- comprendre ce qu'on lui dit ---------- */
@@ -485,10 +516,29 @@ async function handle(text) {
     if (isNo(text)) return say("D'accord ! Une autre fois.");
   }
   dlg.expect = null;
+  // « comment s'est passée ta journée ? » : si la réponse n'est pas une demande de jeu, c'est l'humeur du jour
+  const moodWas = dlg.moodPending;
+  dlg.moodPending = false;
+  if (RE.bedtime.test(n)) return histoireSoirFlow();
   if (RE.sleep.test(n)) return goSleep();
   if (RE.stop.test(n)) { closeJournal(); return say("D'accord ! Je t'écoute si tu as besoin."); }
   if (RE.repeat.test(n)) return say(lastSaid || "Je n'ai encore rien dit !");
-  if (RE.help.test(n)) return say("Je sais discuter, écrire ton journal avec toi, faire des devinettes, du calcul, des quiz sur les animaux, l'espace ou le corps humain, chercher des objets avec mes yeux, et reconnaître les visages. Dis-moi ce que tu veux !");
+  if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Dis-moi ce que tu veux !");
+  if (RE.motJour.test(n)) return say(motDuJourText());
+  if (RE.dicteeMots.test(n)) return activity(dicteeMotsFlow);
+  if (RE.lecture.test(n)) return activity(lectureFlow);
+  if (RE.heureJeu.test(n)) return activity(heureFlow);
+  if (RE.anglais.test(n)) return activity(anglaisFlow);
+  if (RE.jacques.test(n)) return activity(jacquesFlow);
+  if (RE.emotions.test(n)) return activity(emotionsFlow);
+  if (RE.pfc.test(n)) return activity(pfcFlow);
+  if (RE.cris.test(n)) return activity(crisFlow);
+  if (RE.doigts.test(n)) return activity(doigtsFlow);
+  if (RE.couleur.test(n)) return couleurFlow(text);
+  if (RE.chanter.test(n)) return chanterFlow(text);
+  if (RE.calendrier.test(n)) return calendrierAnswer(text);
+  if (RE.visites.test(n)) return say(!S.settings.gardeRobot ? "Je ne fais pas le garde-robot : papa ne l'a pas activé." : visitsSince(Date.now() - 12 * 3600000).length ? `J'ai vu ${visitsText(visitsSince(Date.now() - 12 * 3600000))}.` : "Je n'ai vu personne que je connais.");
+  if (RE.heros.test(n)) return AI.ready() ? chatReply(heroSeed(), true) : say("Pour inventer une aventure dont tu es le héros, j'ai besoin de mon grand cerveau. En attendant, on fait des devinettes ?");
   if (RE.closeJournal.test(n)) { closeJournal(); return say("C'est rangé !"); }
   if (RE.readJournal.test(n)) return readJournal();
   if (RE.meet.test(n)) return activity(meetFlow);
@@ -504,7 +554,7 @@ async function handle(text) {
   if (RE.journal.test(n)) return activity(journalFlow);
   if (RE.animal.test(n)) return chatReply(SEEDS.animal(), true);
   if (RE.devinette.test(n)) return activity(devinetteFlow);
-  if (RE.calc.test(n)) return activity(calcFlow);
+  if (RE.calc.test(n)) return activity(() => calcFlow(calcKind(n)));
   const th = themeOf(n);
   if (RE.quiz.test(n) || (RE.learn.test(n) && th && !AI.ready())) return activity(() => quizFlow(th));
   if (RE.story.test(n) && AI.ready()) return chatReply(SEEDS.histoire(), true);
@@ -514,6 +564,7 @@ async function handle(text) {
   if (RE.maison.test(n)) { const r = await CORPS.maison(); face.flash('oops'); return say(`${r.raison} Mais bientôt, avec papa, je pourrai le faire !`); }
   if (RE.move.test(n)) { const r = await CORPS.bouger(); face.flash('oops'); return say(`${r.raison} Quand papa et toi m'aurez fabriqué un corps, je pourrai me déplacer !`); }
   if (RE.joke.test(n) && !AI.ready()) return say(pick(JOKES));
+  if (moodWas && n.split(' ').length > 1) return moodAnswer(text);
   return chatReply(text);
 }
 
@@ -561,7 +612,7 @@ async function chatReply(text, hidden = false) {
     const hit = OFFLINE.find(([re]) => re.test(n));
     if (hit) return say(hit[1]());
     face.flash('oops');
-    return say("Mon grand cerveau n'est pas branché, alors je ne comprends pas tout. Mais je sais faire des devinettes, du calcul, des quiz, ou écrire ton journal. Dis-moi ce que tu veux !");
+    return say("Mon grand cerveau n'est pas branché, alors je ne comprends pas tout. Mais je sais faire une dictée, lire avec toi, l'heure, l'anglais, les tables, des quiz, des devinettes, Jacques a dit, des comptines… Dis « qu'est-ce que tu sais faire » pour tout savoir !");
   }
   const m = hidden ? { text, hidden: false } : PRIVE.mask(text);
   S.chat.push({ role: 'user', content: m.text, hidden });
@@ -573,7 +624,7 @@ async function chatReply(text, hidden = false) {
     const vus = VISION.state.faces.map(f => f.name).filter(Boolean);
     const who = speakerNow();
     const now = new Date();
-    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités, ni de corps pour l'instant.`;
+    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités, ni de corps pour l'instant. ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
     const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
     const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
@@ -727,6 +778,7 @@ async function journalFlow() {
     const stars = sp.filter(w => w.star).length;
     S.journal.unshift({ id: Date.now(), at: Date.now(), text: ORTHO.format(c.words.map(w => w.w).join(' ')), stars, n: sp.length });
     MEMOIRE.event(`${name()} a écrit dans son journal : « ${ORTHO.format(c.text)} » (${stars} étoile${stars > 1 ? 's' : ''}).`);
+    logAct('journal', ORTHO.format(c.text), stars, sp.length);
     S.cur = null; save();
     face.set('happy'); fx.ok(); fx.confetti(60);
     await say(`Bip-hourra ! Ta phrase est finie, et tu as gagné ${stars} étoile${stars > 1 ? 's' : ''} ! Je l'ai rangée dans ma mémoire.`);
@@ -736,7 +788,7 @@ async function journalFlow() {
 
 async function spellWord(c, w) {
   c.tries = 0; c.hints = [];
-  const ctx = ORTHO.needsContext(w.t) ? ` Comme dans ta phrase : ${c.text}.` : '';
+  const ctx = c.dictee ? ` Comme dans : ${c.text}` : ORTHO.needsContext(w.t) ? ` Comme dans ta phrase : ${c.text}.` : '';
   let q = `Épelle le mot : ${w.w}.${ctx} Dis-moi les lettres une par une.`;
   face.set('idle');
   for (;;) {
@@ -798,7 +850,7 @@ function closeJournal() { $('#journal').classList.add('hidden'); }
 async function devinetteFlow() {
   const list = JEUX.shuffle(JEUX.DEVINETTES);
   for (let i = 0; ; i++) {
-    const d = list[i % list.length];
+    const d = (i % 2 === 1 && (await newRiddle())) || list[i % list.length]; // une sur deux est inventée par le grand cerveau
     let q = `Devinette ! ${d.q}`, found = false;
     for (let tries = 0; tries < 3 && !found; tries++) {
       const t = await ask(q, { wait: 25000 });
@@ -806,32 +858,36 @@ async function devinetteFlow() {
       if (JEUX.matches(t, d.r)) found = true;
       else { face.flash('oops'); q = tries < 1 ? `Non, ce n'est pas ça… Réfléchis encore ! ${d.q}` : 'Non plus ! Dernière chance !'; }
     }
+    logAct('devinette', d.a, found ? 1 : 0, 1);
     if (found) { S.stats.dev++; save(); face.set('happy'); fx.ok(); fx.confetti(24); await say(`Bravo ! C'était ${d.a} !`); }
     else { face.set('happy'); await say(`C'était ${d.a} !`); }
     if (!(await askYesNo('Une autre devinette ?'))) return say("D'accord ! C'était rigolo !");
   }
 }
 
-async function calcFlow() {
+async function calcFlow(kind = 'mix') {
   let score = 0;
-  await say('Calcul mental ! Je te pose 5 calculs. Prêt ?');
+  const intro = kind.startsWith('table:') ? (kind === 'table:0' ? 'Les tables de multiplication !' : `La table de ${kind.slice(6)} !`) : kind === 'c10' ? 'Les compléments à 10 !' : kind === 'c100' ? 'Les compléments à 100 !' : 'Calcul mental !';
+  await say(`${intro} Je te pose 5 questions. Prêt ?`);
   for (let i = 0; i < 5; i++) {
-    const q = JEUX.calcQuestion();
-    let line = `Calcul numéro ${i + 1} : combien font ${q.say} ?`;
+    const q0 = calcQ(kind);
+    const q = { say: q0.ask.replace(/^combien font /, '').replace(/ \?$/, ''), r: q0.r, tip: q0.tip, ask: q0.ask };
+    let line = `Question ${i + 1} : ${q.ask}`;
     for (let tries = 0; ;) {
       const t = await ask(line, { wait: 20000 });
       if (RE.dontknow.test(N(t))) { await say(`La réponse, c'est ${q.r}. ${q.tip}`); break; }
       const v = JEUX.parseNumber(t);
-      if (v === null) { line = `Dis-moi juste le nombre. Combien font ${q.say} ?`; continue; }
-      if (v === q.r) { if (!tries) score++; face.flash('happy'); fx.ok(); await say(`${pick(['Bravo !', 'Exact !', 'Bonne réponse !'])} ${q.say}, ça fait ${q.r}.`); break; }
+      if (v === null) { line = `Dis-moi juste le nombre. ${q.ask}`; continue; }
+      if (v === q.r) { if (!tries) score++; face.flash('happy'); fx.ok(); await say(`${pick(['Bravo !', 'Exact !', 'Bonne réponse !'])} C'est ${q.r}.`); break; }
       tries++; face.flash('oops'); fx.oops();
-      if (tries < 2) { line = `Ce n'est pas ${v}. Petite astuce : ${q.tip} Alors, combien font ${q.say} ?`; continue; }
+      if (tries < 2) { line = `Ce n'est pas ${v}. Petite astuce : ${q.tip} Alors, ${q.ask}`; continue; }
       await say(`Ce n'est pas grave ! La réponse, c'est ${q.r}. ${q.tip}`);
       break;
     }
   }
   S.stats.calc += score; save();
-  MEMOIRE.event(`Calcul mental : ${score} sur 5.`);
+  MEMOIRE.event(`${intro.replace(/ !$/, '')} : ${score} sur 5.`);
+  logAct('calc', kind, score, 5);
   face.set('happy'); if (score >= 3) { fx.ok(); fx.confetti(40); }
   await say(`Tu as ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur 5 ! ${score === 5 ? 'Parfait, champion !' : score >= 3 ? 'Très bon score !' : "On s'entraînera encore !"}`);
 }
@@ -868,6 +924,7 @@ async function quizFlow(th) {
     await say(`${ok ? pick(['Bravo !', 'Bonne réponse !', 'Exact !']) : `La bonne réponse était ${'ABC'[q.c]} : ${q.o[q.c]}.`} ${q.e}`);
   }
   S.stats.quiz += score; save();
+  logAct('quiz', th || 'surprise', score, 5);
   MEMOIRE.event(`Quiz ${th ? `sur ${JEUX.THEMES[th].nom.toLowerCase()}` : 'surprise'} : ${score} sur 5.`);
   face.set('happy'); if (score >= 3) { fx.ok(); fx.confetti(40); }
   await say(`Tu as ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur 5 ! ${score === 5 ? 'Tu es un vrai savant !' : score >= 3 ? 'Bravo !' : 'On rejouera !'}`);
@@ -951,10 +1008,13 @@ function onPeople(faces) {
     if (!f.name) continue;
     const prev = seen.last[f.name] || 0;
     seen.last[f.name] = now;
+    noteVisit(f.name); // garde-robot (si papa l'a activé) : en mémoire vive seulement
     if (now - prev > 10 * 60000 && calm) {
       dlg.state = 'talk'; dlg.silence = 0;
       face.flash('happy');
-      say(pick([`Coucou ${f.name} ! Je te reconnais !`, `Oh, ${f.name} ! Content de te voir !`, `Bip-bip ! Salut ${f.name} !`]));
+      const v = f.name === S.prenom && prev ? visitsSince(prev) : [];
+      say(pick([`Coucou ${f.name} ! Je te reconnais !`, `Oh, ${f.name} ! Content de te voir !`, `Bip-bip ! Salut ${f.name} !`])
+        + (v.length ? ` Pendant que tu n'étais pas là, j'ai vu ${visitsText(v)}.` : ''));
       return;
     }
   }
@@ -1232,7 +1292,7 @@ function importShadow(file) {
       const d = JSON.parse(r.result);
       if (!d || d.v !== 1) throw new Error('fichier');
       if (!confirm('Remplacer la mémoire, le journal et les visages de Shadow par ceux du fichier ? (les réglages et la clé restent)')) return;
-      ['prenom', 'journal', 'people', 'voices', 'memory', 'stats', 'chat', 'memPos', 'cur'].forEach(k => { if (k in d) S[k] = d[k]; });
+      ['prenom', 'journal', 'people', 'voices', 'memory', 'stats', 'chat', 'memPos', 'cur', 'log', 'playLog', 'dictee'].forEach(k => { if (k in d) S[k] = d[k]; });
       save(); renderMemory(); renderPeople(); renderVoices();
       toast('Mémoire restaurée ✅');
     } catch (e) { toast("Ce fichier n'est pas une sauvegarde de Shadow"); }
@@ -1266,6 +1326,7 @@ function openSettings() {
   renderPeople();
   renderMemory();
   renderVoices();
+  renderExtras();
   renderPinState();
   $('#s-msg').textContent = '';
   $('#dlg-settings').returnValue = '';

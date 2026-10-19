@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '19';
+      window.SHADOW_VERSION = '20';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -90,7 +90,8 @@
           </g>
         </svg>
       </div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v19</small></button>
+      <div id="board" class="board" hidden></div>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v20</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -214,6 +215,42 @@
         <p class="small muted">La sauvegarde (sans la clé Groq) permet de garder sa mémoire, son journal et les visages appris, ou de les mettre sur la tablette.</p>
       </fieldset>
       <fieldset>
+        <legend>📊 Le bilan des 7 derniers jours</legend>
+        <div id="s-bilan"></div>
+      </fieldset>
+      <fieldset>
+        <legend>⏰ Rappels</legend>
+        <div id="s-rem-list" class="people"></div>
+        <div class="row">
+          <input id="s-rem-time" type="time" value="20:00">
+          <select id="s-rem-days"><option value="tous">tous les jours</option><option value="ecole">jours d'école</option><option value="weekend">week-end</option></select>
+        </div>
+        <input id="s-rem-text" type="text" maxlength="80" placeholder="Ex : se brosser les dents">
+        <button type="button" id="s-rem-add" class="ghost">Ajouter le rappel</button>
+        <p class="small muted">À l'heure dite, Shadow le dit à voix haute (il se réveille si besoin).</p>
+      </fieldset>
+      <fieldset>
+        <legend>📅 Calendrier</legend>
+        <div id="s-ev-list" class="people"></div>
+        <div class="row"><input id="s-ev-date" type="date"><label class="check"><input id="s-ev-yearly" type="checkbox" checked> chaque année</label></div>
+        <input id="s-ev-text" type="text" maxlength="60" placeholder="Ex : un anniversaire, les vacances">
+        <button type="button" id="s-ev-add" class="ghost">Ajouter au calendrier</button>
+        <p class="small muted">Shadow compte les dodos et en parle le jour venu.</p>
+      </fieldset>
+      <fieldset>
+        <legend>⌛ Temps de jeu</legend>
+        <label>Par jour, au maximum
+          <select id="s-limit"><option value="0">pas de limite</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">1 heure</option><option value="90">1 h 30</option><option value="120">2 heures</option></select>
+        </label>
+        <p id="s-today" class="small muted"></p>
+        <button type="button" id="s-bonus" class="ghost">+30 minutes pour aujourd'hui</button>
+      </fieldset>
+      <fieldset>
+        <legend>🛡️ Garde-robot</legend>
+        <label class="check"><input id="s-garde" type="checkbox"> Quand l'enfant revient, Shadow lui dit quelles personnes connues il a vues passer</label>
+        <p class="small muted">Désactivé par défaut. Seulement les visages appris, en mémoire vive : rien n'est enregistré, tout s'efface quand l'appli se ferme.</p>
+      </fieldset>
+      <fieldset>
         <legend>🔑 Code secret de papa</legend>
         <p id="s-pin-state" class="small"></p>
         <label>Nouveau code (4 à 8 chiffres) <input id="s-pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
@@ -256,6 +293,8 @@
   <script src="oreilles.js"></script>
   <script src="vision.js"></script>
   <script src="corps.js"></script>
+  <script src="contenus.js"></script>
   <script src="app.js"></script>
+  <script src="activites.js"></script>
 </body>
 </html>

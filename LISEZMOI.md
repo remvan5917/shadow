@@ -23,8 +23,32 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 | « Raconte une histoire », « Devine l'animal », ou n'importe quelle question | discute avec le grand cerveau (Groq) |
 | « Souviens-toi que mon chat s'appelle Moustache » / « Qu'est-ce que tu sais sur moi ? » | retient / raconte ses souvenirs |
 | « On révise mes mots difficiles » | fait réépeler les mots du journal qui ont demandé plusieurs essais |
+| « On fait une dictée » | 6 mots du CE1 avec une phrase, les mots ratés reviennent les fois suivantes |
+| « Je veux lire » | affiche un petit texte, écoute la lecture à voix haute et aide sur les mots difficiles |
+| « Apprends-moi l'heure » | affiche une horloge (heures, et demie, et quart, moins le quart) |
+| « La table de 3 » / « les compléments à 10 » (ou à 100) | tables de multiplication et compléments |
+| « On fait de l'anglais » | apprend des mots avec une voix anglaise, puis pose des questions |
+| « Le mot du jour » | un mot nouveau chaque jour (il le dit aussi au premier bonjour du jour) |
+| « Jacques a dit » | jeu de gestes vérifiés par la caméra (Chrome récent) |
+| « Pierre feuille ciseaux » | avec la main devant la caméra (Chrome récent) |
+| « On compte avec les doigts » | « Montre-moi 7 », « 2 + 3 avec tes doigts » (Chrome récent) |
+| « Le jeu des émotions » | il fait une tête, l'enfant l'imite |
+| « De quelle couleur est mon pull ? » | dit la couleur (du haut, ou de ce qu'on lui montre) |
+| « Les cris d'animaux » | il imite un animal, l'enfant devine |
+| « Chante Frère Jacques » | comptines traditionnelles, avec l'air en bips |
+| « Une aventure dont je suis le héros » | histoire à choix (grand cerveau) |
+| « Une histoire pour dormir » | histoire du soir, puis il s'endort (ne se réveille pas tout seul pendant 1 h) |
+| « C'est quand mon anniversaire ? » | compte les dodos (calendrier rempli par papa) |
 | « Apprends ma voix » / « Qui parle ? » | apprend une voix (3 petites phrases) / dit qui parle |
 | « Stop » / « Répète » / « Va dormir » | arrête / répète / s'endort |
+
+## Pour papa (⚙️)
+- **Bilan des 7 derniers jours** : temps de jeu, activités et réussite, phrases du journal, mots difficiles, humeur du jour.
+- **Rappels** à heure fixe (tous les jours, jours d'école, week-end) : il le dit, même s'il dormait.
+- **Calendrier** : anniversaires, vacances… Il compte les dodos et en parle au premier bonjour du jour.
+- **Temps de jeu par jour** : au bout du temps choisi, il dit au revoir et reste endormi jusqu'au lendemain (bouton +30 min).
+- **Garde-robot** (désactivé par défaut) : quand l'enfant revient, il dit quelles personnes connues il a vues. Rien n'est enregistré : tout s'efface quand l'appli se ferme.
+- Après 16 h, il demande une fois « comment s'est passée ta journée ? » et retient la réponse (visible dans le bilan).
 
 ## Les voix
 « Shadow, apprends ma voix » : il demande le prénom (ou reconnaît la personne à la caméra) et fait dire 3 petites phrases. Ensuite il sait qui lui parle (« Oui papa ? ») et adapte ses réponses. Il garde une **empreinte de voix** (des nombres calculés sur l'appareil), jamais d'enregistrement, et l'affine quand il voit la personne parler. C'est une reconnaissance simple : très sûre pour enfant / adulte, correcte entre les membres d'une famille. Il faut les oreilles Whisper (clé Groq). Papa voit et efface les voix dans ⚙️.

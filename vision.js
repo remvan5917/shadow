@@ -254,8 +254,107 @@ const VISION = (() => {
     return c.toDataURL('image/jpeg', 0.8);
   }
 
+  /* ---------- les mains et le corps (chargés seulement pour les jeux qui en ont besoin) ---------- */
+  const GESTURE_MODEL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task';
+  const POSE_MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+  let mpMod = null, mpFiles = null, gr = null, pl = null;
+  async function mp() {
+    if (!mpMod) {
+      mpMod = await new Function('u', 'return import(u)')(`${MP}/vision_bundle.mjs`);
+      mpFiles = await mpMod.FilesetResolver.forVisionTasks(`${MP}/wasm`);
+    }
+    return mpMod;
+  }
+  async function create(kind, model, extra) {
+    const m = await mp();
+    const opt = d => Object.assign({ baseOptions: { modelAssetPath: model, delegate: d }, runningMode: 'IMAGE' }, extra);
+    try { return await m[kind].createFromOptions(mpFiles, opt('GPU')); } catch (e) { return m[kind].createFromOptions(mpFiles, opt('CPU')); }
+  }
+  const d2 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  // doigts levés : le bout du doigt est plus loin du poignet que l'articulation du milieu
+  function countFingers(lm) {
+    let n = 0;
+    for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) if (d2(lm[tip], lm[0]) > d2(lm[pip], lm[0]) * 1.12) n++;
+    if (d2(lm[4], lm[5]) > d2(lm[2], lm[5]) * 1.25) n++; // le pouce, écarté de l'index
+    return n;
+  }
+  // Mains vues par la caméra : [{ gesture: 'Closed_Fist' | 'Open_Palm' | 'Victory' | …, fingers }]
+  async function hands() {
+    if (!on || !video.videoWidth) return [];
+    if (!gr) gr = await create('GestureRecognizer', GESTURE_MODEL, { numHands: 2 });
+    const r = gr.recognize(prepared(rot));
+    return (r.landmarks || []).map((lm, i) => {
+      const g = r.gestures && r.gestures[i] && r.gestures[i][0];
+      return { gesture: g ? g.categoryName : 'None', score: g ? g.score : 0, fingers: countFingers(lm) };
+    });
+  }
+  // Le corps : 33 points (0 = nez, 11/12 = épaules, 15/16 = poignets…), ou null
+  async function pose() {
+    if (!on || !video.videoWidth) return null;
+    if (!pl) pl = await create('PoseLandmarker', POSE_MODEL, { numPoses: 1 });
+    const r = pl.detect(prepared(rot));
+    return (r.landmarks && r.landmarks[0]) || null;
+  }
+  // Jacques a dit : la position demandée est-elle faite ? (l'image : y grandit vers le bas)
+  function poseTest(name, lm) {
+    if (!lm) return false;
+    const vis = (...ids) => ids.every(i => lm[i] && (lm[i].visibility === undefined || lm[i].visibility > 0.4));
+    const nose = lm[0], sl = lm[11], sr = lm[12], wl = lm[15], wr = lm[16];
+    const sw = Math.max(0.05, d2(sl, sr)); // largeur des épaules
+    if (name === 'bothUp') return vis(0, 15, 16) && wl.y < nose.y - sw * 0.8 && wr.y < nose.y - sw * 0.8; // bien au-dessus de la tête
+    if (name === 'oneUp') return vis(0) && ((vis(15) && wl.y < nose.y - sw * 0.5) || (vis(16) && wr.y < nose.y - sw * 0.5));
+    // mains sur la tête : à hauteur de la tête (pas tout en haut comme « bras levés »)
+    if (name === 'handsHead') return vis(0, 11, 12, 15, 16) && wl.y < sl.y && wr.y < sr.y && wl.y > nose.y - sw * 0.8 && wr.y > nose.y - sw * 0.8 && wl.y < nose.y + sw * 0.3 && wr.y < nose.y + sw * 0.3 && d2(wl, nose) < sw * 1.3 && d2(wr, nose) < sw * 1.3;
+    if (name === 'armsWide') return vis(11, 12, 15, 16) && Math.abs(wl.x - wr.x) > sw * 2.3 && Math.abs(wl.y - sl.y) < sw * 0.8 && Math.abs(wr.y - sr.y) < sw * 0.8;
+    if (name === 'handsShoulders') return vis(11, 12, 15, 16) && Math.min(d2(wl, sl), d2(wl, sr)) < sw * 0.55 && Math.min(d2(wr, sr), d2(wr, sl)) < sw * 0.55;
+    return false;
+  }
+  // Les couleurs : celle du haut (sous le visage) ou celle de ce qu'on montre au milieu
+  const probeC = document.createElement('canvas');
+  probeC.width = 24; probeC.height = 24;
+  function colorAt(kind) {
+    if (!on || !video.videoWidth) return null;
+    const saved = boost; boost = 1; // pas d'éclaircissement : il fausserait la couleur
+    const src = prepared(rot);
+    boost = saved;
+    const W = src.width || src.videoWidth, H = src.height || src.videoHeight;
+    let x0 = 0.35, y0 = 0.35, w = 0.3, h = 0.3;
+    if (kind === 'torso' && state.main) {
+      const fx = (state.main.cx + 1) / 2, fy = (state.main.cy + 1) / 2, fw = state.main.size, fh = fw * (W / H);
+      x0 = fx - fw * 0.6; w = fw * 1.2; y0 = fy + fh * 0.9; h = fh * 1.1;
+    }
+    x0 = Math.max(0, Math.min(0.95, x0)); y0 = Math.max(0, Math.min(0.95, y0));
+    w = Math.min(w, 1 - x0); h = Math.min(h, 1 - y0);
+    if (w < 0.03 || h < 0.03) return null;
+    const g = probeC.getContext('2d');
+    g.drawImage(src, x0 * W, y0 * H, w * W, h * H, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data;
+    let r = 0, gg = 0, b = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+    const n = d.length / 4;
+    return colorName(r / n, gg / n, b / n);
+  }
+  function colorName(r, g, b) {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), v = mx / 255, s = mx ? (mx - mn) / mx : 0;
+    let hue = 0;
+    if (mx !== mn) {
+      if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360;
+      else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120;
+      else hue = 60 * ((r - g) / (mx - mn)) + 240;
+    }
+    if (v < 0.18) return 'noir';
+    if (s < 0.18) return v > 0.78 ? 'blanc' : 'gris';
+    if (hue < 15 || hue >= 345) return v < 0.45 ? 'marron' : (s < 0.45 && v > 0.7 ? 'rose' : 'rouge');
+    if (hue < 45) return v < 0.6 ? 'marron' : 'orange';
+    if (hue < 70) return v < 0.5 ? 'marron' : 'jaune';
+    if (hue < 165) return 'vert';
+    if (hue < 255) return 'bleu';
+    if (hue < 290) return 'violet';
+    return s < 0.6 && v > 0.6 ? 'rose' : 'violet';
+  }
+
   return {
-    objects, snapshot,
+    objects, snapshot, hands, pose, poseTest, colorAt, colorName,
     supported: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
     start, stop, capture, identify, state,
     isOn: () => on,
