@@ -424,6 +424,16 @@ const ECRAN = (() => {
   };
   // avant « stop » (sinon « arrête le minuteur » arrêterait toute la conversation)
   function routeEarly(n) {
+    // « Shadow, mode vidéo » : il ne dit plus aucun prénom (pour filmer) ; « fin du mode vidéo » pour revenir
+    if (/\bmode (video|film|tournage)\b/.test(n)) {
+      const off = /\b(fin|arrete|arreter|stop|quitte|quitter|desactive|desactiver|enleve|termine|sors)\b/.test(n);
+      return () => {
+        S.settings.video = !off; save();
+        const box = $('#s-video'); if (box) box.checked = !off;
+        face.set(off ? 'happy' : 'proud');
+        return say(off ? "Fin du mode vidéo. Je redis les prénoms !" : 'Mode vidéo activé ! Je ne dis plus aucun prénom. Pour revenir, dis « fin du mode vidéo ».');
+      };
+    }
     if (R.timerStop.test(n)) return () => { const had = !!tm; stopTimer(); return say(had ? 'Minuteur arrêté !' : "Il n'y a pas de minuteur en route."); };
     if (R.timerLeft.test(n) && tm) return () => { const s = Math.ceil((tm.end - Date.now()) / 1000); return say(`Il reste ${s >= 60 ? `${Math.floor(s / 60)} minute${s >= 120 ? 's' : ''}${s % 60 ? ` et ${s % 60} secondes` : ''}` : `${s} secondes`}.`); };
     return null;
@@ -453,6 +463,8 @@ const ECRAN = (() => {
     if (st) st.textContent = S.settings.ville ? `Ville : ${S.settings.ville.name}${S.settings.ville.pays ? ` (${S.settings.ville.pays})` : ''}` : 'Pas de ville : Shadow ne donne pas la météo.';
   }
   function bindSettings() {
+    const vid = $('#s-video');
+    if (vid) { vid.checked = !!S.settings.video; vid.addEventListener('change', () => { S.settings.video = vid.checked; save(); }); }
     const btn = $('#s-ville-ok'), inp = $('#s-ville');
     if (!btn) return;
     renderVille();

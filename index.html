@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '32';
+      window.SHADOW_VERSION = '33';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -108,7 +108,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v32</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v33</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -157,6 +157,7 @@
       <h2>⚙️ Réglages de papa</h2>
       <p id="s-status" class="small muted"></p>
       <label>Prénom de l'inventeur <input id="s-prenom" type="text" maxlength="20" autocomplete="off"></label>
+      <label class="check"><input id="s-video" type="checkbox"> 🎬 Mode vidéo : Shadow ne dit aucun prénom (pour filmer). À la voix : « Shadow, mode vidéo » / « fin du mode vidéo ».</label>
       <fieldset>
         <legend>🧠 Le cerveau</legend>
         <label class="check"><input type="radio" name="s-brain" value="groq"> IA poussée → WiFi (Groq)</label>

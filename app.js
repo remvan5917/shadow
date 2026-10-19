@@ -13,7 +13,21 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const N = t => ORTHO.norm(t);
-const name = () => S.prenom || 'mon ami';
+const name = () => (S.settings && S.settings.video ? 'mon ami' : S.prenom || 'mon ami');
+// Mode vidéo (pour filmer) : aucun prénom n'est dit, ni écrit à l'écran
+const FAMILLE = /^(papa|maman|mamie|papi|papy|mami|tonton|tata|tatie|grand pere|grand mere|mamy)$/i;
+function anonymize(text) {
+  if (!S.settings || !S.settings.video) return text;
+  const names = [S.prenom].concat((S.people || []).map(x => x.name), (VOIX.people ? VOIX.people() : []).map(x => x.name || x))
+    .filter(n => n && typeof n === 'string' && n.length > 1 && !FAMILLE.test(n.trim()));
+  let t = String(text);
+  for (const n of names) {
+    const e = n.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    t = t.replace(new RegExp(`\\bd[’']${e}(?![A-Za-zÀ-ÿ])`, 'gi'), 'de mon ami')
+      .replace(new RegExp(`(^|[^A-Za-zÀ-ÿ])${e}(?![A-Za-zÀ-ÿ])`, 'gi'), (m, a) => `${a}mon ami`);
+  }
+  return t;
+}
 const deName = p => (/^[aeiouyhàâéèêëîïôöùûü]/i.test(p) ? `d'${p}` : `de ${p}`);
 const dateFR = t => new Date(t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -181,6 +195,7 @@ function subtitle(html, heard) {
 // Shadow parle (et affiche des sous-titres si papa les a activés)
 function say(text) {
   if (dlg.interrupt) return Promise.resolve(); // on vient de lui parler : il se tait et écoute
+  text = anonymize(text);
   lastSaid = text;
   $('#bubble').classList.remove('alert');
   $('#heard').textContent = '';
@@ -694,7 +709,7 @@ async function chatReply(text, hidden = false) {
     const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
-    const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
+    const msgs = [{ role: 'system', content: anonymize(sys) + (S.settings.video ? "\n\n(Mode vidéo : on te filme pour présenter le Projet SHADOW. Ne dis AUCUN prénom, dis « mon ami ». C'est sans doute papa qui te parle.)" : '') }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
     let queue = Promise.resolve(), bad = false, spoken = 0;
     let action = '', actionArg = '';
@@ -937,7 +952,7 @@ async function spellWord(c, w) {
   }
 }
 
-function journalTitle() { return S.prenom ? `Le journal ${deName(S.prenom)}` : 'Mon journal'; }
+function journalTitle() { return S.prenom && !S.settings.video ? `Le journal ${deName(S.prenom)}` : 'Mon journal'; }
 async function readJournal() {
   openJournal();
   if (!S.journal.length) return say('Ton journal est encore vide. Dis « on écrit dans mon journal » pour commencer !');

@@ -234,7 +234,7 @@ function cleanReply(t) {
 }
 
 const CERVEAU = {
-  prenom() { return S.prenom || 'mon ami'; },
+  prenom() { return S.settings && S.settings.video ? 'mon ami' : S.prenom || 'mon ami'; },
 
   // La fiche « Le cerveau » : gentil, bienveillant, bavard, sociable, enseigne, aime jouer,
   // protection des données, éthique et adapté à un enfant.

@@ -55,6 +55,9 @@ Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 ## Son visage
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
 
+## Mode vidéo (pour filmer en discutant avec lui)
+Dire **« Shadow, mode vidéo »** : il continue à discuter et à jouer normalement, mais ne dit plus aucun prénom, ni à voix haute ni à l'écran. Il dit « mon ami » à la place ; « papa » et « maman » restent. Pour revenir : **« fin du mode vidéo »**. On peut aussi cocher la case dans ⚙️, à côté du prénom. Le mode reste actif même si on ferme Shadow, jusqu'à ce qu'on l'arrête.
+
 ## Mode démo (pour filmer une vidéo)
 Ouvrir **https://remvan5917.github.io/shadow/demo/** (ou …/shadow/?demo), puis toucher l'écran : en une minute environ, Shadow se présente tout seul, à voix haute (sans sous-titres). Il montre ses expressions, l'encyclopédie (avec le guépard), un jeu et le minuteur, puis explique ce qu'il fera plus tard à la maison (domotique, déplacements, surveillance) et dehors. Dans ce mode, il n'écoute pas, n'ouvre pas la caméra, ne dit aucun prénom et n'enregistre rien. Il suffit de toucher à nouveau l'écran pour refaire une prise.
 
