@@ -55,6 +55,9 @@ Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 ## Son visage
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
 
+## Mode démo (pour filmer une vidéo)
+Ouvrir **https://remvan5917.github.io/shadow/?demo**, puis toucher l'écran : en une minute environ, Shadow se présente tout seul, avec des sous-titres. Il montre ses expressions, l'encyclopédie (avec le guépard), un jeu et le minuteur. Dans ce mode, il n'écoute pas, n'ouvre pas la caméra, ne dit aucun prénom et n'enregistre rien. Il suffit de toucher à nouveau l'écran pour refaire une prise.
+
 ## Partout, même sans WiFi
 Avec le WiFi, Shadow télécharge tout seul ses yeux (≈ 40 Mo, gardés d'une mise à jour à l'autre) ; on peut aussi appuyer sur ⚙️ → *Préparer le mode hors-ligne*. Ensuite, sans réseau (courses, voiture…) :
 - il garde son visage, sa voix, ses yeux et ses jeux de bord (dictée, calcul, l'heure, quiz, devinettes, Jacques a dit, comptines…) ; seul le grand cerveau (Groq) se met en pause (« mode exploration ») ;

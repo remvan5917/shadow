@@ -1466,6 +1466,7 @@ async function copyReport() {
 /* =================== TOUCHER L'ÉCRAN =================== */
 // Toucher le visage : le réveiller, l'interrompre, ou lui parler sans dire « Shadow »
 function tap() {
+  if (ECRAN.DEMO) return ECRAN.demo(); // mode démo (vidéo) : il se présente, sans écouter
   if (!dlg.started) { face.set('happy'); return firstStart(); }
   if (ECRAN.tapCancel()) return; // le brossage de dents ou la respiration s'arrête
   if (VISAGE.tapped()) return; // trois petites tapes : ça chatouille !
@@ -1872,7 +1873,8 @@ function boot() {
   applyLock();
   face.set('sleep');
   subtitle(null, null);
-  if (!S.prenom) $('#dlg-welcome').showModal();
+  if (/[?&]demo\b/.test(location.search)) $('#hint').firstChild.textContent = '▶️ Touche pour lancer la démo ';
+  else if (!S.prenom) $('#dlg-welcome').showModal();
   window.SHADOW_OK = true; // le filet de sécurité sait que tout a démarré
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* hors-ligne indisponible */ });

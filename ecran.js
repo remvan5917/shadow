@@ -489,6 +489,68 @@ const ECRAN = (() => {
     } else if (S.timer) { S.timer = null; save(); }
   }, 0);
 
-  return { route, routeEarly, tapCancel, savoir, meteo, meteoFact, ideas, subjectOf, lookup, durationOf, minuteur, startTimer, stopTimer,
+  /* =================== LE MODE DÉMO (pour filmer une vidéo) =================== */
+  // …/shadow/?demo : Shadow se présente tout seul, avec des sous-titres.
+  // Il n'écoute pas, n'ouvre pas la caméra, ne garde rien en mémoire et ne dit aucun prénom.
+  const DEMO = /[?&]demo\b/.test(location.search);
+  let demoOn = false;
+  async function demo() {
+    if (demoOn) return;
+    demoOn = true;
+    $('#hint').hidden = true;
+    voice.unlock(); fx.tone([[1, 0.01]]);
+    const keep = { subtitles: S.settings.subtitles, sound: S.settings.sound };
+    S.settings.subtitles = true; S.settings.sound = true; // seulement pour la démo : jamais enregistré
+    const de = document.documentElement;
+    if (de.requestFullscreen) de.requestFullscreen().catch(() => {});
+    const beat = ms => wait(ms);
+    const guep = net() ? lookup('guepard').catch(() => null) : Promise.resolve(null); // on prépare l'image en avance
+    await beat(900);
+    face.set('happy'); fx.wake(); VISAGE.puff('etoile', 4);
+    await say('Bip bop ! Bonjour, je suis Shadow, le robot du Projet SHADOW !');
+    face.set('idle');
+    await say("Mon visage a été dessiné par mon inventeur, un garçon de sept ans. Et c'est avec son papa qu'il me fabrique.");
+    await beat(300);
+    face.set('happy'); await say('Je peux être content…');
+    face.set('surprise'); VISAGE.puff('eclair', 2); await say('surpris !');
+    face.set('love'); VISAGE.puff('coeur', 4); await say('Plein de cœurs…');
+    face.set('sad'); await say('un peu triste…');
+    face.set('confused'); VISAGE.puff('question', 2); await say('perplexe…');
+    face.set('laugh'); VISAGE.puff('note', 3); fx.tone([[880, 0.07], [1175, 0.07], [988, 0.07], [1319, 0.07], [1047, 0.1]]);
+    await say('Et je rigole quand on me chatouille ! Hi hi hi !');
+    face.set('idle');
+    await say("On me parle avec la voix : il n'y a pas de bouton, juste mon visage. Je reconnais les visages et les voix de la famille, et tout reste dans le téléphone.");
+    const r = await guep;
+    if (r && r.img) {
+      face.set('think'); VISAGE.puff('question', 2);
+      await say("Je n'invente pas les réponses : je cherche dans une encyclopédie pour enfants. Montre-moi un guépard ?");
+      showBoard(`<div class="savoir"><img src="${esc(r.img)}" alt="" referrerpolicy="no-referrer"><h3>${esc(r.title)}</h3></div>`);
+      face.set('happy');
+      await say('Regarde ! Le guépard est le plus rapide des animaux de la terre.');
+      await beat(1200);
+      hideBoard();
+    }
+    face.set('idle');
+    showBoard(`<div class="mystere"><svg viewBox="0 0 200 180">${PIECES.slice(0, 3).map(p => p.replace(/class="p"/g, 'class="p on"')).join('')}${PIECES.slice(3).join('')}</svg><div class="mot">RO_OT</div><div class="rate">A S</div></div>`);
+    await say("J'aide à l'école : orthographe, dictée, lecture, calcul, l'heure, l'anglais… et des jeux, comme le robot mystère !");
+    hideBoard();
+    // minuteur d'exemple, sans rien enregistrer
+    tm = { end: Date.now() + 120000, total: 120, label: 'brossage', silent: true };
+    tm.iv = setInterval(drawTimer, 1000); drawTimer();
+    face.set('happy');
+    await say("Je lance aussi un minuteur pour le brossage des dents, je donne la météo, et je raconte une histoire pour dormir.");
+    await beat(600);
+    clearInterval(tm.iv); tm = null; drawTimer();
+    face.set('proud'); VISAGE.puff('etoile', 5); fx.ok(); fx.confetti(70);
+    await say('Et bientôt, on va me fabriquer un corps avec des roues ! À bientôt !');
+    await beat(1500);
+    face.set('sleep');
+    $('#bubble').hidden = true;
+    S.settings.subtitles = keep.subtitles; S.settings.sound = keep.sound;
+    $('#hint').hidden = false; // on peut la relancer (pour refaire une prise)
+    demoOn = false;
+  }
+
+  return { route, routeEarly, tapCancel, demo, DEMO, savoir, meteo, meteoFact, ideas, subjectOf, lookup, durationOf, minuteur, startTimer, stopTimer,
     brossageFlow, respirationFlow, mystereFlow, simonFlow };
 })();
