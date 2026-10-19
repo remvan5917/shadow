@@ -41,24 +41,29 @@ const OREILLES = (() => {
     return engine;
   }
 
+  // À appeler pendant un geste du doigt : crée/réveille l'audio (sinon le téléphone le laisse en pause)
+  function prime() {
+    if (!AC) return;
+    if (!ctx) ctx = new AC();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  }
   async function openMic() {
     if (!stream) {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      ctx = new AC();
+      if (!ctx) ctx = new AC();
       src = ctx.createMediaStreamSource(stream);
       proc = ctx.createScriptProcessor(4096, 1, 1);
       src.connect(proc);
       proc.connect(ctx.destination); // sortie muette, nécessaire pour que le micro « tourne »
       proc.onaudioprocess = e => onAudio(e.inputBuffer.getChannelData(0));
     }
-    if (ctx.state === 'suspended') await ctx.resume();
+    if (ctx.state === 'suspended') await Promise.race([ctx.resume(), new Promise(r => setTimeout(r, 1500))]);
   }
   function closeMic() {
     if (proc) proc.disconnect();
     if (src) src.disconnect();
     if (stream) stream.getTracks().forEach(t => t.stop());
-    if (ctx) ctx.close().catch(() => {});
-    ctx = stream = proc = src = null;
+    stream = proc = src = null;
   }
 
   /* ---------- détecteur de voix (sur l'appareil) ---------- */
@@ -186,7 +191,7 @@ const OREILLES = (() => {
   }
 
   return {
-    start, listen, cancel, mute,
+    start, prime, listen, cancel, mute,
     engine: () => engine,
     listening: () => !!pending,
     meter: () => ({ level, threshold, noise, lastHeard, speaking }),

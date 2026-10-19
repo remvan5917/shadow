@@ -450,7 +450,7 @@ html, body { overscroll-behavior: none; touch-action: manipulation; }
 /* le visage (320×232) prend la plus grande taille qui tient en largeur ET en hauteur */
 body.robot #face-wrap { width: min(96vw, calc((100dvh - 24px) * 1.3)) !important; }
 /* sous-titres visibles : le visage remonte et laisse la place au texte */
-body.robot:has(#bubble:not([hidden])) #stage { justify-content: flex-start; padding-top: 2dvh; }
+body.robot:has(#bubble:not([hidden])) #stage { justify-content: center; padding-bottom: 30dvh; }
 body.robot:has(#bubble:not([hidden])) #face-wrap { width: min(94vw, calc((100dvh - 34dvh) * 1.3)) !important; }
 body.robot .bubble { max-height: 28dvh; overflow-y: auto; }
 @media (max-height: 480px) {

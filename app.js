@@ -155,6 +155,11 @@ const voice = {
     });
   },
   stop() { if ('speechSynthesis' in window) speechSynthesis.cancel(); },
+  // première parole silencieuse, faite pendant le geste du doigt
+  unlock() {
+    if (!('speechSynthesis' in window)) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { /* rien */ }
+  },
 };
 
 let lastSaid = '';
@@ -894,7 +899,7 @@ async function meetFlow() {
 /* =================== TOUCHER L'ÉCRAN =================== */
 // Toucher le visage : le réveiller, l'interrompre, ou lui parler sans dire « Shadow »
 function tap() {
-  if (!dlg.started) return firstStart();
+  if (!dlg.started) { face.set('happy'); return firstStart(); }
   if (dlg.state === 'sleep') { pauseUntil = 0; return wake(); }
   if (voice.speaking) { voice.stop(); return; }
   if (dlg.state === 'standby') { dlg.state = 'talk'; dlg.silence = 0; dlg.sayNext = "Oui ? Je t'écoute !"; OREILLES.cancel(); }
@@ -1057,6 +1062,11 @@ function bindLock() {
 
 /* =================== DÉMARRAGE =================== */
 function bind() {
+  document.addEventListener('pointerdown', () => { OREILLES.prime(); if (fx.ctx && fx.ctx.state === 'suspended') fx.ctx.resume(); }, true);
+  // Une erreur ? On l'écrit à l'écran (sur téléphone, il n'y a pas d'autre moyen de la voir)
+  const showErr = msg => { mustShow = true; subtitle(esc(`Oups, petit bug : ${msg}`), null); };
+  window.addEventListener('error', e => showErr(e.message || 'erreur'));
+  window.addEventListener('unhandledrejection', e => showErr((e.reason && (e.reason.message || e.reason.name)) || String(e.reason)));
   $('#face-wrap').addEventListener('click', tap);
   $('#hint').addEventListener('click', tap);
   $('#btn-settings').addEventListener('click', openGate);
@@ -1067,11 +1077,14 @@ function bind() {
   });
   $$('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close('cancel')));
   $('#dlg-welcome').addEventListener('cancel', e => e.preventDefault());
-  $('#dlg-welcome').addEventListener('close', () => {
-    S.prenom = $('#w-prenom').value.trim().slice(0, 20);
+  const welcomeDone = () => {
+    if (dlg.started) return;
+    S.prenom = $('#w-prenom').value.trim().slice(0, 20) || S.prenom;
     save();
     firstStart();
-  });
+  };
+  $('#dlg-welcome .go').addEventListener('click', welcomeDone); // pendant le geste du doigt
+  $('#dlg-welcome').addEventListener('close', welcomeDone);
   $('#dlg-gate').addEventListener('close', () => {
     const g = $('#dlg-gate');
     if (g.returnValue !== 'ok') return;
@@ -1107,17 +1120,27 @@ function bind() {
 }
 
 // Premier toucher : le navigateur exige un geste pour autoriser le son et le micro
-async function firstStart() {
+// Attention : sur téléphone, le son et le micro ne s'ouvrent que PENDANT le geste du doigt.
+// Tout ce qui en a besoin est donc fait tout de suite, sans attendre.
+function firstStart() {
   if (dlg.started) return;
   dlg.started = true;
   $('#hint').hidden = true;
+  OREILLES.prime();        // réveille l'audio du micro maintenant
+  voice.unlock();          // débloque la voix (obligatoire sur iPhone/iPad)
+  fx.tone([[1, 0.01]]);    // débloque les bips
   const de = document.documentElement;
   if (de.requestFullscreen) de.requestFullscreen().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
-  fx.tone([[1, 0.01]]); // débloque le son
-  try { await OREILLES.start(); } catch (e) { console.warn('oreilles', e); }
-  if (S.settings.vision) visionToggle(true);
   wake();
-  life();
+  (async () => {
+    try {
+      await Promise.race([OREILLES.start(), wait(20000).then(() => { throw new Error('micro trop long à répondre'); })]);
+    } catch (e) {
+      console.warn('oreilles', e);
+    }
+    if (S.settings.vision) visionToggle(true);
+    life();
+  })();
 }
 
 function boot() {
