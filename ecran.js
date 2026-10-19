@@ -570,7 +570,7 @@ const ECRAN = (() => {
     clearInterval(tm.iv); tm = null; drawTimer();
     // la suite du projet : un robot autonome, à la maison et dehors
     face.set('think'); VISAGE.puff('eclair', 2);
-    await say("Mais je ne suis que le début. Bientôt, j'aurai un corps avec des roues, des caméras et des capteurs, et je serai complètement autonome.");
+    await say("Mais je ne suis que le début. Bientôt, j'aurai un corps complet, comme sur le schéma de mon inventeur, avec des moteurs, des caméras et des capteurs, et je serai complètement autonome.");
     showBoard(futurBoard('À la maison', [['bulb', "J'allume les lumières"], ['volet', 'Je ferme les volets'], ['thermo', 'Je règle le chauffage'], ['shield', 'Je veille sur la maison'], ['route', 'Je me déplace de pièce en pièce']]), 'solid');
     face.set('happy');
     await say("À la maison, j'allumerai les lumières, je fermerai les volets et je réglerai le chauffage. Je veillerai sur la maison et je préviendrai s'il y a un souci.");
