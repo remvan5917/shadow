@@ -160,9 +160,10 @@ const voice = {
 let lastSaid = '';
 let mustShow = false; // un problème à signaler : on l'affiche même sans sous-titres
 function subtitle(html, heard) {
-  $('#bubble').hidden = !(S.settings.subtitles || !voice.ok || !S.settings.sound || mustShow);
   if (heard) $('#heard').textContent = heard;
   if (html !== null) $('#bubble-text').innerHTML = html;
+  const empty = !$('#bubble-text').textContent.trim() && !$('#heard').textContent.trim();
+  $('#bubble').hidden = empty || !(S.settings.subtitles || !voice.ok || !S.settings.sound || mustShow);
 }
 // Shadow parle (et affiche des sous-titres si papa les a activés)
 function say(text) {
