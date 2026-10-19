@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '12';
+      window.SHADOW_VERSION = '13';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -90,7 +90,7 @@
           </g>
         </svg>
       </div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v12</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v13</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -209,10 +209,18 @@
         <p class="small muted">La sauvegarde (sans la clé Groq) permet de garder sa mémoire, son journal et les visages appris, ou de les mettre sur la tablette.</p>
       </fieldset>
       <fieldset>
+        <legend>🔑 Code secret de papa</legend>
+        <p id="s-pin-state" class="small"></p>
+        <label>Nouveau code (4 à 8 chiffres) <input id="s-pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
+        <label>Le même code encore une fois <input id="s-pin2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
+        <button type="button" id="s-pin-set" class="ghost">Enregistrer le code</button>
+        <p class="small muted">Seul ce code ouvre les réglages (5 erreurs = bloqué 5 minutes). Shadow ne garde pas le code, seulement son empreinte. Code oublié : il faut effacer les données du site dans Chrome, ce qui remet Shadow à zéro (pensez à la sauvegarde).</p>
+      </fieldset>
+      <fieldset>
         <legend>🔒 Mode verrouillé</legend>
         <label class="check"><input id="s-lock" type="checkbox"> Verrouiller Shadow (l'enfant ne peut pas en sortir par accident)</label>
         <p class="small muted">La roue ⚙️ disparaît. Pour revenir ici : rester appuyé <b>3 secondes dans le coin en haut à gauche</b>, puis le calcul secret. Plein écran forcé, bouton retour bloqué, pas de zoom.<br>
-        Pour bloquer complètement la tablette, activez aussi l'<b>épinglage d'écran</b> (Android : Paramètres → Sécurité → Épinglage d'application) ou l'<b>Accès guidé</b> (iPad : Réglages → Accessibilité → Accès guidé, puis triple-clic sur le bouton).</p>
+        Pour bloquer <b>complètement</b> le téléphone (boutons accueil et applis récentes compris), activez aussi l'<b>épinglage d'écran</b> d'Android avec le code du téléphone pour en sortir (voir LISEZMOI), ou l'<b>Accès guidé</b> sur iPad.</p>
       </fieldset>
       <fieldset>
         <legend>⏰ Pauses</legend>

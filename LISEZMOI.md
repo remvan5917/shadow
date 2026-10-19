@@ -34,9 +34,13 @@ Il ne garde jamais d'adresse, de téléphone, d'école, de santé ni de secrets.
 - la roue ⚙️ disparaît. Pour revenir aux réglages : **rester appuyé 3 secondes dans le coin en haut à gauche**, puis le calcul secret ;
 - le plein écran est forcé, le bouton retour d'Android est bloqué et le zoom au doigt est désactivé.
 
-Une page web ne peut pas bloquer le bouton d'accueil. Pour verrouiller complètement la tablette :
-- **Android** : Paramètres → Sécurité → *Épinglage d'application*, puis épingler Chrome ou l'appli Shadow ;
-- **iPad** : Réglages → Accessibilité → *Accès guidé*, puis triple-clic sur le bouton latéral dans Shadow.
+**Code secret de papa** (⚙️ → *Code secret de papa*) : une fois enregistré, seul ce code ouvre les réglages (5 erreurs = bloqué 5 minutes).
+
+Une page web ne peut pas bloquer le bouton d'accueil. Pour verrouiller **complètement** le téléphone :
+- **Android 8** : Paramètres → Sécurité et localisation (ou *Écran de verrouillage et sécurité*) → *Épinglage d'écran* → activer, et cocher **« Demander le code (ou le schéma) avant d'annuler l'épinglage »**. Ouvrir Shadow, puis le bouton carré (applis récentes) → icône 📌 sur Shadow. Pour en sortir, il faut rester appuyé sur ◀ et ■ en même temps, puis taper **le code du téléphone**. Le téléphone doit donc avoir un code de verrouillage que vous seul connaissez.
+- **iPad / iPhone** : Réglages → Accessibilité → *Accès guidé* → activer et choisir un code. Dans Shadow, triple-clic sur le bouton latéral → Démarrer.
+
+À savoir : personne ne peut empêcher d'éteindre le téléphone. Au redémarrage, l'épinglage et le code du téléphone protègent toujours.
 
 ## Sur tous les écrans
 Le visage prend la plus grande taille possible, que l'écran soit vertical ou horizontal (téléphone, tablette, ordinateur). **Plein écran** : toucher le visage passe en plein écran, et le remet si on en sort. Le mieux est de l'installer comme une appli (Chrome → menu ⋮ → *Ajouter à l'écran d'accueil* ; iPhone/iPad : Safari → Partager → *Sur l'écran d'accueil*) : il s'ouvre alors directement en plein écran, sans barre du navigateur. Sur iPhone, seule l'installation sur l'écran d'accueil enlève les barres, car Safari ne permet pas le plein écran d'une page.

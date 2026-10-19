@@ -1031,15 +1031,42 @@ function readSettingsForm() {
     visionModel: $('#s-vision-model').value.trim() || AI.VISION_MODEL,
   };
 }
+/* ---------- Code secret de papa ----------
+   On ne garde pas le code lui-même, seulement son empreinte (SHA-256 + sel). */
+async function pinHash(pin, salt) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const gate = { fails: 0, until: 0 };
 function openGate() {
   voice.stop();
-  const a = 6 + Math.floor(Math.random() * 4), b = 6 + Math.floor(Math.random() * 4);
   const g = $('#dlg-gate');
-  g.dataset.answer = a * b;
-  $('#gate-q').textContent = `Combien font ${a} × ${b} ?`;
+  if (Date.now() < gate.until) { toast(`Trop d'essais. Réessaie dans ${Math.ceil((gate.until - Date.now()) / 60000)} min.`); return; }
+  if (S.settings.pinHash) {
+    $('#gate-q').textContent = 'Code secret de papa :';
+    $('#gate-a').type = 'password';
+  } else {
+    const a = 6 + Math.floor(Math.random() * 4), b = 6 + Math.floor(Math.random() * 4);
+    g.dataset.answer = a * b;
+    $('#gate-q').textContent = `Combien font ${a} × ${b} ?`;
+    $('#gate-a').type = 'text';
+  }
   $('#gate-a').value = '';
   g.returnValue = '';
   g.showModal();
+}
+async function checkGate() {
+  const v = $('#gate-a').value.trim();
+  const ok = S.settings.pinHash
+    ? (await pinHash(v, S.settings.pinSalt)) === S.settings.pinHash
+    : parseInt(v, 10) === +$('#dlg-gate').dataset.answer;
+  if (ok) { gate.fails = 0; openSettings(); return; }
+  gate.fails++;
+  if (gate.fails >= 5) { gate.fails = 0; gate.until = Date.now() + 5 * 60000; toast('Trop d\'essais : coin de papa bloqué 5 minutes 🔒'); }
+  else toast(S.settings.pinHash ? 'Mauvais code 🔒' : 'Raté ! Ce coin est réservé à papa 😉');
+}
+function renderPinState() {
+  $('#s-pin-state').textContent = S.settings.pinHash ? '✅ Un code secret protège ce coin.' : '⚠️ Pas encore de code : le coin de papa n\'est protégé que par un calcul.';
 }
 function renderMemory() {
   const m = MEMOIRE.data();
@@ -1052,6 +1079,7 @@ function renderMemory() {
 function exportShadow() {
   const data = JSON.parse(JSON.stringify(S));
   data.settings.key = '';
+  delete data.settings.pinHash; delete data.settings.pinSalt;
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1099,6 +1127,7 @@ function openSettings() {
   $('#s-status').textContent = `Oreilles : ${({ whisper: 'Whisper (Groq), micro toujours ouvert', chrome: 'Chrome (Google)' })[OREILLES.engine()] || 'aucune'} · Yeux : ${VISION.isOn() ? 'ouverts' : 'fermés'}`;
   renderPeople();
   renderMemory();
+  renderPinState();
   $('#s-msg').textContent = '';
   $('#dlg-settings').returnValue = '';
   $('#dlg-settings').showModal();
@@ -1223,11 +1252,17 @@ function bind() {
   };
   $('#dlg-welcome .go').addEventListener('click', welcomeDone); // pendant le geste du doigt
   $('#dlg-welcome').addEventListener('close', welcomeDone);
-  $('#dlg-gate').addEventListener('close', () => {
-    const g = $('#dlg-gate');
-    if (g.returnValue !== 'ok') return;
-    if (parseInt($('#gate-a').value, 10) === +g.dataset.answer) openSettings();
-    else toast('Raté ! Ce coin est réservé à papa 😉');
+  $('#dlg-gate').addEventListener('close', () => { if ($('#dlg-gate').returnValue === 'ok') checkGate(); });
+  $('#s-pin-set').addEventListener('click', async () => {
+    const a = $('#s-pin').value.trim(), b = $('#s-pin2').value.trim();
+    if (!/^\d{4,8}$/.test(a)) { toast('Le code doit avoir 4 à 8 chiffres'); return; }
+    if (a !== b) { toast('Les deux codes ne sont pas pareils'); return; }
+    S.settings.pinSalt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    S.settings.pinHash = await pinHash(a, S.settings.pinSalt);
+    save();
+    $('#s-pin').value = ''; $('#s-pin2').value = '';
+    renderPinState();
+    toast('Code secret enregistré 🔒');
   });
   $$('input[name=s-brain]').forEach(r => r.addEventListener('change', brainVis));
   $('#s-test').addEventListener('click', testBrain);
