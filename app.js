@@ -278,6 +278,7 @@ function isEcho(t) {
   return a.filter(w => b.has(w)).length / a.length > 0.85;
 }
 const heardLog = [];
+const brainTimes = [];
 // Qui vient de parler ? (empreinte de voix + ce que voit la caméra)
 let lastPrint = null, voiceLearnAt = 0;
 function whoSpoke() {
@@ -669,7 +670,12 @@ async function chatReply(text, hidden = false) {
     const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
     let queue = Promise.resolve(), bad = false, spoken = 0;
-    const onSentence = sentence => {
+    let action = '';
+    const tAsk = performance.now();
+    const onSentence = raw0 => {
+      if (!spoken) { brainTimes.push(Math.round(performance.now() - tAsk)); if (brainTimes.length > 20) brainTimes.shift(); }
+      // le cerveau peut lancer une activité : [[devinette]], [[jacques]]… (jamais dit à voix haute)
+      const sentence = String(raw0).replace(/\[\[\s*([a-z_]+)\s*\]\]/gi, (m, a) => { action = a.toLowerCase(); return ''; }).replace(/\[\[[^\]]*$/, '').trim();
       if (bad || !sentence) return;
       if (ETHIQUE.safe(sentence) !== sentence) { bad = true; return; }
       if (!spoken++) face.set(/bravo|génial|super|youpi|hourra|gagné|trouvé/i.test(sentence) ? 'happy' : 'idle');
@@ -684,11 +690,15 @@ async function chatReply(text, hidden = false) {
       onSentence(raw);
     }
     await queue;
-    const reply = bad ? "Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?" : (raw || "Bip… j'ai perdu le fil. Tu peux répéter ?");
+    const m = String(raw || '').match(/\[\[\s*([a-z_]+)\s*\]\]/i);
+    if (m) action = m[1].toLowerCase();
+    const clean = String(raw || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
+    const reply = bad ? "Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?" : (clean || (action ? "C'est parti !" : "Bip… j'ai perdu le fil. Tu peux répéter ?"));
     if (bad || !spoken) await say(reply);
     S.chat.push({ role: 'assistant', content: reply });
     save();
     if (S.chat.length - S.memPos >= 16) memorize(); // longue discussion : on range au fur et à mesure
+    if (!bad && action && !dlg.interrupt) await runAction(action);
   } catch (e) {
     face.set('oops');
     // un message de robot (la vraie cause, mais sans jargon) ; le code technique va dans les réglages de papa
@@ -781,6 +791,20 @@ async function whoTalks() {
   if (id) { face.set('happy'); return say(id.sure ? `C'est toi, ${id.name} ! Je reconnais ta voix.` : `Je crois que c'est toi, ${id.name}. Je me trompe ?`); }
   face.flash('oops');
   return say("Hmm, je ne reconnais pas bien cette voix. Tu veux que je l'apprenne ? Dis « apprends ma voix ».");
+}
+
+// Les activités que le grand cerveau peut lancer lui-même
+async function runAction(a) {
+  const map = {
+    journal: journalFlow, dictee: dicteeMotsFlow, lecture: lectureFlow, heure: heureFlow, anglais: anglaisFlow,
+    calcul: () => calcFlow('mix'), quiz: () => quizFlow(''), devinette: devinetteFlow, cris: crisFlow,
+    jacques: jacquesFlow, pfc: pfcFlow, doigts: doigtsFlow, emotions: emotionsFlow, chanson: () => chanterFlow(''),
+    visage: meetFlow, voix: voiceFlow,
+  };
+  if (a === 'stop') { face.set('idle'); dlg.state = 'standby'; return; }
+  if (a === 'dormir') return goSleep();
+  if (a === 'histoire_soir') return histoireSoirFlow();
+  if (map[a]) return activity(map[a]);
 }
 
 /* =================== LE JOURNAL (épeler à voix haute) =================== */
@@ -1297,6 +1321,65 @@ function renderOffline() {
     : '⚠️ Pas encore préparé : appuyez sur le bouton avec le WiFi.';
 }
 
+/* =================== AUTO-TEST ET RAPPORT (pour régler Shadow avec de vrais chiffres) =================== */
+const diag = {};
+const avg = a => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null);
+async function autoTest() {
+  const out = $('#s-diag');
+  const line = (k, v) => { diag[k] = v; out.innerHTML += `<div class="small">${esc(k)} : <b>${esc(String(v))}</b></div>`; };
+  out.innerHTML = '';
+  line('Version', `v${window.SHADOW_VERSION}${LEGACY ? ' (mode vieux téléphone)' : ''}`);
+  const fr = ('speechSynthesis' in window) ? speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang)) : [];
+  line('Voix', voice.v ? `${voice.v.name}${voice.v.localService ? ' (sur le téléphone)' : ' (par Internet)'} — ${fr.length} voix françaises` : 'aucune voix française');
+  line('Réseau', navigator.onLine === false ? 'hors ligne' : AI.online() ? 'en ligne' : 'coupé récemment');
+  line('Oreilles', OREILLES.engine() || 'aucune');
+  out.innerHTML += '<div class="small">🎤 Parle pendant 3 secondes…</div>';
+  let peak = 0;
+  const t0 = Date.now();
+  await new Promise(r => { const iv = setInterval(() => { peak = Math.max(peak, OREILLES.meter().level); if (Date.now() - t0 > 3000) { clearInterval(iv); r(); } }, 50); });
+  const m = OREILLES.meter();
+  line('Micro', OREILLES.engine() === 'whisper' ? `voix max ${peak.toFixed(3)} / seuil ${m.threshold.toFixed(3)} / bruit ${m.noise.toFixed(4)} → ${peak > m.threshold * 1.5 ? 'OK' : 'trop faible : rapprochez-vous ou montez la sensibilité'}` : 'jauge seulement avec les oreilles Whisper');
+  if (AI.canTranscribe()) {
+    const sr = 16000, n = sr, b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    const t1 = performance.now();
+    try { await AI.transcribe(new Blob([b], { type: 'audio/wav' })); line('Oreilles (aller-retour)', `${Math.round(performance.now() - t1)} ms`); } catch (e) { line('Oreilles (aller-retour)', `erreur : ${e.message}`); }
+  }
+  if (AI.ready()) {
+    const t2 = performance.now();
+    try { await AI.chat([{ role: 'user', content: 'Réponds juste : ok' }], { maxTokens: 10 }); line('Cerveau (aller-retour)', `${Math.round(performance.now() - t2)} ms (${S.settings.model})`); } catch (e) { line('Cerveau (aller-retour)', `erreur : ${e.message}`); }
+  } else line('Cerveau', AI.hasKey() ? 'pas de réseau' : 'pas de clé');
+  line('Yeux', VISION.isOn() ? `ouverts, ${VISION.state.faces.length} visage(s) vu(s), ${VISION.cost()} ms par image` : 'fermés');
+  try {
+    const c = await caches.open('shadow-modeles'); const k = await c.keys();
+    line('Hors-ligne', `${k.length} fichiers de modèles gardés${S.offlineAt ? ', préparé' : ', pas encore préparé'}`);
+  } catch (e) { line('Hors-ligne', 'réserve indisponible'); }
+  out.innerHTML += '<div class="small">✅ Fini. Appuyez sur « Copier le rapport » et collez-le à Claude.</div>';
+}
+function reportText() {
+  const s = Object.assign({}, S.settings);
+  delete s.key; delete s.pinHash; delete s.pinSalt; delete s.reminders; delete s.events;
+  let crash = null;
+  try { crash = localStorage.getItem(BOOT_KEY); } catch (e) { /* rien */ }
+  return [
+    `Rapport Shadow v${window.SHADOW_VERSION} — ${new Date().toLocaleString('fr-FR')}`,
+    `Navigateur : ${navigator.userAgent}`,
+    `Mode vieux téléphone : ${LEGACY} · réseau : ${navigator.onLine === false ? 'hors ligne' : 'en ligne'} · oreilles : ${OREILLES.engine()} · yeux : ${VISION.isOn() ? `ouverts (${VISION.cost()} ms/image)` : 'fermés'}`,
+    `Temps moyens : oreilles ${avg(OREILLES.timings()) || '?'} ms · cerveau (1re phrase) ${avg(brainTimes) || '?'} ms`,
+    `Dernière erreur du cerveau : ${S.lastBrainError ? `${S.lastBrainError.msg} (${new Date(S.lastBrainError.at).toLocaleString('fr-FR')})` : 'aucune'}${crash ? ` · plantage détecté : ${crash}` : ''}`,
+    `Auto-test : ${Object.keys(diag).length ? Object.entries(diag).map(([k, v]) => `${k} = ${v}`).join(' | ') : 'pas lancé'}`,
+    `Réglages : ${JSON.stringify(s)}`,
+    'Ce que Shadow a entendu (❓ = mal entendu) :',
+    ...heardLog.map(h => `  ${new Date(h.at).toLocaleTimeString('fr-FR')} ${h.ok ? '🎤' : '❓'} « ${h.t} »`),
+  ].join('\n');
+}
+async function copyReport() {
+  const txt = reportText();
+  try { await navigator.clipboard.writeText(txt); toast('📋 Rapport copié : collez-le à Claude'); }
+  catch (e) { const ta = $('#s-diag-text'); ta.hidden = false; ta.value = txt; ta.select(); try { document.execCommand('copy'); toast('📋 Rapport copié'); } catch (e2) { toast('Sélectionnez le texte et copiez-le'); } }
+}
+
 /* =================== TOUCHER L'ÉCRAN =================== */
 // Toucher le visage : le réveiller, l'interrompre, ou lui parler sans dire « Shadow »
 function tap() {
@@ -1341,6 +1424,7 @@ function readSettingsForm() {
     ears: $('#s-ears').value,
     micSens: $('#s-mic-sens').value,
     bargeIn: $('#s-barge').checked,
+    micNS: $('#s-ns').checked,
     lock: $('#s-lock').checked,
     pause: +$('#s-pause').value,
     vision: $('#s-vision').checked,
@@ -1442,6 +1526,7 @@ function openSettings() {
   $('#s-ears').value = s.ears;
   $('#s-mic-sens').value = s.micSens;
   $('#s-barge').checked = s.bargeIn !== false;
+  $('#s-ns').checked = s.micNS !== false;
   $('#s-heard').innerHTML = heardLog.length ? heardLog.slice().reverse().map(h => `<div class="person"><span>${h.ok ? '🎤' : '❓'} ${new Date(h.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} « ${esc(h.t)} »</span></div>`).join('') : '<p class="small muted">Rien encore depuis l’ouverture de l’appli.</p>';
   $('#s-lock').checked = s.lock;
   meterLoop();
@@ -1601,6 +1686,8 @@ function bind() {
     if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
   });
   $('#s-offline').addEventListener('click', () => preloadOffline(true));
+  $('#s-diag-run').addEventListener('click', autoTest);
+  $('#s-diag-copy').addEventListener('click', copyReport);
   $('#s-voices').addEventListener('click', e => {
     const b = e.target.closest('[data-forget-voice]');
     if (b && confirm('Shadow va oublier cette voix. Continuer ?')) { S.voices = VOIX.people().filter(p => String(p.id) !== b.dataset.forgetVoice); save(); renderVoices(); }
@@ -1631,6 +1718,7 @@ function bind() {
     applyLock();
     subtitle(null, null);
     if (S.settings.vision !== VISION.isOn()) visionToggle(S.settings.vision);
+    if (dlg.started && before.micNS !== S.settings.micNS && OREILLES.engine() === 'whisper') { try { await OREILLES.reopen(); } catch (e) { /* rien */ } }
     if (dlg.started && (before.ears !== S.settings.ears || before.key !== S.settings.key)) {
       OREILLES.cancel();
       try { await OREILLES.start(); } catch (e) { toast('Micro indisponible'); }

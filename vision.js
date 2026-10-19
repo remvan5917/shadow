@@ -58,6 +58,7 @@ const VISION = (() => {
   }
   // Téléphone tenu à l'horizontale : si personne n'est vu pendant un moment, on essaie l'image tournée
   let rot = 0, empty = 0, lastRotTry = -60000; // vérifie le sens dès le début
+  let cost = 50; // temps moyen d'une image (ms) : si le téléphone peine, les yeux ralentissent
   // Compare les 4 sens de l'image et garde celui où les visages sont trouvés le plus sûrement
   async function findRotation(force) {
     const now = performance.now();
@@ -136,12 +137,16 @@ const VISION = (() => {
     if (!on) return;
     const t0 = performance.now();
     try {
-      if (!capturing && video.readyState >= 2 && video.videoWidth > 0) {
+      // pendant qu'on lui parle, les yeux se reposent : le téléphone garde toute sa force pour bien entendre
+      const busyEars = typeof OREILLES !== 'undefined' && OREILLES.hearing();
+      if (!capturing && !busyEars && video.readyState >= 2 && video.videoWidth > 0) {
         frame++;
+        const s = performance.now();
         if (frame % 6 === 0) await analyse(); else await track();
+        cost = cost * 0.8 + (performance.now() - s) * 0.2;
       }
     } catch (e) { /* image ratée, on continue */ }
-    timer = setTimeout(tick, Math.max(60, 180 - (performance.now() - t0)));
+    timer = setTimeout(tick, Math.max(60, Math.max(180, cost * 3) - (performance.now() - t0)));
   }
   async function track() {
     const src = source();
@@ -369,6 +374,7 @@ const VISION = (() => {
     supported: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
     start, stop, capture, identify, state,
     isOn: () => on,
+    cost: () => Math.round(cost),
     isLoading: () => !!loading && !api,
     on: (ev, fn) => handlers[ev].push(fn),
   };

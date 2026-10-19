@@ -51,7 +51,8 @@ const OREILLES = (() => {
   }
   async function openMic() {
     if (!stream) {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      // le filtre anti-bruit du téléphone peut abîmer une voix d'enfant : papa peut le couper dans les réglages
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: S.settings.micNS !== false, autoGainControl: true } });
       if (!ctx) ctx = new AC();
       src = ctx.createMediaStreamSource(stream);
       proc = ctx.createScriptProcessor(2048, 1, 1); // petits morceaux (~45 ms) : il réagit plus vite
@@ -139,6 +140,15 @@ const OREILLES = (() => {
     }
     return out;
   }
+  // Une voix faible (loin du micro, voix d'enfant) est montée au bon volume avant l'envoi
+  const timings = [];
+  function louder(chunks) {
+    let peak = 0;
+    for (const c of chunks) for (let i = 0; i < c.length; i++) { const a = Math.abs(c[i]); if (a > peak) peak = a; }
+    if (!peak || peak > 0.5) return chunks;
+    const g = Math.min(8, 0.7 / peak);
+    return chunks.map(c => c.map(x => x * g));
+  }
   function wav(chunks) {
     const len = chunks.reduce((a, c) => a + c.length, 0);
     const b = new ArrayBuffer(44 + len * 2), v = new DataView(b);
@@ -175,7 +185,9 @@ const OREILLES = (() => {
     // empreinte de la voix, calculée sur l'appareil (jamais envoyée)
     try { lastPrint = (typeof VOIX !== 'undefined') ? VOIX.print(audio) : null; } catch (e) { lastPrint = null; }
     try {
-      const t = await AI.transcribe(wav(audio), p.prompt);
+      const t0 = performance.now();
+      const t = await AI.transcribe(wav(louder(audio)), p.prompt);
+      timings.push(Math.round(performance.now() - t0)); if (timings.length > 20) timings.shift();
       if (pending !== p) return;
       p.busy = false;
       lastHeard = t.trim() || '(rien compris)';
@@ -248,6 +260,8 @@ const OREILLES = (() => {
     engine: () => engine,
     listening: () => !!pending,
     meter: () => ({ level, threshold, noise, lastHeard, speaking }),
+    timings: () => timings.slice(),
+    reopen: async () => { closeMic(); return start(); },
     takePrint: () => { const p = lastPrint; lastPrint = null; return p; },
     hearing: () => speaking || !!(pending && pending.busy),
     on: (ev, fn) => handlers[ev].push(fn),

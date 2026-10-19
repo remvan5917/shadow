@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '25';
+      window.SHADOW_VERSION = '26';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -91,7 +91,7 @@
         </svg>
       </div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v25</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v26</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -181,6 +181,7 @@
             <option value="max">Très haute (voix douce, micro loin)</option>
           </select>
         </label>
+        <label class="check"><input id="s-ns" type="checkbox" checked> Filtre anti-bruit du téléphone (à couper si Shadow comprend mal une voix d'enfant)</label>
         <label class="check"><input id="s-barge" type="checkbox" checked> Shadow se tait quand on lui parle fort pendant qu'il parle (toucher son visage marche aussi)</label>
         <details><summary class="small">🎤 Ce que Shadow a entendu (depuis l'ouverture de l'appli)</summary><div id="s-heard" class="people mem"></div><p class="small muted">❓ = phrase mal entendue. Rien n'est enregistré : la liste s'efface quand l'appli se ferme.</p></details>
         <div class="mic-test">
@@ -215,6 +216,13 @@
         </div>
         <input id="s-import-file" type="file" accept="application/json,.json" hidden>
         <p class="small muted">La sauvegarde (sans la clé Groq) permet de garder sa mémoire, son journal et les visages appris, ou de les mettre sur la tablette.</p>
+      </fieldset>
+      <fieldset>
+        <legend>🩺 Auto-test et rapport</legend>
+        <div class="row"><button type="button" id="s-diag-run" class="ghost">🩺 Lancer l'auto-test</button><button type="button" id="s-diag-copy" class="ghost">📋 Copier le rapport pour Claude</button></div>
+        <div id="s-diag"></div>
+        <textarea id="s-diag-text" rows="6" hidden></textarea>
+        <p class="small muted">Le rapport contient les réglages (sans la clé ni le code), les temps de réponse et ce que Shadow a entendu depuis l'ouverture de l'appli. Rien n'est envoyé : c'est vous qui le collez.</p>
       </fieldset>
       <fieldset>
         <legend>📴 Sans WiFi (courses, voiture…)</legend>
