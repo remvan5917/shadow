@@ -479,3 +479,6 @@ dialog.poly[open] { position: fixed; inset: 0; margin: auto; height: fit-content
   dialog { max-height: calc(100vh - 40px); }
   .bubble p + p, .dlg > * + * { margin-top: 10px; }
 }
+
+.mem { max-height: 220px; overflow-y: auto; }
+.mem .person span { font-size: 15px; }

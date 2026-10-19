@@ -33,6 +33,8 @@ function fresh() {
     chat: [],
     stats: { words: 0, first: 0, quiz: 0, calc: 0, dev: 0, hunt: 0 },
     cur: null,
+    memory: { facts: [], summaries: [], hard: [] }, // la mémoire à long terme (voir MEMOIRE dans cerveau.js)
+    memPos: 0, // jusqu'où la conversation a déjà été « rangée » dans la mémoire
   };
 }
 function load() {
@@ -280,6 +282,10 @@ const RE = {
   hello: /^(bonjour|salut|coucou|hello|yo|bonsoir)\b/,
   howareyou: /\b(ca va|comment vas tu|comment tu vas|tu vas bien)\b/,
   thanks: /\b(merci)\b/,
+  remember: /\b(souviens toi que|retiens que|n oublie pas que|rappelle toi que|souviens toi bien que|note que)\b/,
+  recall: /\b(qu est ce que tu sais (sur|de) moi|tu te souviens de quoi|qu est ce que tu te rappelles|tu te souviens de moi|qu est ce que tu sais de moi|ta memoire)\b/,
+  forget: /\b(oublie tout|efface ta memoire|vide ta memoire)\b/,
+  revise: /\b(mots difficiles|reviser|revision|on revise|mes mots)\b/,
   dontknow: /\b(je sais pas|je ne sais pas|aucune idee|langue au chat|donne la reponse|dis moi la reponse|c est quoi la reponse|j abandonne|je donne ma langue)\b/,
 };
 const isNo = t => RE.no.test(N(t));
@@ -336,7 +342,7 @@ async function activity(fn) {
 // La boucle de vie de Shadow : il écoute, comprend, répond… tout le temps.
 async function life() {
   for (;;) {
-    if (dlg.sayNext) { const s = dlg.sayNext; dlg.sayNext = null; await say(s); }
+    if (dlg.sayNext) { const s = dlg.sayNext; dlg.sayNext = null; if (typeof s === 'function') await s(); else await say(s); }
     if (dlg.state === 'sleep') {
       // Endormi : il se réveille si on l'appelle « Shadow » (ou s'il voit quelqu'un, ou si on le touche)
       const t = await hear({ maxWait: 60000, face: 'sleep' });
@@ -370,7 +376,16 @@ async function life() {
   }
 }
 
+// Range la conversation récente dans la mémoire à long terme (en arrière-plan)
+function memorize(force) {
+  if (S.memPos > S.chat.length) S.memPos = 0;
+  const news = S.chat.slice(S.memPos).filter(m => !m.hidden);
+  if (news.filter(m => m.role === 'user').length < (force ? 1 : 2)) return;
+  S.memPos = S.chat.length; save();
+  MEMOIRE.consolidate(news).catch(e => console.warn('mémoire', e));
+}
 function toStandby() {
+  memorize(true);
   dlg.state = 'standby';
   face.set('idle');
   say('Je reste là. Dis « Shadow » quand tu veux me parler !');
@@ -380,16 +395,35 @@ function wake(who) {
   sessionStart = Date.now(); pauseDone = false;
   dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
   fx.wake(); face.set('happy');
-  dlg.sayNext = greeting(who);
+  dlg.sayNext = () => memoryGreeting(who);
   OREILLES.cancel();
 }
 function goSleep(withWords = true) {
+  memorize(true);
   dlg.state = 'sleep';
   OREILLES.cancel();
   if (withWords) {
     say(pick([`Bonne nuit ${name()} ! Bip… bip… zzz.`, 'À plus tard ! Je fais une petite sieste.', 'Au revoir ! Appelle-moi quand tu veux.']))
       .then(() => dlg.state === 'sleep' && face.set('sleep'));
   } else face.set('sleep');
+}
+// Bonjour « avec souvenirs » : le grand cerveau peut parler de ce qu'il a retenu
+async function memoryGreeting(who) {
+  const n = who || name();
+  if (dlg.greeted === 0 || !AI.ready() || !MEMOIRE.data().facts.length && !MEMOIRE.data().summaries.length) return say(greeting(who));
+  dlg.greeted++;
+  face.set('happy');
+  try {
+    const r = await Promise.race([
+      AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
+        { role: 'user', content: `(${n} vient d'arriver devant toi.) Dis-lui bonjour en 1 ou 2 phrases courtes. Si c'est naturel, parle d'un souvenir de ta mémoire (une question sur un événement prévu, un goût…). Termine par une proposition ou une question.` }],
+      { maxTokens: 120, temperature: 0.8 }),
+      wait(5000).then(() => ''),
+    ]);
+    if (r) return say(ETHIQUE.safe(r));
+  } catch (e) { /* on dit bonjour normalement */ }
+  dlg.greeted--;
+  return say(greeting(who));
 }
 function greeting(who) {
   const n = who || name();
@@ -417,6 +451,10 @@ async function handle(text) {
   if (RE.closeJournal.test(n)) { closeJournal(); return say("C'est rangé !"); }
   if (RE.readJournal.test(n)) return readJournal();
   if (RE.meet.test(n)) return activity(meetFlow);
+  if (RE.remember.test(n)) return rememberThat(text);
+  if (RE.recall.test(n)) return recall();
+  if (RE.forget.test(n)) { face.flash('oops'); return say("Ma mémoire, c'est précieux ! Seul papa peut l'effacer, dans les réglages."); }
+  if (RE.revise.test(n)) return activity(reviseFlow);
   if (RE.who.test(n)) return whoFlow();
   if (RE.hunt.test(n)) return activity(huntFlow);
   if (RE.what.test(n)) return whatFlow();
@@ -484,24 +522,65 @@ async function chatReply(text, hidden = false) {
   }
   const m = hidden ? { text, hidden: false } : PRIVE.mask(text);
   S.chat.push({ role: 'user', content: m.text, hidden });
-  if (S.chat.length > 60) S.chat = S.chat.slice(-60);
+  if (S.chat.length > 60) { const cut = S.chat.length - 60; S.chat = S.chat.slice(-60); S.memPos = Math.max(0, S.memPos - cut); }
   save();
   if (m.hidden) await say("Chut ! Ça, c'est un secret de famille : je ne l'ai pas envoyé à mon cerveau.");
   face.set('think');
   try {
     const vus = VISION.state.faces.map(f => f.name).filter(Boolean);
-    const sys = CERVEAU.personality() + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '');
+    const sys = CERVEAU.personality() + MEMOIRE.context() + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '');
     const raw = await AI.chat([{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))],
       { maxTokens: 260, temperature: 0.8 });
     const reply = ETHIQUE.safe(raw || "Bip… j'ai perdu le fil. Tu peux répéter ?");
     S.chat.push({ role: 'assistant', content: reply });
     save();
+    if (S.chat.length - S.memPos >= 16) memorize(); // longue discussion : on range au fur et à mesure
     face.set(/bravo|génial|super|youpi|hourra|gagné|trouvé/i.test(reply) ? 'happy' : 'idle');
     await say(reply);
   } catch (e) {
     face.set('oops');
     await say(/401|invalid|key/i.test(e.message) ? "Ma clé d'intelligence ne marche pas. Demande à papa de vérifier les réglages." : 'Oups, mon cerveau ne répond pas. Le WiFi est peut-être coupé.');
   }
+}
+
+/* =================== LA MÉMOIRE (à voix haute) =================== */
+// « Souviens-toi que mon chat s'appelle Moustache »
+async function rememberThat(text) {
+  const m = String(text).match(/(souviens[- ]toi (bien )?que|retiens que|n'?\s?oublie pas que|rappelle[- ]toi que|note que)\s+(.+)/i);
+  let fact = m ? m[3].trim() : '';
+  if (!fact) return say("Qu'est-ce que je dois retenir ? Dis-moi « souviens-toi que », puis la chose à retenir.");
+  // « mon chat… » → « le chat de (prénom)… » (pour que le souvenir reste clair plus tard)
+  const n = name();
+  fact = fact.replace(/\b(mon|ma|mes)\b/gi, w => ({ mon: 'le', ma: 'la', mes: 'les' })[w.toLowerCase()] + '') ;
+  fact = `${n} : ${fact.charAt(0).toUpperCase()}${fact.slice(1)}`.replace(/[.!]*$/, '.');
+  if (MEMOIRE.add(fact, n, 'enfant')) { face.set('happy'); fx.ok(); return say("C'est rangé dans ma mémoire ! Je ne l'oublierai pas."); }
+  face.flash('oops');
+  return say(PRIVE.mask(fact).hidden ? "Ça, c'est un secret de famille : je préfère ne pas le garder dans ma mémoire." : 'Je le savais déjà !');
+}
+async function recall() {
+  const m = MEMOIRE.data();
+  if (!m.facts.length) return say("Ma mémoire est encore toute neuve ! Raconte-moi des choses sur toi, ou dis « souviens-toi que… ».");
+  face.set('happy');
+  if (AI.ready()) {
+    try {
+      const r = await AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
+        { role: 'user', content: `(${name()} te demande ce dont tu te souviens.) Raconte-lui 3 ou 4 choses de ta mémoire, joyeusement, en lui parlant (« tu adores… »). 3 phrases maximum.` }], { maxTokens: 200 });
+      if (r) return say(ETHIQUE.safe(r));
+    } catch (e) { /* on lit la mémoire telle quelle */ }
+  }
+  return say(`Je me souviens de plein de choses ! ${m.facts.slice(-4).map(f => f.text).join(' ')}`);
+}
+// « On révise mes mots difficiles »
+async function reviseFlow() {
+  const hard = MEMOIRE.data().hard.slice(-5);
+  if (!hard.length) return say("Tu n'as pas de mots difficiles en ce moment. Bravo ! On écrit dans ton journal ?");
+  await say(`On révise ! Tu as ${hard.length} mot${hard.length > 1 ? 's' : ''} qui t'ont donné du fil à retordre. On essaie encore ?`);
+  for (const h of hard) {
+    const c = { text: h.t, words: [], tries: 0, hints: [] };
+    await spellWord(c, { w: h.t, t: h.t, spell: true });
+  }
+  face.set('happy'); fx.confetti(40);
+  await say('Révision terminée ! Ton cerveau devient de plus en plus fort.');
 }
 
 /* =================== LE JOURNAL (épeler à voix haute) =================== */
@@ -540,6 +619,7 @@ async function journalFlow() {
     const sp = c.words.filter(w => w.spell);
     const stars = sp.filter(w => w.star).length;
     S.journal.unshift({ id: Date.now(), at: Date.now(), text: ORTHO.format(c.words.map(w => w.w).join(' ')), stars, n: sp.length });
+    MEMOIRE.event(`${name()} a écrit dans son journal : « ${ORTHO.format(c.text)} » (${stars} étoile${stars > 1 ? 's' : ''}).`);
     S.cur = null; save();
     face.set('happy'); fx.ok(); fx.confetti(60);
     await say(`Bip-hourra ! Ta phrase est finie, et tu as gagné ${stars} étoile${stars > 1 ? 's' : ''} ! Je l'ai rangée dans ma mémoire.`);
@@ -566,10 +646,13 @@ async function spellWord(c, w) {
     const a = letters.join('');
     if (ORTHO.same(a, w.t)) {
       w.done = true; w.star = c.tries === 0;
+      if (c.tries >= 2) MEMOIRE.hardWord(w.t, c.tries); // un mot à réviser plus tard
+      const mastered = c.tries === 0 && MEMOIRE.mastered(w.t);
       S.stats.words++; if (w.star) S.stats.first++;
       save();
       face.set('happy'); fx.ok(); fx.confetti(24);
       await say(`VALIDÉ ! ${pick(['Bravo', 'Génial', 'Trop fort', 'Super'])} ${name()} !${w.star ? ' Du premier coup, une étoile !' : ''} ${spellOut(w.t)}. Écris ce mot en MAJUSCULES D'IMPRIMERIE dans ton journal.`);
+      if (mastered) { fx.confetti(30); await say("Et tu te souviens ? Ce mot était difficile pour toi… Je le retire de mes mots difficiles !"); }
       // il attend que l'enfant ait fini d'écrire
       try { await ask("Dis-moi « c'est écrit » quand tu as fini !", { wait: 90000, retry: 1 }); } catch (e) { if (e.message !== 'silence') throw e; }
       return;
@@ -641,6 +724,7 @@ async function calcFlow() {
     }
   }
   S.stats.calc += score; save();
+  MEMOIRE.event(`Calcul mental : ${score} sur 5.`);
   face.set('happy'); if (score >= 3) { fx.ok(); fx.confetti(40); }
   await say(`Tu as ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur 5 ! ${score === 5 ? 'Parfait, champion !' : score >= 3 ? 'Très bon score !' : "On s'entraînera encore !"}`);
 }
@@ -677,6 +761,7 @@ async function quizFlow(th) {
     await say(`${ok ? pick(['Bravo !', 'Bonne réponse !', 'Exact !']) : `La bonne réponse était ${'ABC'[q.c]} : ${q.o[q.c]}.`} ${q.e}`);
   }
   S.stats.quiz += score; save();
+  MEMOIRE.event(`Quiz ${th ? `sur ${JEUX.THEMES[th].nom.toLowerCase()}` : 'surprise'} : ${score} sur 5.`);
   face.set('happy'); if (score >= 3) { fx.ok(); fx.confetti(40); }
   await say(`Tu as ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur 5 ! ${score === 5 ? 'Tu es un vrai savant !' : score >= 3 ? 'Bravo !' : 'On rejouera !'}`);
 }
@@ -956,6 +1041,38 @@ function openGate() {
   g.returnValue = '';
   g.showModal();
 }
+function renderMemory() {
+  const m = MEMOIRE.data();
+  $('#s-mem-count').textContent = `${m.facts.length} souvenir${m.facts.length > 1 ? 's' : ''} · ${m.summaries.length} résumé${m.summaries.length > 1 ? 's' : ''} d'activités · ${m.hard.length} mot${m.hard.length > 1 ? 's' : ''} difficile${m.hard.length > 1 ? 's' : ''}`;
+  $('#s-mem').innerHTML = m.facts.length
+    ? m.facts.slice().reverse().map(f => `<div class="person"><span>${esc(f.text)}</span><button type="button" class="ghost sm danger" data-unfact="${f.id}" aria-label="Oublier ce souvenir">✕</button></div>`).join('')
+    : '<p class="small muted">Pas encore de souvenirs. Shadow en garde au fil des discussions.</p>';
+}
+// Sauvegarde de tout Shadow dans un fichier (sans la clé Groq), pour la garder ou la passer sur un autre appareil
+function exportShadow() {
+  const data = JSON.parse(JSON.stringify(S));
+  data.settings.key = '';
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `shadow-memoire-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+function importShadow(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!d || d.v !== 1) throw new Error('fichier');
+      if (!confirm('Remplacer la mémoire, le journal et les visages de Shadow par ceux du fichier ? (les réglages et la clé restent)')) return;
+      ['prenom', 'journal', 'people', 'memory', 'stats', 'chat', 'memPos', 'cur'].forEach(k => { if (k in d) S[k] = d[k]; });
+      save(); renderMemory(); renderPeople();
+      toast('Mémoire restaurée ✅');
+    } catch (e) { toast("Ce fichier n'est pas une sauvegarde de Shadow"); }
+  };
+  r.readAsText(file);
+}
 function renderPeople() {
   $('#s-people').innerHTML = S.people.length
     ? S.people.map(p => `<div class="person"><span>👤 ${esc(p.name)}</span><button type="button" class="ghost sm danger" data-forget="${p.id}">Oublier</button></div>`).join('')
@@ -981,6 +1098,7 @@ function openSettings() {
   $('#s-vision-model').value = s.visionModel;
   $('#s-status').textContent = `Oreilles : ${({ whisper: 'Whisper (Groq), micro toujours ouvert', chrome: 'Chrome (Google)' })[OREILLES.engine()] || 'aucune'} · Yeux : ${VISION.isOn() ? 'ouverts' : 'fermés'}`;
   renderPeople();
+  renderMemory();
   $('#s-msg').textContent = '';
   $('#dlg-settings').returnValue = '';
   $('#dlg-settings').showModal();
@@ -1118,6 +1236,18 @@ function bind() {
   $('#s-clear-journal').addEventListener('click', () => {
     if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
   });
+  $('#s-mem').addEventListener('click', e => {
+    const b = e.target.closest('[data-unfact]');
+    if (!b) return;
+    const m = MEMOIRE.data();
+    m.facts = m.facts.filter(f => String(f.id) !== b.dataset.unfact); save(); renderMemory();
+  });
+  $('#s-mem-clear').addEventListener('click', () => {
+    if (confirm('Shadow va oublier tous ses souvenirs (le journal et les visages restent). Continuer ?')) { S.memory = { facts: [], summaries: [], hard: [] }; S.memPos = S.chat.length; save(); renderMemory(); toast('Mémoire effacée'); }
+  });
+  $('#s-export').addEventListener('click', exportShadow);
+  $('#s-import').addEventListener('click', () => $('#s-import-file').click());
+  $('#s-import-file').addEventListener('change', e => { if (e.target.files[0]) importShadow(e.target.files[0]); e.target.value = ''; });
   $('#s-people').addEventListener('click', e => {
     const b = e.target.closest('[data-forget]');
     if (b && confirm('Shadow va oublier ce visage. Continuer ?')) { S.people = S.people.filter(p => String(p.id) !== b.dataset.forget); save(); renderPeople(); }

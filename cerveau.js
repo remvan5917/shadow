@@ -111,6 +111,7 @@ const CERVEAU = {
 Ton caractère (c'est ${p} qui l'a choisi) : gentil, bienveillant, bavard, sociable — tu adores discuter —, tu aimes enseigner (l'école, la culture) et tu adores jouer.
 Ton apparence (dessinée par ${p}) : une tête-écran rectangulaire avec deux yeux carrés, une petite caméra entre les yeux, un nez en triangle, des moustaches de chat, un grand sourire plein de dents pointues (mais tu es très gentil !) et une crête bleue lumineuse sur la tête. Ton corps est un squelette de robot.
 Tu es en construction : ${p} et papa vont bientôt fabriquer ton corps (piles, caméras, roues…). Plus tard tu pourras te déplacer et aider à la maison (lumières…), mais pas encore : dis-le gentiment si on te le demande.
+Tu as une mémoire à long terme : tu te souviens de ce qu'on t'a raconté les autres jours (on te la donne plus bas). Utilise-la avec gentillesse, comme un ami qui se souvient.
 Tu as déjà des yeux : une caméra qui te permet de reconnaître les visages que tu as appris (tout reste dans ta mémoire, rien ne part sur Internet). Tu ne vois pas les objets en détail.
 
 Tu n'as pas d'écran pour écrire : tu es un visage de robot et tu PARLES à voix haute. ${p} te parle avec sa voix.
@@ -181,5 +182,77 @@ const ETHIQUE = {
       return "Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ? 🎲";
     }
     return reply;
+  },
+};
+
+/* ---------- La mémoire à long terme ----------
+   Gardée sur l'appareil (S.memory). Shadow retient des choses durables
+   (goûts, animaux, amis, projets…), un résumé de chaque conversation et
+   les mots difficiles du journal. Jamais d'adresse, d'école, de téléphone,
+   de santé ni de secrets. Papa voit et efface tout dans les réglages. */
+const MEMOIRE = {
+  MAX_FACTS: 60,
+  data() {
+    if (!S.memory) S.memory = { facts: [], summaries: [], hard: [] };
+    return S.memory;
+  },
+  // Ajoute un souvenir (refusé s'il contient une info privée ou s'il est déjà connu)
+  add(text, who, source) {
+    const m = this.data();
+    const masked = PRIVE.mask(String(text || '').trim());
+    const t = masked.text.replace(/\s+/g, ' ').trim();
+    if (!t || masked.hidden || t.length > 200) return false;
+    const n = ORTHO.norm(t);
+    if (m.facts.some(f => ORTHO.norm(f.text) === n)) return false;
+    m.facts.push({ id: Date.now() + Math.floor(Math.random() * 1000), text: t, who: who || '', at: Date.now(), source: source || 'ai' });
+    if (m.facts.length > this.MAX_FACTS) m.facts = m.facts.slice(-this.MAX_FACTS);
+    save();
+    return true;
+  },
+  event(text) { // un petit souvenir d'activité (journal, quiz…), sans IA
+    const m = this.data();
+    m.summaries.push({ at: Date.now(), text });
+    if (m.summaries.length > 40) m.summaries = m.summaries.slice(-40);
+    save();
+  },
+  hardWord(t, tries) {
+    const m = this.data();
+    m.hard = m.hard.filter(h => h.t !== t);
+    m.hard.push({ t, tries, at: Date.now() });
+    if (m.hard.length > 20) m.hard = m.hard.slice(-20);
+    save();
+  },
+  mastered(t) { const m = this.data(); const before = m.hard.length; m.hard = m.hard.filter(h => h.t !== t); if (m.hard.length !== before) save(); return m.hard.length !== before; },
+  // Ce qu'on donne au grand cerveau à chaque discussion
+  context() {
+    const m = this.data();
+    const day = t => new Date(t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const facts = m.facts.slice(-30).map(f => `- ${f.text}`).join('\n');
+    const sums = m.summaries.slice(-6).map(s => `- ${day(s.at)} : ${s.text}`).join('\n');
+    const hard = m.hard.slice(-8).map(h => h.t).join(', ');
+    return `\n\nAujourd'hui, nous sommes ${day(Date.now())}.`
+      + (facts ? `\n\nTa mémoire à long terme (ce que tu sais déjà, utilise-le naturellement, sans tout réciter) :\n${facts}` : '')
+      + (sums ? `\n\nCe que vous avez fait dernièrement :\n${sums}` : '')
+      + (hard ? `\n\nMots difficiles du journal (tu peux proposer de les réviser) : ${hard}` : '');
+  },
+  // Après une discussion : le grand cerveau en tire un résumé et les nouveaux souvenirs
+  async consolidate(msgs) {
+    if (!AI.ready() || !msgs.length) return;
+    const p = CERVEAU.prenom();
+    const known = this.data().facts.slice(-40).map(f => `- ${f.text}`).join('\n') || '(rien encore)';
+    const conv = msgs.map(m => `${m.role === 'user' ? p : 'Shadow'} : ${m.content}`).join('\n');
+    const sys = `Tu es la mémoire de Shadow, un robot ami de ${p}, un enfant de 7 ans.
+Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": ["…"]}
+"faits" : de 0 à 5 choses NOUVELLES et durables à retenir sur ${p} ou ses proches (goûts, animaux, amis, activités, projets, événements à venir avec leur date, ce qu'il apprend, ce qui le rend heureux ou l'inquiète). Une phrase courte chacune, à la 3e personne, avec le prénom.
+Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé, ni rien de privé ou de gênant. Ne répète pas ce qui est déjà connu. Si rien de nouveau : "faits": [].`;
+    const raw = await AI.chat([{ role: 'system', content: sys }, { role: 'user', content: `Déjà connu :\n${known}\n\nConversation :\n${conv}` }],
+      { maxTokens: 400, temperature: 0.2, timeout: 25000 });
+    let j = null;
+    try { j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) { return; }
+    if (j && typeof j.resume === 'string' && j.resume.trim()) {
+      const r = PRIVE.mask(j.resume.trim());
+      if (!r.hidden) this.event(r.text.slice(0, 200));
+    }
+    if (j && Array.isArray(j.faits)) j.faits.slice(0, 5).forEach(f => this.add(f, p, 'ai'));
   },
 };

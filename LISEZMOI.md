@@ -21,7 +21,13 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 | « Qu'est-ce que tu vois ? » / « Tu me reconnais ? » | regarde avec la caméra |
 | « On fait connaissance » | apprend un visage et le prénom qui va avec |
 | « Raconte une histoire », « Devine l'animal », ou n'importe quelle question | discute avec le grand cerveau (Groq) |
+| « Souviens-toi que mon chat s'appelle Moustache » / « Qu'est-ce que tu sais sur moi ? » | retient / raconte ses souvenirs |
+| « On révise mes mots difficiles » | fait réépeler les mots du journal qui ont demandé plusieurs essais |
 | « Stop » / « Répète » / « Va dormir » | arrête / répète / s'endort |
+
+## La mémoire à long terme
+Shadow se souvient d'un jour à l'autre : après chaque discussion, le grand cerveau range dans sa mémoire ce qui compte (goûts, animaux, amis, projets, événements à venir), plus un résumé des activités (journal, quiz, calcul). Il retient aussi les mots difficiles du journal. Il s'en sert pour dire bonjour (« Alors, ce match samedi ? ») et dans ses réponses.
+Il ne garde jamais d'adresse, de téléphone, d'école, de santé ni de secrets. L'enfant ne peut pas effacer la mémoire : papa la voit et l'efface dans ⚙️ → *La mémoire de Shadow*. Le bouton **Sauvegarder** crée un fichier (sans la clé) qu'on peut **Restaurer** sur la tablette.
 
 ## Mode verrouillé (pour que l'enfant ne sorte pas de Shadow)
 ⚙️ → « Verrouiller Shadow ». Avec ce mode :
