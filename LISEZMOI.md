@@ -42,6 +42,12 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 | « Apprends ma voix » / « Qui parle ? » | apprend une voix (3 petites phrases) / dit qui parle |
 | « Stop » / « Répète » / « Va dormir » | arrête / répète / s'endort |
 
+## Partout, même sans WiFi
+Avec le WiFi, Shadow télécharge tout seul ses yeux (≈ 40 Mo, gardés d'une mise à jour à l'autre) ; on peut aussi appuyer sur ⚙️ → *Préparer le mode hors-ligne*. Ensuite, sans réseau (courses, voiture…) :
+- il garde son visage, sa voix, ses yeux et ses jeux de bord (dictée, calcul, l'heure, quiz, devinettes, Jacques a dit, comptines…) ; seul le grand cerveau (Groq) se met en pause (« mode exploration ») ;
+- ses oreilles passent sur la reconnaissance vocale du téléphone (si le français hors connexion est installé, voir ⚙️) ; sinon il dit qu'il n'entend plus, et on le **touche** pour qu'il propose un jeu qui n'a pas besoin d'écouter ;
+- quand le réseau revient, il le dit et reprend tout seul.
+
 ## Pour papa (⚙️)
 - **Bilan des 7 derniers jours** : temps de jeu, activités et réussite, phrases du journal, mots difficiles, humeur du jour.
 - **Rappels** à heure fixe (tous les jours, jours d'école, week-end) : il le dit, même s'il dormait.

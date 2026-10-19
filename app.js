@@ -107,10 +107,13 @@ const voice = {
   init() {
     if (!('speechSynthesis' in window)) return;
     const choose = () => {
-      const vs = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+      let vs = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+      // sans réseau : seulement les voix installées sur le téléphone (les autres se taisent)
+      if (navigator.onLine === false && vs.some(v => v.localService)) vs = vs.filter(v => v.localService);
       this.v = vs.find(v => /fr[-_]FR/i.test(v.lang) && /google|amélie|amelie|thomas|denise|henri|natural|online/i.test(v.name))
         || vs.find(v => /fr[-_]FR/i.test(v.lang)) || vs[0] || null;
     };
+    this.choose = choose;
     choose();
     speechSynthesis.onvoiceschanged = () => { choose(); this.ok = !!this.v; subtitle(null, null); };
     // Certains navigateurs n'ont aucune voix : Shadow écrit alors ce qu'il dit
@@ -233,6 +236,13 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = 
   if (typeof r === 'string' && r && isEcho(r)) { OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
+    if (r.net || (r.error === 'no-ears' && !AI.online())) {
+      // plus de réseau : Whisper → reconnaissance du téléphone ; si elle ne marche pas non plus → « je n'entends pas »
+      if (OREILLES.engine() === 'whisper') { try { await OREILLES.start(); } catch (e) { /* rien */ } if (OREILLES.engine() === 'chrome') return ''; }
+      dlg.deaf = true;
+      return '';
+    }
+    if (r.error === 'no-ears') { dlg.deaf = true; return ''; }
     face.set('oops');
     mustShow = true;
     if (r.status === 429) {
@@ -399,6 +409,7 @@ async function activity(fn) {
 async function life() {
   for (;;) {
     if (dlg.sayNext) { const s = dlg.sayNext; dlg.sayNext = null; if (typeof s === 'function') await s(); else await say(s); }
+    if (dlg.deaf && dlg.state !== 'sleep') { await deafLoop(); continue; }
     if (dlg.state === 'sleep') {
       // Endormi : il se réveille si on l'appelle « Shadow » (ou s'il voit quelqu'un, ou si on le touche)
       const t = await hear({ maxWait: 60000, face: 'sleep', cheap: true });
@@ -613,6 +624,7 @@ async function chatReply(text, hidden = false) {
     const hit = OFFLINE.find(([re]) => re.test(n));
     if (hit) return say(hit[1]());
     face.flash('oops');
+    if (AI.hasKey() && !AI.online()) return say("Je suis en mode exploration : pas de réseau, alors mon grand cerveau se repose. Mais mes circuits de bord marchent : dictée, calcul, l'heure, quiz, devinettes, Jacques a dit, comptines… Qu'est-ce qu'on fait ?");
     return say("Mon grand cerveau n'est pas branché, alors je ne comprends pas tout. Mais je sais faire une dictée, lire avec toi, l'heure, l'anglais, les tables, des quiz, des devinettes, Jacques a dit, des comptines… Dis « qu'est-ce que tu sais faire » pour tout savoir !");
   }
   const m = hidden ? { text, hidden: false } : PRIVE.mask(text);
@@ -1178,10 +1190,92 @@ async function meetFlow() {
   await say(p ? `Merci ${who} ! Maintenant je te reconnaîtrai encore mieux.` : `Enchanté, ${who} ! Maintenant, je te reconnaîtrai.`);
 }
 
+/* =================== SANS RÉSEAU =================== */
+// Mode « je n'entends pas » : sans réseau (ou sans oreilles), on le touche et il propose un jeu
+// qui n'a pas besoin d'écouter.
+async function deafLoop() {
+  if (!dlg.deafSaid) {
+    dlg.deafSaid = true;
+    face.set('idle');
+    mustShow = true;
+    await say("Sans réseau, mes oreilles ne marchent plus… Mais touche mon visage, et je te propose un jeu !");
+    mustShow = false;
+  }
+  const hint = $('#hint');
+  hint.innerHTML = '👆 Touche-moi pour jouer';
+  hint.hidden = false;
+  const tapped = await new Promise(res => { dlg.deafTap = res; setTimeout(() => res(false), 30000); });
+  dlg.deafTap = null;
+  hint.hidden = true;
+  if (!tapped) { // de temps en temps, il vérifie si ses oreilles remarchent
+    if (AI.online() && navigator.onLine !== false) await earsBack();
+    return;
+  }
+  const list = [['une comptine', chanterFlow], ['le mot du jour', () => say(motDuJourText())], ['une blague', () => say(pick(JOKES))], ['le jeu des émotions', emotionsFlow]];
+  if (!LEGACY) list.push(['Jacques a dit', jacquesFlow], ['pierre, feuille, ciseaux', pfcFlow], ['compter avec les doigts', doigtsFlow]);
+  const [label, fn] = list[(dlg.showI = (dlg.showI || 0) + 1) % list.length];
+  face.set('happy');
+  await say(`C'est parti pour ${label} !`);
+  dlg.state = 'talk';
+  await activity(fn);
+}
+let earsChecking = false;
+async function earsBack() {
+  if (earsChecking || !dlg.deaf) return;
+  earsChecking = true;
+  try {
+    try { await OREILLES.start(); } catch (e) { return; }
+    if (OREILLES.engine() === 'whisper' && dlg.deaf) {
+      dlg.deaf = false; dlg.deafSaid = false;
+      face.set('happy');
+      await say('Mes oreilles remarchent ! Tu peux de nouveau me parler.');
+    }
+  } finally { earsChecking = false; }
+}
+async function netChanged(on) {
+  voice.choose && voice.choose();
+  if (!dlg.started) return;
+  if (on) {
+    AI.netDownUntil = 0;
+    if (dlg.deafTap) { const t = dlg.deafTap; dlg.deafTap = null; t(false); }
+    if (dlg.deaf) await earsBack();
+    else { OREILLES.cancel(); try { await OREILLES.start(); } catch (e) { /* rien */ } if (!dlg.busy && dlg.state !== 'sleep') say('Connexion retrouvée ! Mon grand cerveau est de retour.'); }
+    if (S.offlineVer !== window.SHADOW_VERSION) setTimeout(() => preloadOffline(false), 20000);
+  } else {
+    AI.netDownUntil = Date.now() + 3600000;
+    OREILLES.cancel();
+    try { await OREILLES.start(); } catch (e) { /* rien */ }
+    if (!dlg.busy && dlg.state !== 'sleep') say('Je passe en mode exploration : plus de réseau, donc mon grand cerveau se repose. Mes circuits de bord marchent toujours !');
+  }
+}
+window.addEventListener('offline', () => netChanged(false));
+window.addEventListener('online', () => netChanged(true));
+
+// Préparer le hors-ligne : télécharger les yeux (≈ 30 Mo) quand il y a du WiFi
+async function preloadOffline(manual) {
+  if (navigator.onLine === false) { if (manual) toast('Il faut du WiFi pour préparer le hors-ligne'); return; }
+  if (manual) toast('Téléchargement des yeux… (≈ 30 Mo)');
+  try {
+    await VISION.preload(!LEGACY);
+    S.offlineVer = window.SHADOW_VERSION; S.offlineAt = Date.now(); save();
+    if (manual) toast('✅ Shadow est prêt à sortir sans WiFi');
+  } catch (e) {
+    console.warn('hors-ligne', e);
+    if (manual) toast('Téléchargement incomplet : réessaie avec le WiFi');
+  }
+  if ($('#dlg-settings').hasAttribute('open')) renderOffline();
+}
+function renderOffline() {
+  $('#s-off-state').textContent = S.offlineAt
+    ? `✅ Prêt depuis le ${new Date(S.offlineAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}${S.offlineVer !== window.SHADOW_VERSION ? ' (une mise à jour sera téléchargée au prochain WiFi)' : ''}.`
+    : '⚠️ Pas encore préparé : appuyez sur le bouton avec le WiFi.';
+}
+
 /* =================== TOUCHER L'ÉCRAN =================== */
 // Toucher le visage : le réveiller, l'interrompre, ou lui parler sans dire « Shadow »
 function tap() {
   if (!dlg.started) { face.set('happy'); return firstStart(); }
+  if (dlg.deaf && dlg.deafTap) { const t = dlg.deafTap; dlg.deafTap = null; return t(true); }
   if (dlg.state === 'sleep') { pauseUntil = 0; return wake(); }
   if (voice.speaking) { voice.stop(); return; }
   if (dlg.state === 'standby') { dlg.state = 'talk'; dlg.silence = 0; dlg.sayNext = "Oui ? Je t'écoute !"; OREILLES.cancel(); }
@@ -1332,6 +1426,7 @@ function openSettings() {
   renderMemory();
   renderVoices();
   renderExtras();
+  renderOffline();
   renderPinState();
   $('#s-msg').textContent = '';
   $('#dlg-settings').returnValue = '';
@@ -1476,6 +1571,7 @@ function bind() {
   $('#s-clear-journal').addEventListener('click', () => {
     if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
   });
+  $('#s-offline').addEventListener('click', () => preloadOffline(true));
   $('#s-voices').addEventListener('click', e => {
     const b = e.target.closest('[data-forget-voice]');
     if (b && confirm('Shadow va oublier cette voix. Continuer ?')) { S.voices = VOIX.people().filter(p => String(p.id) !== b.dataset.forgetVoice); save(); renderVoices(); }
@@ -1536,6 +1632,7 @@ function firstStart() {
       console.warn('oreilles', e);
       guardOk();
     }
+    if (S.offlineVer !== window.SHADOW_VERSION) setTimeout(() => preloadOffline(false), 60000); // en arrière-plan, avec le WiFi
     // Sur un vieux téléphone, les yeux ne s'ouvrent pas tout seuls (on peut les demander : « tu me reconnais ? »)
     if (S.settings.vision && !LEGACY) visionToggle(true);
     life();

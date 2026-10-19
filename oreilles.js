@@ -166,7 +166,7 @@ const OREILLES = (() => {
       lastHeard = t.trim() || '(rien compris)';
       if (t.trim()) finish(t.trim()); else p.deadline = performance.now() + 8000; // bruit : on réécoute un peu
     } catch (e) {
-      if (pending === p) finish({ error: e.message, status: e.status || 0, retryAfter: e.retryAfter || 0 });
+      if (pending === p) finish({ error: e.message, status: e.status || 0, retryAfter: e.retryAfter || 0, net: !!e.net });
     }
   }
 
@@ -182,6 +182,8 @@ const OREILLES = (() => {
     r.onresult = e => { got = [...e.results].map(x => x[0].transcript).join(' '); lastHeard = got; };
     r.onerror = e => {
       if ((e.error === 'not-allowed' || e.error === 'service-not-allowed') && pending === p) { rec = null; finish({ error: 'not-allowed' }); }
+      // pas de réseau et pas de reconnaissance « hors connexion » sur ce téléphone
+      else if ((e.error === 'network' || e.error === 'language-not-supported') && pending === p) { rec = null; finish({ error: e.error, net: true }); }
     };
     r.onend = () => {
       if (rec === r) rec = null;

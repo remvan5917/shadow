@@ -353,7 +353,18 @@ const VISION = (() => {
     return s < 0.6 && v > 0.6 ? 'rose' : 'violet';
   }
 
+  // Tout télécharger à l'avance (avec du WiFi) pour que les yeux marchent ensuite sans réseau
+  async function preload(full) {
+    loading = loading || load().catch(e => { loading = null; throw e; });
+    await loading;
+    if (!full) return;
+    await loadObjects();
+    if (!gr) gr = await create('GestureRecognizer', GESTURE_MODEL, { numHands: 2 });
+    if (!pl) pl = await create('PoseLandmarker', POSE_MODEL, { numPoses: 1 });
+  }
+
   return {
+    preload,
     objects, snapshot, hands, pose, poseTest, colorAt, colorName,
     supported: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
     start, stop, capture, identify, state,

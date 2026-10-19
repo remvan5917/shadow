@@ -18,11 +18,12 @@ const AI = {
     if (s.brain === 'local') return { base: (s.localUrl || '').replace(/\/+$/, ''), model: s.localModel, key: '', local: true };
     return { base: this.GROQ, model: s.model || this.DEFAULT_MODEL, key: s.key, local: false };
   },
-  ready() {
-    const s = S.settings;
-    return s.brain === 'local' ? !!(s.localUrl && s.localModel) : !!s.key;
-  },
-  canTranscribe() { return !!S.settings.key && !!window.MediaRecorder && !!navigator.mediaDevices; },
+  // Pas de réseau ? (le téléphone le dit, ou un appel vient d'échouer) : on n'essaie même pas Groq
+  netDownUntil: 0,
+  online() { return navigator.onLine !== false && Date.now() > this.netDownUntil; },
+  hasKey() { const s = S.settings; return s.brain === 'local' ? !!(s.localUrl && s.localModel) : !!s.key; },
+  ready() { return this.hasKey() && (S.settings.brain === 'local' || this.online()); },
+  canTranscribe() { return !!S.settings.key && !!window.MediaRecorder && !!navigator.mediaDevices && this.online(); },
 
   // Modèles de secours si Groq retire celui qu'on utilise
   FALLBACK: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
@@ -138,7 +139,12 @@ const AI = {
       flush(true);
       return cleanReply(full);
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error('Trop long… (pas de WiFi ?)');
+      if (e.name === 'AbortError' || e instanceof TypeError) {
+        if (!c.local) this.netDownUntil = Date.now() + 45000;
+        const err = new Error(e.name === 'AbortError' ? 'Trop long… (pas de WiFi ?)' : 'Pas de connexion (WiFi ?)');
+        err.net = true;
+        throw err;
+      }
       throw e;
     } finally {
       clearTimeout(tm);
@@ -195,8 +201,12 @@ const AI = {
       if (!res.ok) throw await httpError(res);
       return await res.json();
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error('Trop long… (pas de WiFi ?)');
-      if (e instanceof TypeError) throw new Error(c.base === this.GROQ ? 'Pas de connexion (WiFi ?)' : `IA locale injoignable (${c.base})`);
+      if (e.name === 'AbortError' || e instanceof TypeError) {
+        if (c.base === this.GROQ) this.netDownUntil = Date.now() + 45000; // réseau coupé : on réessaiera dans 45 s
+        const err = new Error(e.name === 'AbortError' ? 'Trop long… (pas de WiFi ?)' : c.base === this.GROQ ? 'Pas de connexion (WiFi ?)' : `IA locale injoignable (${c.base})`);
+        err.net = true;
+        throw err;
+      }
       throw e;
     } finally {
       clearTimeout(tm);
