@@ -466,8 +466,18 @@ function wake(who) {
   sessionStart = Date.now(); pauseDone = false;
   dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
   fx.wake(); face.set('happy');
-  dlg.sayNext = async () => { await memoryGreeting(who); await dailyNews(); };
+  dlg.sayNext = async () => { await memoryGreeting(who); await updateNews(); await dailyNews(); };
   OREILLES.cancel();
+}
+// Nouvelle version installée ? Shadow l'annonce une fois (la toute première fois, il ne dit rien)
+async function updateNews() {
+  const v = window.SHADOW_VERSION;
+  if (S.seenVersion === v) return;
+  const first = !S.seenVersion;
+  S.seenVersion = v; save();
+  if (first) return;
+  face.set('happy'); fx.wake();
+  await say(`Bip bip ! Mes circuits viennent d'être mis à jour : je suis maintenant la version ${v} !`);
 }
 // Les nouvelles du jour, une fois par jour : mot du jour, calendrier, humeur
 async function dailyNews() {
