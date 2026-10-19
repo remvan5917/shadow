@@ -490,7 +490,21 @@ const ECRAN = (() => {
   }, 0);
 
   /* =================== LE MODE DÉMO (pour filmer une vidéo) =================== */
-  // …/shadow/?demo : Shadow se présente tout seul, avec des sous-titres.
+  // icônes au trait, dans le style du visage de Shadow (pas d'émojis)
+  const ICON = {
+    bulb: '<path d="M18 31c-3.2-2.6-5-6.4-5-10.5a11 11 0 0 1 22 0c0 4.1-1.8 7.9-5 10.5v3.5H18z"/><path d="M19.5 39.5h9M21.5 44h5"/>',
+    volet: '<rect x="10" y="7" width="28" height="34" rx="2"/><path d="M10 14h28M10 20.5h28M10 27h28M10 33.5h28"/>',
+    thermo: '<path d="M20.5 28.5V10a3.5 3.5 0 0 1 7 0v18.5a8 8 0 1 1-7 0z"/><path d="M24 17v16"/><circle cx="24" cy="35" r="2.5"/>',
+    shield: '<path d="M24 5l15 5.5v11.5c0 9.5-6.4 17-15 21-8.6-4-15-11.5-15-21V10.5z"/><path d="M17.5 24l4.5 4.5 9-9.5"/>',
+    route: '<circle cx="11" cy="37" r="3.5"/><circle cx="37" cy="11" r="3.5"/><path d="M14.5 37H25a6.5 6.5 0 0 0 0-13h-2a6.5 6.5 0 0 1 0-13h10.5" stroke-dasharray="3 4"/>',
+    family: '<circle cx="15" cy="15" r="5"/><circle cx="33" cy="15" r="5"/><circle cx="24" cy="25" r="3.5"/><path d="M5 40c0-6.5 4.5-11 10-11 2.5 0 4.7.9 6.4 2.4M43 40c0-6.5-4.5-11-10-11-2.5 0-4.7.9-6.4 2.4M17 41c0-4.5 3-7.5 7-7.5s7 3 7 7.5"/>',
+    leaf: '<path d="M9 39C9 21 21 9 40 9c0 19-11 30-31 30z"/><path d="M9 39L29 19"/>',
+    home: '<path d="M6 23L24 8l18 15"/><path d="M11 19v20h26V19"/><path d="M20 39V29h8v10"/>',
+  };
+  const futurBoard = (title, items) => `<div class="futur"><h3>${esc(title)}</h3><ul>${items.map(([ic, txt], i) =>
+    `<li style="animation-delay:${0.15 + i * 0.35}s"><svg viewBox="0 0 48 48" aria-hidden="true">${ICON[ic]}</svg><span>${esc(txt)}</span></li>`).join('')}</ul></div>`;
+
+  // …/shadow/?demo : Shadow se présente tout seul, à voix haute.
   // Il n'écoute pas, n'ouvre pas la caméra, ne garde rien en mémoire et ne dit aucun prénom.
   const DEMO = /[?&]demo\b/.test(location.search);
   let demoOn = false;
@@ -500,7 +514,8 @@ const ECRAN = (() => {
     $('#hint').hidden = true;
     voice.unlock(); fx.tone([[1, 0.01]]);
     const keep = { subtitles: S.settings.subtitles, sound: S.settings.sound };
-    S.settings.subtitles = true; S.settings.sound = true; // seulement pour la démo : jamais enregistré
+    S.settings.subtitles = false; S.settings.sound = true; // la démo se regarde sans sous-titres (jamais enregistré)
+    $('#bubble').hidden = true;
     const de = document.documentElement;
     if (de.requestFullscreen) de.requestFullscreen().catch(() => {});
     const beat = ms => wait(ms);
@@ -544,11 +559,11 @@ const ECRAN = (() => {
     // la suite du projet : un robot autonome, à la maison et dehors
     face.set('think'); VISAGE.puff('eclair', 2);
     await say("Mais je ne suis que le début. Bientôt, j'aurai un corps avec des roues, des caméras et des capteurs, et je serai complètement autonome.");
-    showBoard(`<div class="futur"><h3>🏠 À la maison</h3><p>💡 j'allume les lumières</p><p>🪟 je ferme les volets</p><p>🌡️ je règle le chauffage</p><p>🛡️ je veille sur la maison</p><p>🧭 je me déplace de pièce en pièce</p></div>`);
+    showBoard(futurBoard('À la maison', [['bulb', "J'allume les lumières"], ['volet', 'Je ferme les volets'], ['thermo', 'Je règle le chauffage'], ['shield', 'Je veille sur la maison'], ['route', 'Je me déplace de pièce en pièce']]), 'solid');
     face.set('happy');
     await say("À la maison, j'allumerai les lumières, je fermerai les volets et je réglerai le chauffage. Je veillerai sur la maison et je préviendrai s'il y a un souci.");
     await say("Je me déplacerai tout seul de pièce en pièce, sans me cogner, et je viendrai rappeler l'heure des devoirs.");
-    showBoard(`<div class="futur"><h3>🌳 Dehors</h3><p>🚶 je suis la famille en promenade</p><p>🐞 je reconnais les plantes et les animaux</p><p>🧭 je retrouve le chemin de la maison</p></div>`);
+    showBoard(futurBoard('Dehors', [['family', "J'accompagne la famille"], ['leaf', 'Je reconnais les plantes et les animaux'], ['home', 'Je retrouve le chemin de la maison']]), 'solid');
     await say("Dehors, j'accompagnerai la famille en promenade, je reconnaîtrai les plantes et les animaux, et je retrouverai toujours le chemin de la maison.");
     hideBoard();
     face.set('proud'); VISAGE.puff('etoile', 5); fx.ok(); fx.confetti(70);
