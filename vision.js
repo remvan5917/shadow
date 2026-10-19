@@ -36,14 +36,42 @@ const VISION = (() => {
         boost = lum < 95 ? Math.min(2.2, 115 / Math.max(lum, 20)) : 1;
       } catch (e) { boost = 1; }
     }
-    if (boost === 1) return video;
-    const w = 480, h = Math.round(480 * (video.videoHeight / video.videoWidth));
-    if (work.width !== w) { work.width = w; work.height = h; }
+    return prepared(rot);
+  }
+  // Image prête pour la détection : tournée si la caméra l'envoie « couchée », éclaircie si la pièce est sombre
+  function prepared(r) {
+    if (r === 0 && boost === 1) return video;
+    const vw = video.videoWidth, vh = video.videoHeight, k = 480 / Math.max(vw, vh);
+    const w0 = Math.round(vw * k), h0 = Math.round(vh * k);
+    const swap = r === 90 || r === -90;
+    const W = swap ? h0 : w0, H = swap ? w0 : h0;
+    if (work.width !== W || work.height !== H) { work.width = W; work.height = H; }
     const g = work.getContext('2d');
-    g.filter = `brightness(${boost.toFixed(2)}) contrast(1.15)`;
-    g.drawImage(video, 0, 0, w, h);
-    g.filter = 'none';
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.translate(W / 2, H / 2);
+    g.rotate((r * Math.PI) / 180);
+    g.filter = boost === 1 ? 'none' : `brightness(${boost.toFixed(2)}) contrast(1.15)`;
+    g.drawImage(video, -w0 / 2, -h0 / 2, w0, h0);
+    g.restore();
     return work;
+  }
+  // Téléphone tenu à l'horizontale : si personne n'est vu pendant un moment, on essaie l'image tournée
+  let rot = 0, empty = 0, lastRotTry = -60000; // vérifie le sens dès le début
+  // Compare les 4 sens de l'image et garde celui où les visages sont trouvés le plus sûrement
+  async function findRotation(force) {
+    const now = performance.now();
+    if (!force && now - lastRotTry < 10000) return;
+    lastRotTry = now;
+    const score = async r => (await api.detectAllFaces(prepared(r), opts)).reduce((t, d) => t + d.score, 0);
+    const cur = await score(rot);
+    let bestR = rot, bestS = cur;
+    for (const r of [0, 90, -90, 180]) {
+      if (r === rot) continue;
+      const sc = await score(r);
+      if (sc > bestS) { bestS = sc; bestR = r; }
+    }
+    if (bestR !== rot && bestS > cur * 1.3 + 0.2) { rot = bestR; empty = 0; try { S.settings.camRot = rot; save(); } catch (e) { /* rien */ } }
   }
   const state = { faces: [], main: null };
   const handlers = { track: [], people: [] };
@@ -87,6 +115,7 @@ const VISION = (() => {
     video.srcObject = stream;
     await video.play().catch(() => {});
     on = true;
+    rot = (S.settings && S.settings.camRot) || 0; // le bon sens de l'image, retenu la dernière fois
     tick();
     if (withObjects) loadObjects().catch(() => {}); // on prépare la reconnaissance des objets en avance
   }
@@ -129,6 +158,9 @@ const VISION = (() => {
   async function analyse() {
     const src = source();
     const res = await api.detectAllFaces(src, opts).withFaceLandmarks(true).withFaceDescriptors().withFaceExpressions();
+    // personne de vu depuis un moment : on vérifie le sens de l'image ; sinon, une petite vérification de temps en temps
+    if (!res.length) { if (++empty >= 4) await findRotation(); }
+    else { empty = 0; if (performance.now() - lastRotTry > 45000) await findRotation(true); }
     state.faces = res.map(r => {
       const m = best(r.descriptor);
       // Il continue d'apprendre les visages qu'il reconnaît bien (autre lumière, autre coiffure…)
@@ -211,7 +243,7 @@ const VISION = (() => {
   async function objects() {
     if (!on || video.readyState < 2 || !video.videoWidth) return [];
     const d = await loadObjects();
-    return d.detect(video).detections.map(x => ({ label: x.categories[0].categoryName, score: x.categories[0].score }));
+    return d.detect(prepared(rot)).detections.map(x => ({ label: x.categories[0].categoryName, score: x.categories[0].score }));
   }
   // Une photo (seulement pour la « vision détaillée », si papa l'a autorisée)
   function snapshot(max = 640) {

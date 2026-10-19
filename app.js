@@ -830,9 +830,19 @@ async function needEyes() {
 }
 
 // Les yeux suivent la personne (l'image de la caméra est inversée par rapport à l'écran)
+// La caméra n'est pas au centre de l'écran (téléphone à l'horizontale : elle est sur le côté).
+// Shadow apprend donc où se trouve « en face de lui » : la position habituelle de la personne.
+const gaze = { cx: S.settings.gazeCx || 0, cy: S.settings.gazeCy || 0, n: 0 };
+const clamp = (v, a) => Math.max(-a, Math.min(a, v));
 VISION.on('track', m => {
-  if (!m || ['sleep', 'think'].includes(face.state)) return;
-  face.look(Math.round(-m.cx * 12), Math.round(m.cy * 7));
+  if (!m) return;
+  gaze.n++;
+  const a = gaze.n < 40 && !S.settings.gazeCx ? 0.08 : 0.004; // vite au début, puis tout doucement
+  gaze.cx += (m.cx - gaze.cx) * a;
+  gaze.cy += (m.cy - gaze.cy) * a;
+  if (gaze.n % 150 === 0) { S.settings.gazeCx = +gaze.cx.toFixed(3); S.settings.gazeCy = +gaze.cy.toFixed(3); save(); }
+  if (['sleep', 'think'].includes(face.state)) return;
+  face.look(clamp(Math.round(-(m.cx - gaze.cx) * 16), 12), clamp(Math.round((m.cy - gaze.cy) * 10), 7));
 });
 VISION.on('people', faces => onPeople(faces));
 
