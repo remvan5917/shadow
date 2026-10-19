@@ -253,7 +253,7 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = 
       return '';
     }
     if (r.status === 401 || r.status === 403) await say("Bip… accès refusé à mes capteurs auditifs. Ma clé d'énergie ne fonctionne plus : papa doit la vérifier dans le panneau de contrôle.");
-    else if (r.error === 'no-ears') await say("Je n'ai pas d'oreilles sur cet appareil. Papa doit mettre la clé Groq dans les réglages.");
+    else if (r.error === 'no-ears') await say("Bip… mes capteurs auditifs ne sont pas activés. Papa doit brancher ma clé d'énergie dans le panneau de contrôle.");
     else if (r.error === 'not-allowed') await say('Mes oreilles sont bloquées. Il faut autoriser le micro, demande à papa.');
     else await say('Oups, mes oreilles ont un petit souci. Je réessaie.');
     await wait(4000);
@@ -725,7 +725,7 @@ async function reviseFlow() {
 
 /* =================== LES VOIX =================== */
 async function voiceFlow() {
-  if (OREILLES.engine() !== 'whisper') return say("Pour reconnaître les voix, j'ai besoin de mes oreilles Whisper : papa doit mettre la clé Groq dans les réglages.");
+  if (OREILLES.engine() !== 'whisper') return say("Pour reconnaître les voix, j'ai besoin de mes super-oreilles. Elles ont besoin de ma clé d'énergie et du réseau : papa peut les activer dans le panneau de contrôle.");
   let who = '';
   const faces = VISION.state.faces;
   if (faces.length === 1 && faces[0].name && (await askYesNo(`Je vois ${faces[0].name}. C'est ta voix que j'apprends ?`))) who = faces[0].name;

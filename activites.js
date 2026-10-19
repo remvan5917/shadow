@@ -116,7 +116,7 @@ function calcQ(kind) {
 
 /* =================== 3. LECTURE À VOIX HAUTE =================== */
 async function lectureFlow() {
-  if (OREILLES.engine() !== 'whisper') return say("Pour t'écouter lire, j'ai besoin de mes oreilles Whisper. Papa doit mettre la clé Groq dans les réglages.");
+  if (OREILLES.engine() !== 'whisper') return say("Pour t'écouter lire, j'ai besoin de mes super-oreilles. Elles ont besoin de ma clé d'énergie et du réseau : papa peut les activer dans le panneau de contrôle.");
   const i = (daily().lecture || 0) % CONTENUS.TEXTES.length;
   const texte = CONTENUS.TEXTES[i];
   daily().lecture = i + 1; save();
