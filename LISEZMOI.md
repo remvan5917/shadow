@@ -40,7 +40,20 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 | « Une histoire pour dormir » | histoire du soir, puis il s'endort (ne se réveille pas tout seul pendant 1 h) |
 | « C'est quand mon anniversaire ? » | compte les dodos (calendrier rempli par papa) |
 | « Apprends ma voix » / « Qui parle ? » | apprend une voix (3 petites phrases) / dit qui parle |
+| « C'est quoi un volcan ? » / « Montre-moi un guépard » / « C'est qui Napoléon ? » | cherche dans **Vikidia** (l'encyclopédie des enfants) au lieu d'inventer, montre une image et explique avec des mots simples |
+| « Quel temps il fait ? » / « Il va pleuvoir demain ? » | la météo de la ville réglée par papa, avec le conseil (manteau, parapluie…) |
+| « Minuteur de 5 minutes » / « Préviens-moi dans 10 minutes » / « Arrête le minuteur » | compte à rebours dans le coin de l'écran, on peut continuer à parler |
+| « Je vais me brosser les dents » | 2 minutes guidées : en haut à droite, en haut à gauche… |
+| « On respire » / « Je suis en colère » | respiration calme avec une bulle qui grandit et rapetisse |
+| « Le robot mystère » | deviner un mot du CE1 lettre par lettre avant que Shadow ait fini de dessiner son cousin robot |
+| « Le jeu des couleurs » | il allume des couleurs, l'enfant les répète dans l'ordre (de plus en plus longues) |
+| Trois petites tapes sur son écran | ça le chatouille ! |
 | « Stop » / « Répète » / « Va dormir » | arrête / répète / s'endort |
+
+Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
+
+## Son visage
+Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
 
 ## Partout, même sans WiFi
 Avec le WiFi, Shadow télécharge tout seul ses yeux (≈ 40 Mo, gardés d'une mise à jour à l'autre) ; on peut aussi appuyer sur ⚙️ → *Préparer le mode hors-ligne*. Ensuite, sans réseau (courses, voiture…) :
@@ -96,6 +109,8 @@ Le visage prend la plus grande taille possible, que l'écran soit vertical ou ho
 ## Ce qui part sur Internet (à savoir)
 - **Oreilles « Whisper »** (par défaut avec une clé) : Shadow détecte lui-même quand quelqu'un parle et n'envoie à Groq que ce morceau de voix. Il n'y a pas de bip. Quand il attend son nom, tout ce qui est dit près de lui est envoyé (la télé aussi). Pour l'éviter : mettre « Chrome » dans les réglages (dans ce cas, le son part chez Google).
 - **Discussion** : les phrases partent chez Groq.
+- **Encyclopédie** : le sujet cherché (par exemple « volcan ») part chez Vikidia et Wikipédia, sans rien d'autre. Shadow affiche les images de Vikidia ; quand Vikidia n'a pas d'image, il prend celle de l'article Wikipédia du même sujet.
+- **Météo** : seulement les coordonnées de la ville réglée par papa, arrondies, envoyées à Open-Meteo (gratuit, sans compte).
 - **Vision détaillée** : désactivée par défaut. Si papa l'active, une photo part chez Groq quand on demande « qu'est-ce que tu vois ? ».
 
 ## IA locale (Ollama), pour plus tard sur l'ordi ou le Raspberry Pi
@@ -152,5 +167,5 @@ Toutes les masses (GND) sont reliées ensemble. L'ESP32 est alimentée par le r�
 Shadow donne des **médailles** (15 en tout) : premier journal, roi du calcul, explorateur sans WiFi… Il les annonce au moment où l'enfant les gagne. Pour les entendre : « mes médailles ». Le **calcul s'adapte** tout seul : quand ça va bien, le niveau monte (jusqu'aux tables et aux nombres plus grands), et il redescend quand c'est trop dur. Le niveau et les médailles apparaissent dans ⚙️ → *Bilan*.
 
 ## Fichiers
-`index.html` (le visage) · `app.js` (la conversation) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).
+`index.html` (le visage) · `visage.js` (ses expressions) · `app.js` (la conversation) · `ecran.js` (encyclopédie, météo, minuteur, jeux à l'écran) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).
 Pas de compilation : ce sont des fichiers statiques. Après chaque modification, changer `CACHE` dans `sw.js`.

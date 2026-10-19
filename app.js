@@ -57,10 +57,12 @@ let S = load();
 const face = {
   el: null,
   state: 'sleep',
+  // toutes ses expressions (les nouvelles sont dessinées dans style.css, partie v28)
+  MOODS: ['idle', 'listen', 'think', 'happy', 'oops', 'sleep', 'sad', 'surprise', 'love', 'laugh', 'shy', 'proud', 'confused', 'sleepy', 'calm'],
   set(st) {
     if (!this.el) return;
     this.state = st;
-    this.el.classList.remove('idle', 'listen', 'think', 'happy', 'oops', 'sleep', 'sad');
+    this.el.classList.remove.apply(this.el.classList, this.MOODS);
     this.el.classList.add(st);
     if (st !== this._lastBody) { this._lastBody = st; CORPS.mood(st); } // les lumières du corps suivent l'émotion
     this.look(0, 0);
@@ -141,17 +143,15 @@ const voice = {
       const end = () => {
         if (done) return;
         done = true; this.speaking = false; this.endedAt = Date.now();
-        face.talk(false); face.el.classList.remove('lipsync', 'syl');
+        face.talk(false); VISAGE.quiet();
         OREILLES.mute(false);
         res();
       };
-      u.onstart = () => { this.speaking = true; face.talk(true); };
-      // La bouche s'ouvre à chaque mot (si le navigateur donne le rythme des mots)
+      u.onstart = () => { this.speaking = true; face.talk(true); VISAGE.speak(t, u.rate); };
+      // La bouche prend la forme des sons ; le rythme des mots (si le navigateur le donne) la recale
       u.onboundary = e => {
         if (e.name && e.name !== 'word') return;
-        face.el.classList.add('lipsync', 'syl');
-        clearTimeout(this._syl);
-        this._syl = setTimeout(() => face.el.classList.remove('syl'), Math.min(260, Math.max(90, (e.charLength || 4) * 55)));
+        VISAGE.sync(e.charIndex);
       };
       u.onend = end;
       u.onerror = end;
@@ -184,6 +184,7 @@ function say(text) {
   $('#bubble').classList.remove('alert');
   $('#heard').textContent = '';
   subtitle(esc(String(text).replace(/<[^>]+>/g, ' ')), null);
+  VISAGE.react(text); // son visage suit ce qu'il dit (surpris, rieur, câlin…)
   return voice.say(text);
 }
 
@@ -558,6 +559,8 @@ async function handle(text) {
     if (isNo(text)) return say("D'accord ! Une autre fois.");
   }
   dlg.expect = null;
+  const early = ECRAN.routeEarly(n); // « arrête le minuteur » (avant le « stop » général)
+  if (early) return early();
   // « comment s'est passée ta journée ? » : si la réponse n'est pas une demande de jeu, c'est l'humeur du jour
   const moodWas = dlg.moodPending;
   dlg.moodPending = false;
@@ -565,7 +568,7 @@ async function handle(text) {
   if (RE.sleep.test(n)) return goSleep();
   if (RE.stop.test(n)) { CORPS.bouger('stop'); closeJournal(); hideBoard(); face.set('idle'); await say("D'accord, je me tais. Dis « Shadow » quand tu veux me parler."); dlg.state = 'standby'; return; }
   if (RE.repeat.test(n)) return say(lastSaid || "Je n'ai encore rien dit !");
-  if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Dis-moi ce que tu veux !");
+  if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Avec mon écran, je peux aussi chercher dans mon encyclopédie et te montrer des images, dire la météo, lancer un minuteur, t'accompagner pour le brossage des dents, respirer avec toi pour te calmer, jouer au robot mystère et au jeu des couleurs. Dis-moi ce que tu veux !");
   if (RE.motJour.test(n)) return say(motDuJourText());
   if (RE.medailles.test(n)) return medaillesAnswer();
   if (RE.dicteeMots.test(n)) return activity(dicteeMotsFlow);
@@ -594,6 +597,8 @@ async function handle(text) {
   if (RE.who.test(n)) return whoFlow();
   if (RE.hunt.test(n)) return activity(huntFlow);
   if (RE.what.test(n)) return whatFlow();
+  const ecran = ECRAN.route(text, n); // encyclopédie, météo, minuteur, brossage, respiration, robot mystère, couleurs
+  if (ecran) return ecran();
   if (RE.journal.test(n)) return activity(journalFlow);
   if (RE.animal.test(n)) return chatReply(SEEDS.animal(), true);
   if (RE.devinette.test(n)) return activity(devinetteFlow);
@@ -684,19 +689,19 @@ async function chatReply(text, hidden = false) {
     const vus = VISION.state.faces.map(f => f.name).filter(Boolean);
     const who = speakerNow();
     const now = new Date();
-    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités. ${CORPS.branche ? `Ton corps est branché : tu peux bouger avec [[avance]], [[recule]], [[gauche]], [[droite]] ou [[danse]]${CORPS.battery !== null ? ` (batterie du corps : ${CORPS.battery} %)` : ''}.` : "Ton corps n'est pas encore fabriqué."} ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
+    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu ne vas pas sur Internet et tu n'as pas les actualités ; tu as seulement ton encyclopédie pour enfants (avec [[cherche:sujet]]).${ECRAN.meteoFact() || " Tu n'as pas la météo sous les yeux : n'en parle pas au hasard (on peut te demander « quel temps fait-il »)."} ${CORPS.branche ? `Ton corps est branché : tu peux bouger avec [[avance]], [[recule]], [[gauche]], [[droite]] ou [[danse]]${CORPS.battery !== null ? ` (batterie du corps : ${CORPS.battery} %)` : ''}.` : "Ton corps n'est pas encore fabriqué."} ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
     const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
     const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
     let queue = Promise.resolve(), bad = false, spoken = 0;
-    let action = '';
+    let action = '', actionArg = '';
     const tAsk = performance.now();
     const onSentence = raw0 => {
       if (!spoken) { brainTimes.push(Math.round(performance.now() - tAsk)); if (brainTimes.length > 20) brainTimes.shift(); }
       // le cerveau peut lancer une activité : [[devinette]], [[jacques]]… (jamais dit à voix haute)
-      const sentence = String(raw0).replace(/\[\[\s*([a-z_]+)\s*\]\]/gi, (m, a) => { action = a.toLowerCase(); return ''; }).replace(/\[\[[^\]]*$/, '').trim();
+      const sentence = String(raw0).replace(/\[\[\s*([a-z_]+)\s*(?::\s*([^\]]*))?\]\]/gi, (m, a, arg) => { action = a.toLowerCase(); actionArg = (arg || '').trim(); return ''; }).replace(/\[\[[^\]]*$/, '').trim();
       if (bad || !sentence) return;
       if (ETHIQUE.safe(sentence) !== sentence) { bad = true; return; }
       if (!spoken++) face.set(/bravo|génial|super|youpi|hourra|gagné|trouvé/i.test(sentence) ? 'happy' : 'idle');
@@ -711,15 +716,23 @@ async function chatReply(text, hidden = false) {
       onSentence(raw);
     }
     await queue;
-    const m = String(raw || '').match(/\[\[\s*([a-z_]+)\s*\]\]/i);
-    if (m) action = m[1].toLowerCase();
+    const m = String(raw || '').match(/\[\[\s*([a-z_]+)\s*(?::\s*([^\]]*))?\]\]/i);
+    if (m) { action = m[1].toLowerCase(); actionArg = (m[2] || '').trim(); }
     const clean = String(raw || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
+    // [[cherche:volcan]] : il ne répond pas de mémoire, il va lire son encyclopédie
+    if (!bad && action === 'cherche' && actionArg) {
+      if (clean) S.chat.push({ role: 'assistant', content: clean });
+      save();
+      if (!dlg.interrupt) await ECRAN.savoir(actionArg, text, true);
+      save();
+      return;
+    }
     const reply = bad ? "Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?" : (clean || (action ? "C'est parti !" : "Bip… j'ai perdu le fil. Tu peux répéter ?"));
     if (bad || !spoken) await say(reply);
     S.chat.push({ role: 'assistant', content: reply });
     save();
     if (S.chat.length - S.memPos >= 16) memorize(); // longue discussion : on range au fur et à mesure
-    if (!bad && action && !dlg.interrupt) await runAction(action);
+    if (!bad && action && !dlg.interrupt) await runAction(action, actionArg);
   } catch (e) {
     face.set('oops');
     // un message de robot (la vraie cause, mais sans jargon) ; le code technique va dans les réglages de papa
@@ -815,8 +828,9 @@ async function whoTalks() {
 }
 
 // Les activités que le grand cerveau peut lancer lui-même
-async function runAction(a) {
+async function runAction(a, arg) {
   const map = {
+    brossage: ECRAN.brossageFlow, respiration: ECRAN.respirationFlow, mystere: ECRAN.mystereFlow, simon: ECRAN.simonFlow,
     journal: journalFlow, dictee: dicteeMotsFlow, lecture: lectureFlow, heure: heureFlow, anglais: anglaisFlow,
     calcul: () => calcFlow('mix'), quiz: () => quizFlow(''), devinette: devinetteFlow, cris: crisFlow,
     jacques: jacquesFlow, pfc: pfcFlow, doigts: doigtsFlow, emotions: emotionsFlow, chanson: () => chanterFlow(''),
@@ -830,6 +844,9 @@ async function runAction(a) {
   if (a === 'danse') return dance();
   if (a === 'dormir') return goSleep();
   if (a === 'histoire_soir') return histoireSoirFlow();
+  if (a === 'meteo') return ECRAN.meteo('');
+  if (a === 'minuteur') return ECRAN.minuteur(arg || '');
+  if (a === 'cherche' && arg) return ECRAN.savoir(arg, arg, true);
   if (map[a]) return activity(map[a]);
 }
 
@@ -1293,6 +1310,7 @@ setInterval(() => {
     ['faire un petit quiz', () => quizFlow('')],
     ['faire du calcul', () => calcFlow('mix')],
     ['chanter une comptine', () => chanterFlow('')],
+    ...ECRAN.ideas(),
   ].filter(Boolean);
   const [label, fn] = pick(ideas);
   dlg.state = 'talk'; dlg.silence = 0;
@@ -1449,6 +1467,8 @@ async function copyReport() {
 // Toucher le visage : le réveiller, l'interrompre, ou lui parler sans dire « Shadow »
 function tap() {
   if (!dlg.started) { face.set('happy'); return firstStart(); }
+  if (ECRAN.tapCancel()) return; // le brossage de dents ou la respiration s'arrête
+  if (VISAGE.tapped()) return; // trois petites tapes : ça chatouille !
   if (dlg.deaf && dlg.deafTap) { const t = dlg.deafTap; dlg.deafTap = null; return t(true); }
   if (dlg.state === 'sleep') { pauseUntil = 0; return wake(); }
   if (voice.speaking) { voice.stop(); return; }

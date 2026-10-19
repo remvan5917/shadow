@@ -510,3 +510,147 @@ body.robot .bubble.alert { background: rgba(4, 14, 30, .96); color: #8ff0ff; }
 .board .medals { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 80vw; }
 .board .medals span { display: flex; flex-direction: column; align-items: center; font-size: 48px; min-width: 90px; }
 .board .medals small { font-size: 14px; color: var(--muted); text-align: center; }
+
+/* =========================================================
+   v28 — un visage plus vivant
+   paupières, yeux qui rient, yeux en cœur, joues, petites bulles,
+   bouche qui prend la forme des sons (a, o, i, m…)
+   ========================================================= */
+.face .lid { fill: #0a1330; transform-box: fill-box; transition: transform .22s ease-out; }
+.face .lid-top { transform-origin: 50% 100%; }
+.face .lid-bot { transform-origin: 50% 0; }
+.face .e-joy { fill: none; stroke: var(--eyec); stroke-width: 7; stroke-linecap: round; opacity: 0; transition: opacity .18s; }
+.face .e-heart { fill: #ff6fa8; opacity: 0; transition: opacity .18s; transform-box: fill-box; transform-origin: center; }
+.face .pupil { opacity: 1; }
+.face .cheeks ellipse { fill: #ff7aa8; opacity: 0; transition: opacity .4s; }
+.face .e-joy, .face .e-heart { pointer-events: none; }
+
+/* content : les yeux sourient (les joues remontent), au lieu d'écraser la pupille */
+.face.happy .pupil { transform: none; }
+.face.happy .lid-bot { transform: translateY(-13px); }
+.face.happy .cheeks ellipse { opacity: .35; }
+/* triste : les coins extérieurs tombent */
+.face.sad .pupil { transform: translateY(3px); }
+.face.sad .eye-l .lid-top { transform: translateY(11px) rotate(-16deg); }
+.face.sad .eye-r .lid-top { transform: translateY(11px) rotate(16deg); }
+/* oups : un œil plus grand que l'autre */
+.face.oops .eye-l .lid-top { transform: translateY(8px) rotate(8deg); }
+/* il réfléchit : un œil plissé */
+.face.think .eye-r .lid-bot { transform: translateY(-9px); }
+.face.think .eye-l .lid-top { transform: translateY(5px); }
+/* surpris : grands yeux, bouche en O */
+.face.surprise .pupil { transform: scale(1.16); }
+.face.surprise .m-grin, .face.surprise .m-sad { display: none; }
+.face.surprise .m-o { display: inline; }
+.face.surprise .m-o ellipse { transform-box: fill-box; transform-origin: center; transform: scale(1.15, 1.2); }
+.face.surprise .bob { animation: hop .3s ease 1; }
+/* amoureux / câlin : des cœurs à la place des yeux */
+.face.love .pupil, .face.laugh .pupil { opacity: 0; }
+.face.love .e-heart { opacity: 1; animation: beat .7s ease-in-out infinite; }
+.face.love .cheeks ellipse, .face.laugh .cheeks ellipse, .face.shy .cheeks ellipse { opacity: .6; }
+/* il rit : yeux en « ^ ^ », il sautille */
+.face.laugh .e-joy { opacity: 1; }
+.face.laugh .bob { animation: giggle .22s ease-in-out 6; }
+.face.laugh .m-grin { transform: scale(1.06, 1.1); }
+/* timide : il baisse les yeux et rougit */
+.face.shy .look { transform: translate(-4px, 7px) !important; }
+.face.shy .lid-top { transform: translateY(8px); }
+/* fier : yeux souriants, crête dorée */
+.face.proud .lid-bot { transform: translateY(-15px); }
+.face.proud .crest { stroke: #ffd84d; animation: eq .3s ease-in-out infinite alternate; }
+.face.proud .bob { animation: hop .45s ease 2; }
+/* il ne comprend pas : un sourcil-paupière en biais, tête penchée */
+.face.confused .eye-l .lid-top { transform: translateY(12px) rotate(10deg); }
+.face.confused .eye-r .pupil { transform: scale(.85); }
+.face.confused .bob { animation: tilt .5s ease forwards; }
+/* fatigué (et le soir) : paupières lourdes */
+.face.sleepy .lid-top { transform: translateY(15px); }
+.face.night.idle .lid-top, .face.night.listen .lid-top { transform: translateY(5px); }
+.face.sleep .lid-top { transform: translateY(26px); }
+/* calme (respiration) : tout respire doucement */
+.face.calm .lid-top { transform: translateY(9px); }
+.face.calm .bob { animation: breathe var(--breath, 9s) ease-in-out infinite; }
+.face.calm .crest { animation: pulse var(--breath, 9s) ease-in-out infinite; }
+/* clin d'œil */
+.face.wink .eye-r .blink { transform: scaleY(.08); }
+/* petits gestes quand il s'ennuie un peu */
+.face.peek .bob { animation: peek 1.4s ease-in-out 1; }
+.face.yawn .m-grin { display: none; }
+.face.yawn .m-o { display: inline; }
+.face.yawn .m-o ellipse { transform-box: fill-box; transform-origin: center; animation: yawn 1.6s ease-in-out 1; }
+.face.yawn .lid-top { transform: translateY(17px); }
+.face.crestwave .crest { animation: crestwave 1.2s ease-in-out 1; }
+
+@keyframes beat { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.18); } 50% { transform: scale(.96); } }
+@keyframes giggle { 50% { transform: translateY(-5px) rotate(1.5deg); } }
+@keyframes breathe { 0%, 100% { transform: scale(.97); } 45% { transform: scale(1.04); } }
+@keyframes peek { 30% { transform: rotate(6deg) translateY(-3px); } 70% { transform: rotate(-3deg); } }
+@keyframes yawn { 0% { transform: scale(.6, .4); } 40%, 70% { transform: scale(1.25, 1.5); } 100% { transform: scale(.7, .5); } }
+@keyframes crestwave { 0% { transform: translateY(0); } 25% { transform: translateY(-4px) skewX(-8deg); } 50% { transform: translateY(0) skewX(8deg); } 75% { transform: translateY(-2px); } }
+.face .crest { transform-box: fill-box; transform-origin: 50% 100%; }
+
+/* la bouche prend la forme des sons pendant qu'il parle */
+.face.vis.talk .m-grin, .face.vis.talk .m-o { animation: none; }
+.face.vis[data-vis="A"] .m-grin { transform: scaleY(1.08); }
+.face.vis[data-vis="E"] .m-grin { transform: scaleY(.62); }
+.face.vis[data-vis="I"] .m-grin { transform: scale(1.05, .42); }
+.face.vis[data-vis="F"] .m-grin { transform: scaleY(.3); }
+.face.vis[data-vis="M"] .m-grin { transform: scaleY(.1); }
+.face.vis[data-vis="X"] .m-grin { transform: scaleY(.18); }
+.face.vis[data-vis="O"]:not(.oops):not(.sad) .m-grin { display: none; }
+.face.vis[data-vis="O"]:not(.oops):not(.sad) .m-o { display: inline; }
+
+/* les petites bulles qui sortent de sa tête : cœurs, étoiles, « ? », « Z », notes */
+#face-fx { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; overflow: visible; }
+#face-fx span { position: absolute; font: 700 clamp(22px, 6vmin, 46px)/1 Andika, sans-serif; color: var(--c, #ffd84d);
+  text-shadow: 0 0 10px var(--c, #ffd84d); animation: puff var(--d, 1.8s) ease-out forwards; will-change: transform, opacity; }
+@keyframes puff { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 15% { opacity: 1; transform: translate(0, -8px) scale(1); }
+  100% { transform: translate(var(--dx, 0), -70px) scale(1.1) rotate(var(--rot, 0)); opacity: 0; } }
+
+/* le minuteur (dans le coin, pendant qu'on continue à parler) */
+.timer { position: fixed; top: 10px; right: 12px; z-index: 9; width: 84px; height: 84px; }
+.timer svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+.timer .t-bg { fill: rgba(10, 17, 36, .85); stroke: #22325f; stroke-width: 8; }
+.timer .t-arc { fill: none; stroke: var(--ok); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .5s; }
+.timer.low .t-arc { stroke: var(--warn); }
+.timer b { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; font: 700 20px Andika, sans-serif; color: #fff; }
+.timer small { position: absolute; left: 0; right: 0; bottom: -18px; text-align: center; font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+/* l'encyclopédie : une image et son nom */
+.board .savoir { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.board .savoir img { max-width: min(80vw, 520px); max-height: 58vh; border-radius: 16px; background: #fff; object-fit: contain; }
+.board .savoir h3 { margin: 0; font: 700 clamp(24px, 5vmin, 40px) Andika, sans-serif; color: #fff; }
+.board .savoir small { color: var(--muted); font-size: 13px; }
+/* la météo */
+.board .meteo { display: flex; gap: 22px; align-items: center; justify-content: center; flex-wrap: wrap; color: #fff; }
+.board .meteo .big { font-size: min(26vmin, 150px); line-height: 1; }
+.board .meteo .deg { font: 700 min(14vmin, 80px) Andika, sans-serif; }
+.board .meteo p { margin: 4px 0; font-size: clamp(18px, 3.6vmin, 28px); }
+/* respirer ensemble */
+.board .souffle { width: min(56vmin, 320px); height: min(56vmin, 320px); display: flex; align-items: center; justify-content: center; }
+.board .souffle i { display: block; width: 40%; height: 40%; border-radius: 50%; background: radial-gradient(circle, #8ff0ff, #4c8dff); box-shadow: 0 0 40px #4c8dff;
+  transition: transform var(--t, 4s) ease-in-out; }
+.board .souffle.in i { transform: scale(2.3); }
+.board .souffle + p { margin: 6px 0 0; font: 700 clamp(26px, 6vmin, 46px) Andika, sans-serif; color: #fff; }
+/* le robot mystère (le pendu des robots) */
+.board .mystere { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.board .mystere svg { width: min(40vmin, 220px); height: auto; }
+.board .mystere svg .p { opacity: 0; transition: opacity .4s; stroke: var(--eye); stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.board .mystere svg .p.on { opacity: 1; }
+.board .mystere .mot { font: 700 clamp(34px, 8vmin, 64px) Andika, sans-serif; letter-spacing: .25em; color: #fff; }
+.board .mystere .rate { font-size: 20px; color: var(--warn); letter-spacing: .2em; min-height: 1.2em; }
+/* le jeu de mémoire des couleurs */
+.board .simon { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: min(64vmin, 380px); }
+.board .simon i { display: block; padding-top: 100%; border-radius: 22px; opacity: .28; transition: opacity .12s, transform .12s; }
+.board .simon i.on { opacity: 1; transform: scale(1.05); box-shadow: 0 0 34px currentColor; }
+.board .simon + p { margin: 10px 0 0; color: var(--muted); font-size: 18px; }
+@supports not (width: min(1px, 2px)) {
+  .board .savoir img { max-width: 80vw; }
+  .board .souffle { width: 300px; height: 300px; }
+  .board .simon { width: 340px; }
+  .board .mystere svg { width: 200px; }
+  #face-fx span { font-size: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .face.love .e-heart, .face.laugh .bob, .face.calm .bob, .face.peek .bob { animation: none; }
+}

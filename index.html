@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '27';
+      window.SHADOW_VERSION = '28';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -48,6 +48,7 @@
       <div id="face-wrap">
         <svg id="face" class="face idle" viewBox="0 0 320 232" role="img" aria-label="Le visage de Shadow">
           <defs>
+            <clipPath id="eye-in"><rect x="52" y="48" width="56" height="52" rx="3"/></clipPath>
             <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
               <feGaussianBlur stdDeviation="3.5" result="b"/>
               <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
@@ -63,14 +64,28 @@
               <circle class="screw" cx="29" cy="205" r="4.5"/>
               <circle class="screw" cx="291" cy="205" r="4.5"/>
               <path class="visor" d="M12 114 H308"/>
-              <g class="eye">
+              <!-- les yeux : la pupille carrée, et ses autres formes (yeux qui rient, cœurs) + les paupières -->
+              <g class="eye eye-l">
                 <rect class="eye-frame" x="50" y="46" width="60" height="56" rx="5"/>
-                <g class="look"><g class="blink"><rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/></g></g>
+                <g clip-path="url(#eye-in)"><g class="look"><g class="blink">
+                  <rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/>
+                  <path class="e-joy" d="M66 82 Q80 60 94 82" filter="url(#glow)"/>
+                  <path class="e-heart" d="M80 90 C60 77 61 58 73 59 C77 59.5 79.5 62 80 65 C80.5 62 83 59.5 87 59 C99 58 100 77 80 90 Z" filter="url(#glow)"/>
+                  <rect class="lid lid-top" x="58" y="34" width="44" height="22"/>
+                  <rect class="lid lid-bot" x="58" y="92" width="44" height="22" rx="12"/>
+                </g></g></g>
               </g>
-              <g class="eye">
-                <rect class="eye-frame" x="210" y="46" width="60" height="56" rx="5"/>
-                <g class="look"><g class="blink"><rect class="pupil" x="228" y="56" width="24" height="36" rx="3" filter="url(#glow)"/></g></g>
+              <g class="eye eye-r" transform="translate(160 0)">
+                <rect class="eye-frame" x="50" y="46" width="60" height="56" rx="5"/>
+                <g clip-path="url(#eye-in)"><g class="look"><g class="blink">
+                  <rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/>
+                  <path class="e-joy" d="M66 82 Q80 60 94 82" filter="url(#glow)"/>
+                  <path class="e-heart" d="M80 90 C60 77 61 58 73 59 C77 59.5 79.5 62 80 65 C80.5 62 83 59.5 87 59 C99 58 100 77 80 90 Z" filter="url(#glow)"/>
+                  <rect class="lid lid-top" x="58" y="34" width="44" height="22"/>
+                  <rect class="lid lid-bot" x="58" y="92" width="44" height="22" rx="12"/>
+                </g></g></g>
               </g>
+              <g class="cheeks"><ellipse cx="66" cy="124" rx="17" ry="7"/><ellipse cx="254" cy="124" rx="17" ry="7"/></g>
               <g class="lens"><circle cx="160" cy="72" r="11"/><circle cx="160" cy="72" r="4"/></g>
               <path class="nose" d="M152 142 L160 126 L168 142 Z"/>
               <g class="whiskers">
@@ -89,9 +104,11 @@
             </g>
           </g>
         </svg>
+        <div id="face-fx" aria-hidden="true"></div>
       </div>
+      <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v27</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v28</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -238,6 +255,12 @@
         <b>Pour qu'il entende sans réseau</b> (Android) : installer la reconnaissance vocale française hors connexion — Paramètres → Google → Paramètres des applis Google → Recherche, Assistant et Voice → Voice → <i>Reconnaissance vocale hors connexion</i> → Français. Et pour sa voix : Paramètres → Langue → <i>Synthèse vocale</i> → Google → installer les données vocales françaises. Sans ça, il passe en mode « touche-moi pour jouer ».</p>
       </fieldset>
       <fieldset>
+        <legend>🌦️ Météo</legend>
+        <p id="s-ville-state" class="small"></p>
+        <div class="row"><input id="s-ville" type="text" maxlength="40" placeholder="Votre ville (ex : Lille)" autocomplete="off"><button type="button" id="s-ville-ok" class="ghost">Enregistrer</button><button type="button" id="s-ville-del" class="ghost">Effacer</button></div>
+        <p class="small muted">Seulement la ville, jamais l'adresse. Pour la météo, Shadow envoie les coordonnées de la ville (arrondies) à Open-Meteo, un service gratuit sans compte. Ensuite l'enfant demande « quel temps fait-il ? ».</p>
+      </fieldset>
+      <fieldset>
         <legend>📊 Le bilan des 7 derniers jours</legend>
         <div id="s-bilan"></div>
       </fieldset>
@@ -317,7 +340,9 @@
   <script src="vision.js"></script>
   <script src="corps.js"></script>
   <script src="contenus.js"></script>
+  <script src="visage.js"></script>
   <script src="app.js"></script>
   <script src="activites.js"></script>
+  <script src="ecran.js"></script>
 </body>
 </html>
