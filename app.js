@@ -174,7 +174,8 @@ function subtitle(html, heard) {
   if (heard) $('#heard').textContent = heard;
   if (html !== null) $('#bubble-text').innerHTML = html;
   const empty = !$('#bubble-text').textContent.trim() && !$('#heard').textContent.trim();
-  $('#bubble').hidden = empty || !(S.settings.subtitles || !voice.ok || !S.settings.sound || mustShow);
+  const demo = typeof ECRAN !== 'undefined' && ECRAN.DEMO; // la vidéo de démo se regarde sans sous-titres
+  $('#bubble').hidden = empty || demo || !(S.settings.subtitles || !voice.ok || !S.settings.sound || mustShow);
   document.body.classList.toggle('subs', !$('#bubble').hidden);
 }
 // Shadow parle (et affiche des sous-titres si papa les a activés)

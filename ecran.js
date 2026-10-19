@@ -563,7 +563,7 @@ const ECRAN = (() => {
     face.set('happy');
     await say("À la maison, j'allumerai les lumières, je fermerai les volets et je réglerai le chauffage. Je veillerai sur la maison et je préviendrai s'il y a un souci.");
     await say("Je me déplacerai tout seul de pièce en pièce, sans me cogner, et je viendrai rappeler l'heure des devoirs.");
-    showBoard(futurBoard('Dehors', [['family', "J'accompagne la famille"], ['leaf', 'Je reconnais les plantes et les animaux'], ['home', 'Je retrouve le chemin de la maison']]), 'solid');
+    showBoard(futurBoard('Dehors', [['family', "J'accompagne la famille"], ['leaf', 'Je reconnais plantes et animaux'], ['home', 'Je retrouve le chemin']]), 'solid');
     await say("Dehors, j'accompagnerai la famille en promenade, je reconnaîtrai les plantes et les animaux, et je retrouverai toujours le chemin de la maison.");
     hideBoard();
     face.set('proud'); VISAGE.puff('etoile', 5); fx.ok(); fx.confetti(70);
