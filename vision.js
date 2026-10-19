@@ -18,6 +18,33 @@ const VISION = (() => {
   let od = null, odLoading = null;
 
   let api = null, video = null, stream = null, on = false, loading = null, timer = null, frame = 0, opts = null, capturing = false;
+  // Image éclaircie quand la pièce est sombre (les visages sont alors bien mieux trouvés)
+  const probe = document.createElement('canvas'), work = document.createElement('canvas');
+  probe.width = 32; probe.height = 24;
+  let boost = 1, lastProbe = 0, learnAt = {};
+  function source() {
+    const now = performance.now();
+    if (now - lastProbe > 2000) {
+      lastProbe = now;
+      try {
+        const g = probe.getContext('2d');
+        g.drawImage(video, 0, 0, 32, 24);
+        const d = g.getImageData(0, 0, 32, 24).data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) sum += 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+        const lum = sum / (d.length / 4);
+        boost = lum < 95 ? Math.min(2.2, 115 / Math.max(lum, 20)) : 1;
+      } catch (e) { boost = 1; }
+    }
+    if (boost === 1) return video;
+    const w = 480, h = Math.round(480 * (video.videoHeight / video.videoWidth));
+    if (work.width !== w) { work.width = w; work.height = h; }
+    const g = work.getContext('2d');
+    g.filter = `brightness(${boost.toFixed(2)}) contrast(1.15)`;
+    g.drawImage(video, 0, 0, w, h);
+    g.filter = 'none';
+    return work;
+  }
   const state = { faces: [], main: null };
   const handlers = { track: [], people: [] };
   const emit = (ev, data) => handlers[ev].forEach(fn => fn(data));
@@ -44,7 +71,7 @@ const VISION = (() => {
       api.nets.faceRecognitionNet.loadFromUri(MODELS),
       api.nets.faceExpressionNet.loadFromUri(MODELS),
     ]);
-    opts = new api.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
+    opts = new api.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.38 });
   }
 
   let withObjects = true;
@@ -88,19 +115,24 @@ const VISION = (() => {
     timer = setTimeout(tick, Math.max(60, 180 - (performance.now() - t0)));
   }
   async function track() {
-    const d = await api.detectSingleFace(video, opts);
-    setMain(d && d.box);
+    const src = source();
+    const d = await api.detectSingleFace(src, opts);
+    setMain(d && d.box, src);
   }
-  function setMain(box) {
+  function setMain(box, src) {
     if (!box) { state.main = null; emit('track', null); return; }
-    const w = video.videoWidth || 640, h = video.videoHeight || 480;
+    const el = src || video;
+    const w = el.videoWidth || el.width || 640, h = el.videoHeight || el.height || 480;
     state.main = { cx: ((box.x + box.width / 2) / w) * 2 - 1, cy: ((box.y + box.height / 2) / h) * 2 - 1, size: box.width / w };
     emit('track', state.main);
   }
   async function analyse() {
-    const res = await api.detectAllFaces(video, opts).withFaceLandmarks(true).withFaceDescriptors().withFaceExpressions();
+    const src = source();
+    const res = await api.detectAllFaces(src, opts).withFaceLandmarks(true).withFaceDescriptors().withFaceExpressions();
     state.faces = res.map(r => {
       const m = best(r.descriptor);
+      // Il continue d'apprendre les visages qu'il reconnaît bien (autre lumière, autre coiffure…)
+      if (m && m.dist < 0.42 && !capturing) learnMore(m.id, r.descriptor);
       return {
         box: r.detection.box,
         name: m && m.dist < MATCH ? m.name : null,
@@ -108,8 +140,17 @@ const VISION = (() => {
         area: r.detection.box.width * r.detection.box.height,
       };
     }).sort((a, b) => b.area - a.area);
-    setMain(state.faces[0] && state.faces[0].box);
+    setMain(state.faces[0] && state.faces[0].box, src);
     emit('people', state.faces);
+  }
+  function learnMore(id, desc) {
+    const p = (S.people || []).find(x => x.id === id);
+    const now = Date.now();
+    if (!p || now - (learnAt[id] || 0) < 120000) return; // au plus une nouvelle « photo mentale » toutes les 2 minutes
+    learnAt[id] = now;
+    p.desc.push(Array.from(desc, x => Math.round(x * 1e4) / 1e4));
+    if (p.desc.length > 24) p.desc.splice(5, 1); // on garde les 5 premières (celles de « faire connaissance »)
+    save();
   }
   function best(desc) {
     let m = null;
@@ -134,7 +175,7 @@ const VISION = (() => {
       const out = [];
       const t0 = Date.now();
       while (out.length < n && Date.now() - t0 < timeoutMs) {
-        const res = video.videoWidth ? await api.detectAllFaces(video, opts).withFaceLandmarks(true).withFaceDescriptors() : [];
+        const res = video.videoWidth ? await api.detectAllFaces(source(), opts).withFaceLandmarks(true).withFaceDescriptors() : [];
         if (res.length > 1) throw new Error('several');
         if (res.length === 1) out.push(Array.from(res[0].descriptor, x => Math.round(x * 1e4) / 1e4));
         await new Promise(r => setTimeout(r, 350));

@@ -131,7 +131,7 @@ const voice = {
       const u = new SpeechSynthesisUtterance(t);
       u.lang = 'fr-FR';
       if (this.v) u.voice = this.v;
-      u.rate = S.settings.slow ? 0.82 : 0.96;
+      u.rate = S.settings.slow ? 0.85 : 1.02;
       u.pitch = 1.1;
       let done = false;
       const end = () => {
@@ -226,7 +226,9 @@ const fx = {
 // Écoute une phrase. Renvoie le texte, '' si personne n'a parlé, null si l'écoute a été interrompue.
 async function hear({ prompt = '', maxWait = 20000, face: f = 'listen' } = {}) {
   if (face.state !== 'sleep' || f === 'sleep') face.set(f);
-  const r = await OREILLES.listen({ prompt, maxWait, endSilence: prompt === SPELL_PROMPT ? 2.2 : 1.2 });
+  // Whisper comprend mieux s'il sait de quoi on parle : on lui donne la dernière phrase de Shadow
+  const ctxPrompt = prompt || `Conversation en français avec Shadow, un robot, et ${name()}. Shadow : ${voice.clean(lastSaid).slice(-200)}`;
+  const r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: prompt === SPELL_PROMPT ? 2.2 : 0.9 });
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
     face.set('oops');
@@ -241,7 +243,10 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen' } = {}) {
   if (r) subtitle(null, `🎤 « ${r} »`);
   return r;
 }
-OREILLES.on('thinking', () => { face.el.classList.remove('hearing'); if (['listen', 'idle'].includes(face.state)) face.set('think'); });
+OREILLES.on('thinking', () => {
+  face.el.classList.remove('hearing');
+  if (['listen', 'idle'].includes(face.state)) { face.set('think'); fx.tone([[1175, 0.06]]); } // « bip » : je t'ai entendu
+});
 // Dès qu'il entend une voix, sa crête s'allume fort : on sait qu'il écoute
 OREILLES.on('speech', () => face.el.classList.add('hearing'));
 OREILLES.on('speechend', () => face.el.classList.remove('hearing'));
@@ -252,7 +257,7 @@ const dlg = { state: 'sleep', busy: false, silence: 0, lastActive: Date.now(), s
 
 class Stop extends Error {}
 const RE = {
-  wake: /\b(he |hey |eh |e |o |oh |bonjour |salut |coucou )?(shadow|shadows|chadow|shado|chado|shadoo|chadeau|chat d eau|chat dos|sha do|cha do|chat do|shad|chad)\b/,
+  wake: /\b(he |hey |eh |e |o |oh |bonjour |salut |coucou )?(shadow|shadows|chadow|shado|chado|shadoo|shadoe|shadou|chadou|chadoo|chadeau|chat d eau|chat dos|sha do|cha do|chat do|shad|chad|chadow|shadow s)\b/,
   stop: /\b(stop|arrete|arretes|arreter|ca suffit|j en ai marre|on arrete)\b/,
   repeat: /\b(repete|repeter|redis|redire|pas compris|j ai pas entendu|tu peux repeter)\b/,
   yes: /\b(oui|ouais|ouai|yes|ok|okay|d accord|dac|c est ca|exact|exactement|bien sur|voila|carrement|vas y|allez|go)\b/,
@@ -529,14 +534,29 @@ async function chatReply(text, hidden = false) {
   try {
     const vus = VISION.state.faces.map(f => f.name).filter(Boolean);
     const sys = CERVEAU.personality() + MEMOIRE.context() + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '');
-    const raw = await AI.chat([{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))],
-      { maxTokens: 260, temperature: 0.8 });
-    const reply = ETHIQUE.safe(raw || "Bip… j'ai perdu le fil. Tu peux répéter ?");
+    const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
+    // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
+    let queue = Promise.resolve(), bad = false, spoken = 0;
+    const onSentence = sentence => {
+      if (bad || !sentence) return;
+      if (ETHIQUE.safe(sentence) !== sentence) { bad = true; return; }
+      if (!spoken++) face.set(/bravo|génial|super|youpi|hourra|gagné|trouvé/i.test(sentence) ? 'happy' : 'idle');
+      queue = queue.then(() => say(sentence));
+    };
+    let raw;
+    try {
+      raw = await AI.chatStream(msgs, { maxTokens: 200, temperature: 0.8 }, onSentence);
+    } catch (e) {
+      if (spoken) throw e;
+      raw = await AI.chat(msgs, { maxTokens: 200, temperature: 0.8 }); // secours sans « mot à mot »
+      onSentence(raw);
+    }
+    await queue;
+    const reply = bad ? "Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?" : (raw || "Bip… j'ai perdu le fil. Tu peux répéter ?");
+    if (bad || !spoken) await say(reply);
     S.chat.push({ role: 'assistant', content: reply });
     save();
     if (S.chat.length - S.memPos >= 16) memorize(); // longue discussion : on range au fur et à mesure
-    face.set(/bravo|génial|super|youpi|hourra|gagné|trouvé/i.test(reply) ? 'happy' : 'idle');
-    await say(reply);
   } catch (e) {
     face.set('oops');
     await say(/401|invalid|key/i.test(e.message) ? "Ma clé d'intelligence ne marche pas. Demande à papa de vérifier les réglages." : 'Oups, mon cerveau ne répond pas. Le WiFi est peut-être coupé.');
@@ -967,11 +987,11 @@ function cleanName(t) {
 async function meetFlow() {
   if (!(await needEyes())) return;
   face.set('happy');
-  await say('Super, on fait connaissance ! Mets-toi bien en face de moi, tout seul, et regarde-moi dans les yeux…');
+  await say('Super, on fait connaissance ! Mets-toi bien en face de moi, tout seul. Regarde-moi, puis tourne doucement la tête un peu à gauche et un peu à droite…');
   face.set('think');
   let desc;
   try {
-    desc = await VISION.capture(5);
+    desc = await VISION.capture(8, 12000);
   } catch (e) {
     face.set('oops');
     await say(e.message === 'several'
@@ -989,7 +1009,7 @@ async function meetFlow() {
     if (n && (await askYesNo(`Tu t'appelles ${n} ? C'est bien ça ?`))) who = n;
   }
   const p = S.people.find(x => x.name.toLowerCase() === who.toLowerCase());
-  if (p) p.desc = [...p.desc, ...desc].slice(-10);
+  if (p) p.desc = [...p.desc, ...desc].slice(-24);
   else S.people.push({ id: Date.now(), name: who, desc });
   save();
   seen.last[who] = Date.now();

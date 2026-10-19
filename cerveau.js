@@ -38,6 +38,70 @@ const AI = {
     return cleanReply((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
   },
 
+  // Même chose, mais la réponse arrive mot à mot : onSentence(phrase) est appelé dès qu'une phrase est complète,
+  // pour que Shadow commence à parler sans attendre la fin.
+  async chatStream(messages, { maxTokens = 200, temperature = 0.8, timeout = 20000 } = {}, onSentence) {
+    const c = this.cfg();
+    const body = { model: c.model, messages, temperature, max_tokens: maxTokens, stream: true };
+    if (!c.local) {
+      if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = 'low'; body.max_tokens = maxTokens + 300; }
+      if (c.model.startsWith('qwen/')) body.reasoning_format = 'hidden';
+    }
+    const ctl = new AbortController();
+    const tm = setTimeout(() => ctl.abort(), c.local ? Math.max(timeout, 45000) : timeout);
+    let full = '', pending = '', inThink = false;
+    const flush = force => {
+      // découpe en phrases (au moins ~20 lettres, pour ne pas hacher la voix)
+      for (;;) {
+        const m = pending.match(/^([\s\S]{20,}?[.!?…])(\s+|$)/);
+        if (!m || (!m[2] && !force)) break;
+        onSentence(cleanReply(m[1]));
+        pending = pending.slice(m[0].length);
+      }
+      if (force && cleanReply(pending)) { onSentence(cleanReply(pending)); pending = ''; }
+    };
+    try {
+      const res = await fetch(c.base + '/chat/completions', {
+        method: 'POST', signal: ctl.signal,
+        headers: Object.assign({ 'Content-Type': 'application/json' }, c.key ? { Authorization: `Bearer ${c.key}` } : {}),
+        body: JSON.stringify(body),
+      });
+      if (!res.ok || !res.body) throw new Error(`Erreur ${res.status}`);
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const r = await reader.read();
+        if (r.done) break;
+        buf += dec.decode(r.value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data:')) continue;
+          const data = t.slice(5).trim();
+          if (data === '[DONE]') continue;
+          let j = null;
+          try { j = JSON.parse(data); } catch (e) { continue; }
+          let piece = (j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content) || '';
+          // les modèles « qui réfléchissent » peuvent envoyer <think>…</think> : on ne le dit pas
+          if (piece.indexOf('<think>') >= 0) { inThink = true; piece = piece.split('<think>')[0]; }
+          if (inThink) { const k = piece.indexOf('</think>'); if (k < 0) continue; inThink = false; piece = piece.slice(k + 8); }
+          full += piece;
+          pending += piece;
+          flush(false);
+        }
+      }
+      flush(true);
+      return cleanReply(full);
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('Trop long… (pas de WiFi ?)');
+      throw e;
+    } finally {
+      clearTimeout(tm);
+    }
+  },
+
   // Vision détaillée (option de papa) : une photo est envoyée à Groq pour la décrire
   VISION_MODEL: 'qwen/qwen3.8-27b', // il comprend aussi les images (vérifié en oct. 2026)
   RETIRED_VISION: ['meta-llama/llama-4-scout-17b-16e-instruct'],

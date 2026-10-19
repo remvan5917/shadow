@@ -16,7 +16,7 @@ const OREILLES = (() => {
   let engine = null;
   let ctx = null, stream = null, proc = null, src = null;
   let muted = false, muteUntil = 0;
-  let noise = 0.01, speaking = false, voiced = 0, silent = 0, buf = [], pre = [];
+  let noise = 0.004, speaking = false, voiced = 0, silent = 0, buf = [], pre = [], peak = 0, frames = 0;
   let level = 0, threshold = 0.012, lastHeard = '';
   // Sensibilité du micro (réglage de papa) : seuil minimum et marge au-dessus du bruit de la pièce
   const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2] };
@@ -52,7 +52,7 @@ const OREILLES = (() => {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       if (!ctx) ctx = new AC();
       src = ctx.createMediaStreamSource(stream);
-      proc = ctx.createScriptProcessor(4096, 1, 1);
+      proc = ctx.createScriptProcessor(2048, 1, 1); // petits morceaux (~45 ms) : il réagit plus vite
       src.connect(proc);
       proc.connect(ctx.destination); // sortie muette, nécessaire pour que le micro « tourne »
       proc.onaudioprocess = e => onAudio(e.inputBuffer.getChannelData(0));
@@ -73,33 +73,40 @@ const OREILLES = (() => {
     const rms = Math.sqrt(sum / f.length);
     level = rms;
     const now = performance.now();
+    // le bruit de la pièce s'apprend vite au début, puis doucement
+    const alpha = ++frames < 40 ? 0.15 : 0.03;
     if (muted || now < muteUntil || !pending || pending.busy) {
-      if (!speaking) noise = noise * 0.95 + rms * 0.05;
+      if (!speaking) noise = noise * (1 - alpha) + rms * alpha;
       pre = []; buf = []; speaking = false; voiced = 0;
       return;
     }
+    // la toute première seconde : il écoute juste le bruit de la pièce, pour l'apprendre
+    if (frames < 25) { noise = noise * (1 - alpha) + rms * alpha; return; }
     const ds = downsample(f, ctx.sampleRate);
     const [min, k] = SENS[S.settings.micSens] || SENS.haute;
     const on = Math.max(noise * k, min), off = Math.max(noise * (k * 0.66), min * 0.66);
     threshold = on;
     if (!speaking) {
       pre.push(ds);
-      if (pre.length > 5) pre.shift(); // ~0,4 s gardées avant le début, pour ne pas couper la 1re lettre
+      if (pre.length > 10) pre.shift(); // ~0,45 s gardées avant le début, pour ne pas couper la 1re lettre
       if (rms > on) {
-        if (++voiced >= 2) { speaking = true; silent = 0; buf = [...pre]; emit('speech'); }
+        if (++voiced >= 3) { speaking = true; silent = 0; peak = rms; buf = [...pre]; emit('speech'); }
       } else {
         voiced = 0;
-        noise = noise * 0.95 + rms * 0.05;
+        noise = noise * (1 - alpha) + rms * alpha;
         if (now > pending.deadline) finish('');
       }
       return;
     }
     buf.push(ds);
-    silent = rms < off ? silent + 1 : 0;
+    peak = Math.max(peak, rms);
+    // « silence » = sous le seuil, OU bien plus faible que la voix qu'on vient d'entendre
+    // (sinon un ventilateur ou une télé le faisaient attendre jusqu'à 20 secondes)
+    silent = (rms < off || rms < peak * 0.18) ? silent + 1 : 0;
     const dur = (buf.length * f.length) / ctx.sampleRate;
     // Fin de la phrase après un silence : 1,2 s d'habitude, 2,2 s quand on épelle (pauses entre les lettres)
     const endFrames = Math.round((pending.endSilence * ctx.sampleRate) / f.length);
-    if (silent >= endFrames || dur > 20) {
+    if (silent >= endFrames || dur > 12) {
       const audio = buf;
       const speech = dur - (silent * f.length) / ctx.sampleRate;
       buf = []; speaking = false; voiced = 0;
@@ -173,13 +180,25 @@ const OREILLES = (() => {
   /* ---------- ce que le reste de Shadow utilise ---------- */
   function finish(v) { const p = pending; pending = null; if (p) p.resolve(v); }
   // Écoute UNE phrase. Résout avec le texte, '' si personne n'a parlé, null si annulé, {error} en cas de souci.
-  function listen({ prompt = '', maxWait = 20000, endSilence = 1.2 } = {}) {
+  function listen({ prompt = '', maxWait = 20000, endSilence = 0.9 } = {}) {
     if (pending) finish(null);
     return new Promise(resolve => {
       const p = { resolve, prompt, endSilence, deadline: performance.now() + maxWait, busy: false };
       pending = p;
       if (!engine) return finish({ error: 'no-ears' });
       if (engine === 'chrome') chromeListen(p);
+      else {
+        // Le téléphone peut mettre le son en pause : on le réveille…
+        if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+        // …et une minuterie garantit qu'il n'attend jamais pour toujours
+        const guardTimer = () => {
+          if (pending !== p) return;
+          if (!p.busy && !speaking && performance.now() > p.deadline + 500) return finish('');
+          if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+          setTimeout(guardTimer, 1000);
+        };
+        setTimeout(guardTimer, 1000);
+      }
     });
   }
   function cancel() { if (rec) { const r = rec; rec = null; r.abort(); } finish(null); }
