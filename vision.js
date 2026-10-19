@@ -47,7 +47,9 @@ const VISION = (() => {
     opts = new api.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
   }
 
-  async function start(videoEl) {
+  let withObjects = true;
+  async function start(videoEl, o) {
+    withObjects = !(o && o.objects === false);
     if (on) return;
     video = videoEl;
     loading = loading || load().catch(e => { loading = null; throw e; });
@@ -59,7 +61,7 @@ const VISION = (() => {
     await video.play().catch(() => {});
     on = true;
     tick();
-    loadObjects().catch(() => {}); // on prépare la reconnaissance des objets en avance
+    if (withObjects) loadObjects().catch(() => {}); // on prépare la reconnaissance des objets en avance
   }
   function stop() {
     on = false;
@@ -154,7 +156,8 @@ const VISION = (() => {
   function loadObjects() {
     if (od) return Promise.resolve(od);
     odLoading = odLoading || (async () => {
-      const m = await import(`${MP}/vision_bundle.mjs`);
+      // import « caché » dans une chaîne : un vieux navigateur ne peut pas refuser tout le fichier à cause de lui
+      const m = await new Function('u', 'return import(u)')(`${MP}/vision_bundle.mjs`);
       const files = await m.FilesetResolver.forVisionTasks(`${MP}/wasm`);
       const opt = d => ({ baseOptions: { modelAssetPath: OD_MODEL, delegate: d }, runningMode: 'IMAGE', scoreThreshold: 0.35, maxResults: 6 });
       try { od = await m.ObjectDetector.createFromOptions(files, opt('GPU')); }

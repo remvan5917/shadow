@@ -770,17 +770,30 @@ async function quizFlow(th) {
 const seen = { last: {}, present: false, presentSince: 0, unknownSince: 0, askedUnknown: 0, smileAt: 0, sadAt: 0, sadCount: 0 };
 let visionBusy = false;
 
+/* ---------- Anti-plantage ----------
+   Avant une étape lourde (les yeux), on laisse un petit mot dans la mémoire.
+   Si l'appli s'arrête brutalement, le mot est encore là au lancement suivant :
+   Shadow sait alors ce qui a planté et ne recommence pas tout seul. */
+const BOOT_KEY = 'shadow-boot';
+const guard = step => { try { localStorage.setItem(BOOT_KEY, step); } catch (e) { /* rien */ } };
+const guardOk = () => { try { localStorage.removeItem(BOOT_KEY); } catch (e) { /* rien */ } };
+// Vieux navigateur (ex. Chrome 70) : on allège Shadow
+const LEGACY = (() => { try { new Function('var a = {}; return a?.b;'); return false; } catch (e) { return true; } })();
+
 async function visionToggle(want) {
   if (visionBusy) return false;
   if (!want) { VISION.stop(); S.settings.vision = false; save(); return true; }
   if (!VISION.supported) return false;
   visionBusy = true;
+  guard('vision');
   try {
-    await VISION.start($('#cam-video'));
+    await VISION.start($('#cam-video'), { objects: !LEGACY });
     S.settings.vision = true; save();
+    setTimeout(() => { if (localStorage.getItem(BOOT_KEY) === 'vision') guardOk(); }, 30000); // 30 s sans plantage : c'est bon
     return true;
   } catch (e) {
     console.warn('vision', e);
+    guardOk();
     return false;
   } finally {
     visionBusy = false;
@@ -888,6 +901,7 @@ async function whatFlow() {
       if (r) { face.set('happy'); return say(ETHIQUE.safe(r)); }
     } catch (e) { console.warn('vision détaillée', e); }
   }
+  if (LEGACY) { face.flash('oops'); return say("Pour reconnaître les objets, mes yeux ont besoin d'un Chrome plus récent. Papa peut le mettre à jour dans le Play Store."); }
   try {
     const objs = (await VISION.objects()).filter(o => o.label !== 'person' && JEUX.OBJETS[o.label]);
     const names = [...new Set(objs.map(o => JEUX.OBJETS[o.label]))];
@@ -907,6 +921,7 @@ async function whatFlow() {
 
 // Jeu : « Va me chercher un livre ! »
 async function huntFlow() {
+  if (LEGACY) { face.flash('oops'); return say("La chasse aux objets a besoin d'un Chrome plus récent. Papa peut le mettre à jour dans le Play Store."); }
   if (!(await needEyes())) return;
   let found = 0;
   const items = JEUX.shuffle(JEUX.CHASSE);
@@ -1317,13 +1332,18 @@ function firstStart() {
   const de = document.documentElement;
   if (de.requestFullscreen) de.requestFullscreen().then(() => lockLandscape()).catch(() => {});
   wake();
+  if (dlg.notice) { const g = dlg.sayNext, note = dlg.notice; dlg.notice = null; dlg.sayNext = async () => { mustShow = true; await say(note); mustShow = false; if (typeof g === 'function') await g(); else if (g) await say(g); }; }
   (async () => {
     try {
+      guard('ears');
       await Promise.race([OREILLES.start(), wait(20000).then(() => { throw new Error('micro trop long à répondre'); })]);
+      setTimeout(() => { if (localStorage.getItem(BOOT_KEY) === 'ears') guardOk(); }, 20000);
     } catch (e) {
       console.warn('oreilles', e);
+      guardOk();
     }
-    if (S.settings.vision) visionToggle(true);
+    // Sur un vieux téléphone, les yeux ne s'ouvrent pas tout seuls (on peut les demander : « tu me reconnais ? »)
+    if (S.settings.vision && !LEGACY) visionToggle(true);
     life();
   })();
 }
@@ -1331,6 +1351,21 @@ function firstStart() {
 function boot() {
   face.el = $('#face');
   voice.init();
+  // L'appli s'est arrêtée brutalement la dernière fois ?
+  let crashed = null;
+  try { crashed = localStorage.getItem(BOOT_KEY); } catch (e) { /* rien */ }
+  if (crashed === 'vision') {
+    S.settings.vision = false; save(); guardOk();
+    dlg.notice = "La dernière fois, mes yeux ont fait planter le téléphone. Je les ai fermés : papa peut les rallumer dans les réglages.";
+  } else if (crashed === 'ears') {
+    S.settings.ears = 'chrome'; save(); guardOk();
+    dlg.notice = "La dernière fois, mes oreilles ont fait planter le téléphone. J'utilise maintenant les oreilles de Chrome.";
+  }
+  // Adresse de secours : …/shadow/?secours → démarre sans les parties lourdes
+  if (/[?&]secours/.test(location.search)) {
+    S.settings.vision = false; S.settings.ears = 'chrome'; save(); guardOk();
+    dlg.notice = "Mode secours : mes yeux sont fermés et j'utilise les oreilles de Chrome.";
+  }
   bind();
   bindLock();
   applyLock();
