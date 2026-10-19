@@ -1,6 +1,29 @@
 <!doctype html>
 <html lang="fr">
 <head>
+  <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
+  <script>
+    (function () {
+      window.SHADOW_VERSION = '10';
+      function show(msg) {
+        var b = document.getElementById('boot-err');
+        if (!b) {
+          b = document.createElement('div');
+          b.id = 'boot-err';
+          b.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:999;background:#fff;color:#111;padding:10px 12px;border-radius:12px;font:14px/1.35 sans-serif;word-break:break-word';
+          (document.body || document.documentElement).appendChild(b);
+        }
+        b.textContent = 'Oups, Shadow a un souci (v' + window.SHADOW_VERSION + ') : ' + msg + ' — Navigateur : ' + navigator.userAgent;
+      }
+      window.addEventListener('error', function (e) {
+        if (e.target && e.target !== window && e.target.src) return show('fichier introuvable ' + e.target.src.split('/').pop());
+        show((e.message || 'erreur') + (e.filename ? ' (' + e.filename.split('/').pop() + ', ligne ' + e.lineno + ')' : ''));
+      }, true);
+      window.addEventListener('load', function () {
+        setTimeout(function () { if (!window.SHADOW_OK) show('le programme ne démarre pas'); }, 2000);
+      });
+    })();
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Shadow</title>
@@ -67,7 +90,7 @@
           </g>
         </svg>
       </div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller</button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v10</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>

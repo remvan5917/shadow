@@ -461,3 +461,8 @@ body.robot .bubble { max-height: 28dvh; overflow-y: auto; }
   body.robot .bubble { font-size: 26px; }
 }
 dialog { overflow-y: auto; }
+
+/* fenêtres imitées pour les vieux navigateurs */
+dialog:not([open]) { display: none; }
+dialog.poly[open] { position: fixed; inset: 0; margin: auto; height: fit-content; z-index: 50; box-shadow: 0 0 0 100vmax rgba(3, 6, 16, .7); }
+.hint .ver { opacity: .5; font-size: .75em; margin-left: 6px; }

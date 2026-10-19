@@ -1011,7 +1011,7 @@ async function testBrain() {
 function meterLoop() {
   const dlgEl = $('#dlg-settings');
   const tick = () => {
-    if (!dlgEl.open) return;
+    if (!isOpen(dlgEl)) return;
     const m = OREILLES.meter();
     const pct = v => Math.min(100, Math.round(Math.sqrt(v / 0.15) * 100));
     $('#mic-bar').style.width = `${pct(m.level)}%`;
@@ -1063,7 +1063,22 @@ function bindLock() {
 }
 
 /* =================== DÉMARRAGE =================== */
+// Navigateurs qui ne connaissent pas les fenêtres <dialog> (téléphones un peu anciens) : on les imite
+function fixDialogs() {
+  $$('dialog').forEach(d => {
+    if (typeof d.showModal === 'function') return;
+    d.classList.add('poly');
+    d.showModal = () => { d.setAttribute('open', ''); };
+    d.close = v => { if (v !== undefined) d.returnValue = v; d.removeAttribute('open'); d.dispatchEvent(new Event('close')); };
+    d.querySelectorAll('form').forEach(f => {
+      f.addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.type !== 'button') f._sub = b.value; });
+      f.addEventListener('submit', e => { e.preventDefault(); d.close(f._sub || ''); });
+    });
+  });
+}
+const isOpen = d => d.hasAttribute('open');
 function bind() {
+  fixDialogs();
   document.addEventListener('pointerdown', () => { OREILLES.prime(); if (fx.ctx && fx.ctx.state === 'suspended') fx.ctx.resume(); }, true);
   // Une erreur ? On l'écrit à l'écran (sur téléphone, il n'y a pas d'autre moyen de la voir)
   const showErr = msg => { mustShow = true; subtitle(esc(`Oups, petit bug : ${msg}`), null); };
@@ -1154,6 +1169,7 @@ function boot() {
   face.set('sleep');
   subtitle(null, null);
   if (!S.prenom) $('#dlg-welcome').showModal();
+  window.SHADOW_OK = true; // le filet de sécurité sait que tout a démarré
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* hors-ligne indisponible */ });
   }
