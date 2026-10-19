@@ -176,6 +176,7 @@ function subtitle(html, heard) {
 // Shadow parle (et affiche des sous-titres si papa les a activés)
 function say(text) {
   lastSaid = text;
+  $('#bubble').classList.remove('alert');
   $('#heard').textContent = '';
   subtitle(esc(String(text).replace(/<[^>]+>/g, ' ')), null);
   return voice.say(text);
@@ -236,12 +237,12 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = 
     mustShow = true;
     if (r.status === 429) {
       // limite de Groq atteinte : il le dit une fois, puis se repose sans répéter
-      if (Date.now() - (dlg.tiredAt || 0) > 120000) { dlg.tiredAt = Date.now(); await say("Mes oreilles sont fatiguées, Groq me demande de me reposer un peu. Je reviens dans une minute !"); }
+      if (Date.now() - (dlg.tiredAt || 0) > 120000) { dlg.tiredAt = Date.now(); await say('Surchauffe de mes capteurs auditifs ! Je les mets en refroidissement une minute… bip… bip…'); }
       await wait(Math.max(20, Math.min(r.retryAfter || 60, 300)) * 1000);
       mustShow = false;
       return '';
     }
-    if (r.status === 401 || r.status === 403) await say("Ma clé d'intelligence est refusée. Papa doit vérifier la clé Groq dans les réglages.");
+    if (r.status === 401 || r.status === 403) await say("Bip… accès refusé à mes capteurs auditifs. Ma clé d'énergie ne fonctionne plus : papa doit la vérifier dans le panneau de contrôle.");
     else if (r.error === 'no-ears') await say("Je n'ai pas d'oreilles sur cet appareil. Papa doit mettre la clé Groq dans les réglages.");
     else if (r.error === 'not-allowed') await say('Mes oreilles sont bloquées. Il faut autoriser le micro, demande à papa.');
     else await say('Oups, mes oreilles ont un petit souci. Je réessaie.');
@@ -652,16 +653,19 @@ async function chatReply(text, hidden = false) {
     if (S.chat.length - S.memPos >= 16) memorize(); // longue discussion : on range au fur et à mesure
   } catch (e) {
     face.set('oops');
-    // un message qui dit la VRAIE cause (et le code d'erreur pour papa, en sous-titre)
+    // un message de robot (la vraie cause, mais sans jargon) ; le code technique va dans les réglages de papa
     const st = e.status || 0;
-    const why = st === 401 || st === 403 ? "Ma clé d'intelligence est refusée. Demande à papa de vérifier la clé Groq dans les réglages."
-      : st === 429 ? `Mon cerveau est fatigué : j'ai beaucoup parlé aujourd'hui, Groq me demande de me reposer. Réessaie ${e.retryAfter > 300 ? `dans environ ${e.retryAfter >= 5400 ? `${Math.round(e.retryAfter / 3600)} heures` : `${Math.max(1, Math.round(e.retryAfter / 60))} minutes`}` : 'dans quelques minutes'} ! En attendant, on peut jouer aux devinettes ou faire du calcul.`
-        : st >= 500 ? "Le cerveau de Groq a un petit souci de son côté. Réessaie dans un moment."
-          : /connexion|WiFi|Trop long/i.test(e.message) ? 'Oups, je ne capte pas Internet. Le WiFi est peut-être coupé.'
-            : "Oups, mon cerveau ne répond pas.";
+    const wait_ = s => { const h = Math.round(s / 3600); return s >= 3000 ? `environ ${h} heure${h > 1 ? 's' : ''}` : s > 300 ? `environ ${Math.max(1, Math.round(s / 60))} minutes` : 'quelques minutes'; };
+    const why = st === 401 || st === 403 ? "Bip… accès refusé à mon noyau central. Ma clé d'énergie ne fonctionne plus : papa doit la vérifier dans le panneau de contrôle."
+      : st === 429 ? `Alerte, alerte ! Mon cerveau quantique a utilisé toute son énergie. Je passe en mode recharge pendant ${wait_(e.retryAfter || 600)}. Mes circuits de secours restent allumés : on peut faire une dictée, des devinettes, du calcul ou Jacques a dit !`
+        : st >= 500 ? "Interférences détectées ! Mon cerveau distant ne répond plus. Je relance mes circuits… réessaie dans un petit moment."
+          : /connexion|WiFi|Trop long/i.test(e.message) ? "Signal perdu… Je n'arrive plus à joindre mon cerveau distant. Vérifie le WiFi, je reste en veille."
+            : 'Bip… anomalie dans mes circuits. Réessaie dans un instant !';
+    S.lastBrainError = { at: Date.now(), msg: e.message.slice(0, 200) }; save();
     mustShow = true;
-    await say(why);
-    subtitle(esc(`${why} (${e.message.slice(0, 120)})`), null);
+    const spoken = say(why);
+    $('#bubble').classList.add('alert'); // le style d'alerte reste jusqu'à la prochaine phrase
+    await spoken;
     mustShow = false;
     console.warn('cerveau', e);
   }
@@ -1322,7 +1326,8 @@ function openSettings() {
   $('#s-vision').checked = s.vision;
   $('#s-see-cloud').checked = s.seeCloud;
   $('#s-vision-model').value = s.visionModel;
-  $('#s-status').textContent = `Oreilles : ${({ whisper: 'Whisper (Groq), micro toujours ouvert', chrome: 'Chrome (Google)' })[OREILLES.engine()] || 'aucune'} · Yeux : ${VISION.isOn() ? 'ouverts' : 'fermés'}`;
+  const le = S.lastBrainError;
+  $('#s-status').textContent = (le ? `Dernière erreur du cerveau (${new Date(le.at).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}) : ${le.msg} · ` : '') + `Oreilles : ${({ whisper: 'Whisper (Groq), micro toujours ouvert', chrome: 'Chrome (Google)' })[OREILLES.engine()] || 'aucune'} · Yeux : ${VISION.isOn() ? 'ouverts' : 'fermés'}`;
   renderPeople();
   renderMemory();
   renderVoices();

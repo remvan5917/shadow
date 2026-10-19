@@ -500,3 +500,9 @@ dialog.poly[open] { position: fixed; inset: 0; margin: auto; height: fit-content
 /* histoire du soir : les yeux se ferment à moitié */
 .face.drowsy .blink { transform: scaleY(.4); }
 .face.drowsy { --led: #6c7bd9; }
+
+/* message d'alerte façon robot */
+.bubble.alert { background: #071526; color: #8ff0ff; border: 2px solid #3fd7ff; font-family: 'Courier New', monospace; letter-spacing: .02em;
+  box-shadow: 0 0 18px rgba(63, 215, 255, .45), inset 0 0 12px rgba(63, 215, 255, .15); }
+.bubble.alert .heard { color: #5aa9c9; }
+body.robot .bubble.alert { background: rgba(4, 14, 30, .96); color: #8ff0ff; }

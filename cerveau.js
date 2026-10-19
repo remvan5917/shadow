@@ -26,20 +26,43 @@ const AI = {
 
   // Modèles de secours si Groq retire celui qu'on utilise
   FALLBACK: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
+  // Chez Groq, chaque modèle a sa propre limite gratuite : quand l'un est épuisé (429),
+  // on le met « au repos » jusqu'à la fin de son attente et on passe au suivant.
   async robust(once) {
     const c = this.cfg();
-    try { return await once(c.model); } catch (e) {
-      if (e.status === 429 && e.retryAfter && e.retryAfter <= 6) { // limite par minute : on patiente un peu et on réessaie une fois
-        await new Promise(r => setTimeout(r, e.retryAfter * 1000));
-        return once(c.model);
+    if (c.local) return once(c.model);
+    const cool = S.settings.modelCool || (S.settings.modelCool = {});
+    const now = Date.now();
+    const list = [c.model].concat(this.FALLBACK.filter(m => m !== c.model));
+    let last = null, removed = false;
+    for (const m of list) {
+      if (cool[m] && cool[m] > now) continue;
+      try {
+        const r = await once(m);
+        if (removed && m !== c.model) { S.settings.model = m; save(); } // le modèle d'origine n'existe plus
+        return r;
+      } catch (e) {
+        last = e;
+        if (e.status === 429) {
+          if (e.retryAfter && e.retryAfter <= 6) { // limite par minute : on patiente un peu et on réessaie une fois
+            await new Promise(r => setTimeout(r, e.retryAfter * 1000));
+            try { return await once(m); } catch (e2) { last = e2; if (e2.status !== 429) throw e2; }
+          }
+          cool[m] = Date.now() + Math.max(60, Math.min(e.retryAfter || 3600, 24 * 3600)) * 1000;
+          save();
+          continue;
+        }
+        if (isModelError(e)) { removed = true; continue; }
+        throw e;
       }
-      if (c.local || !isModelError(e)) throw e;
-      for (const m of this.FALLBACK) {
-        if (m === c.model) continue;
-        try { const r = await once(m); S.settings.model = m; save(); return r; } catch (e2) { if (!isModelError(e2)) throw e2; }
-      }
-      throw e;
     }
+    if (!last) { // tous au repos : on dit combien de temps attendre
+      const soon = Math.min.apply(null, list.map(m => cool[m] || Infinity));
+      last = new Error('Erreur 429 : tous les modèles sont au repos');
+      last.status = 429;
+      last.retryAfter = Math.max(60, Math.round((soon - now) / 1000));
+    }
+    throw last;
   },
   chat(messages, opts) { return this.robust(m => this.chatOnce(m, messages, opts)); },
   chatStream(messages, opts, onSentence) { return this.robust(m => this.chatStreamOnce(m, messages, opts, onSentence)); },
