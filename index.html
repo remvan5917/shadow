@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Shadow</title>
+  <meta name="description" content="Shadow, le robot du Projet SHADOW — le cerveau (bêta)">
+  <meta name="theme-color" content="#0a1124">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shadow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="robot">
+  <main id="main">
+    <div id="stage">
+      <!-- Le visage de Shadow, d'après le dessin de son inventeur. C'est tout ce qu'il y a à l'écran. -->
+      <div id="face-wrap">
+        <svg id="face" class="face idle" viewBox="0 0 320 232" role="img" aria-label="Le visage de Shadow">
+          <defs>
+            <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="3.5" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <g class="bob">
+            <!-- la crête bleue (le gribouillis du dessin) : verte quand c'est juste, orange quand il y a un piège -->
+            <path class="crest" filter="url(#glow)" d="M116 28 L124 13 L132 28 L140 11 L148 28 L156 10 L164 28 L172 11 L180 28 L188 12 L196 28 L203 17"/>
+            <g class="head">
+              <rect class="shell" x="12" y="26" width="296" height="196" rx="16"/>
+              <circle class="screw" cx="29" cy="43" r="4.5"/>
+              <circle class="screw" cx="291" cy="43" r="4.5"/>
+              <circle class="screw" cx="29" cy="205" r="4.5"/>
+              <circle class="screw" cx="291" cy="205" r="4.5"/>
+              <path class="visor" d="M12 114 H308"/>
+              <g class="eye">
+                <rect class="eye-frame" x="50" y="46" width="60" height="56" rx="5"/>
+                <g class="look"><g class="blink"><rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/></g></g>
+              </g>
+              <g class="eye">
+                <rect class="eye-frame" x="210" y="46" width="60" height="56" rx="5"/>
+                <g class="look"><g class="blink"><rect class="pupil" x="228" y="56" width="24" height="36" rx="3" filter="url(#glow)"/></g></g>
+              </g>
+              <g class="lens"><circle cx="160" cy="72" r="11"/><circle cx="160" cy="72" r="4"/></g>
+              <path class="nose" d="M152 142 L160 126 L168 142 Z"/>
+              <g class="whiskers">
+                <path d="M138 134 L104 122"/><path d="M138 139 L101 139"/><path d="M138 144 L104 156"/>
+                <path d="M182 134 L216 122"/><path d="M182 139 L219 139"/><path d="M182 144 L216 156"/>
+              </g>
+              <g class="mouth">
+                <g class="m-grin">
+                  <path class="m-in" d="M92 166 H228 Q222 210 160 212 Q98 210 92 166 Z"/>
+                  <path class="teeth" d="M96 166 L104 186 L112 167 L120 192 L128 168 L136 196 L144 168 L152 198 L160 168 L168 198 L176 168 L184 196 L192 168 L200 192 L208 167 L216 186 L224 166 Z"/>
+                  <path class="lip" d="M90 166 H230"/>
+                </g>
+                <g class="m-o"><ellipse cx="160" cy="184" rx="16" ry="19"/></g>
+                <path class="m-sad" d="M124 198 Q160 172 196 198"/>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller</button>
+      <div id="bubble" class="bubble" hidden aria-live="polite">
+        <p id="heard" class="heard"></p>
+        <p id="bubble-text"></p>
+      </div>
+    </div>
+  </main>
+  <!-- les yeux (la caméra) : invisibles, Shadow regarde avec -->
+  <video id="cam-video" playsinline muted autoplay hidden></video>
+  <button id="btn-settings" class="corner" aria-label="Réglages de papa">⚙️</button>
+  <!-- coin secret (mode verrouillé) : appui long de 3 s pour ouvrir le coin de papa -->
+  <div id="secret" class="secret" aria-hidden="true"></div>
+
+  <!-- ======= MON JOURNAL ======= -->
+  <section id="journal" class="journal hidden" aria-label="Mon journal">
+    <header class="jr-head">
+      <button id="jr-close" class="round" aria-label="Retour">←</button>
+      <h2 id="jr-title">Mon journal</h2>
+    </header>
+    <div id="jr-stats" class="jr-stats"></div>
+    <div id="jr-list" class="jr-list"></div>
+  </section>
+
+  <!-- ======= BIENVENUE ======= -->
+  <dialog id="dlg-welcome">
+    <form method="dialog" class="dlg">
+      <h2>Bip ! Je suis Shadow 🤖</h2>
+      <p>Comment s'appelle mon inventeur ?</p>
+      <input id="w-prenom" type="text" maxlength="20" placeholder="Son prénom" autocomplete="off" required>
+      <p class="small muted">Papa : la clé Groq (cerveau + oreilles) se met ensuite dans ⚙️, en bas à droite.</p>
+      <menu><button value="ok" class="go">C'est parti !</button></menu>
+    </form>
+  </dialog>
+
+  <!-- ======= COIN DES PARENTS ======= -->
+  <dialog id="dlg-gate">
+    <form method="dialog" class="dlg">
+      <h2>🔒 Coin de papa</h2>
+      <p id="gate-q"></p>
+      <input id="gate-a" type="text" inputmode="numeric" autocomplete="off">
+      <menu><button type="button" class="ghost" data-close>Annuler</button><button value="ok" class="go">OK</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-settings">
+    <form method="dialog" class="dlg">
+      <h2>⚙️ Réglages de papa</h2>
+      <p id="s-status" class="small muted"></p>
+      <label>Prénom de l'inventeur <input id="s-prenom" type="text" maxlength="20" autocomplete="off"></label>
+      <fieldset>
+        <legend>🧠 Le cerveau</legend>
+        <label class="check"><input type="radio" name="s-brain" value="groq"> IA poussée → WiFi (Groq)</label>
+        <label class="check"><input type="radio" name="s-brain" value="local"> IA locale (Ollama, sur l'ordi de la maison)</label>
+        <div id="s-groq">
+          <label>Clé Groq <input id="s-key" type="password" placeholder="gsk_…" autocomplete="off"></label>
+          <label>Modèle <input id="s-model" type="text" list="models" autocomplete="off"></label>
+          <datalist id="models">
+            <option value="qwen/qwen3.8-27b">
+            <option value="openai/gpt-oss-20b">
+            <option value="openai/gpt-oss-120b">
+          </datalist>
+        </div>
+        <div id="s-local">
+          <label>Adresse d'Ollama <input id="s-local-url" type="text" placeholder="http://localhost:11434/v1" autocomplete="off"></label>
+          <label>Modèle local <input id="s-local-model" type="text" placeholder="ex : qwen3:4b" autocomplete="off"></label>
+          <p class="small muted">Voir le fichier LISEZMOI.md pour installer Ollama. La clé Groq reste utile pour les oreilles (Whisper).</p>
+        </div>
+        <button type="button" id="s-test" class="ghost">Tester le cerveau</button>
+        <p id="s-msg" class="small"></p>
+        <p class="small muted">Sans cerveau branché, Shadow marche quand même avec son mini-cerveau intégré : orthographe, devinettes, quiz et calcul.</p>
+      </fieldset>
+      <fieldset>
+        <legend>🔊 La voix et les oreilles</legend>
+        <label class="check"><input id="s-sound" type="checkbox"> Shadow parle à voix haute</label>
+        <label class="check"><input id="s-slow" type="checkbox"> Voix plus lente</label>
+        <label class="check"><input id="s-subtitles" type="checkbox"> Sous-titres (ce que Shadow entend et dit)</label>
+        <label>Les oreilles
+          <select id="s-ears">
+            <option value="auto">Automatique</option>
+            <option value="whisper">Micro toujours ouvert + Whisper (Groq) — sans bip</option>
+            <option value="chrome">Reconnaissance de Chrome (Google)</option>
+          </select>
+        </label>
+        <label>Sensibilité du micro
+          <select id="s-mic-sens">
+            <option value="normal">Normale (pièce bruyante)</option>
+            <option value="haute">Haute (conseillé)</option>
+            <option value="max">Très haute (voix douce, micro loin)</option>
+          </select>
+        </label>
+        <div class="mic-test">
+          <div class="mic-gauge"><div id="mic-bar" class="mic-bar"></div><div id="mic-thr" class="mic-thr"></div></div>
+          <p id="mic-heard" class="small muted">Parle pour tester…</p>
+          <p class="small muted">La barre doit passer en vert (au-delà du trait) quand on parle, et rester grise dans le silence.</p>
+        </div>
+        <p class="small muted">On lui parle directement. Quand il attend, il se réveille si on dit « Shadow ». Toucher son visage marche aussi.</p>
+      </fieldset>
+      <fieldset>
+        <legend>👁️ La vision</legend>
+        <label class="check"><input id="s-vision" type="checkbox"> Shadow voit avec la caméra</label>
+        <p class="small muted">Visages, expressions et environ 80 objets sont reconnus sur l'appareil : aucune image n'est envoyée sur Internet. Shadow garde seulement une « empreinte » en chiffres de chaque visage appris, jamais de photo.</p>
+        <label class="check"><input id="s-see-cloud" type="checkbox"> Vision détaillée : quand on lui demande « qu'est-ce que tu vois ? », une photo est envoyée à Groq pour la décrire</label>
+        <label>Modèle de vision Groq <input id="s-vision-model" type="text" autocomplete="off"></label>
+        <div id="s-people" class="people"></div>
+      </fieldset>
+      <fieldset>
+        <legend>🔒 Mode verrouillé</legend>
+        <label class="check"><input id="s-lock" type="checkbox"> Verrouiller Shadow (l'enfant ne peut pas en sortir par accident)</label>
+        <p class="small muted">La roue ⚙️ disparaît. Pour revenir ici : rester appuyé <b>3 secondes dans le coin en haut à gauche</b>, puis le calcul secret. Plein écran forcé, bouton retour bloqué, pas de zoom.<br>
+        Pour bloquer complètement la tablette, activez aussi l'<b>épinglage d'écran</b> (Android : Paramètres → Sécurité → Épinglage d'application) ou l'<b>Accès guidé</b> (iPad : Réglages → Accessibilité → Accès guidé, puis triple-clic sur le bouton).</p>
+      </fieldset>
+      <fieldset>
+        <legend>⏰ Pauses</legend>
+        <label>Shadow propose une pause après
+          <select id="s-pause"><option value="0">jamais</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option></select>
+        </label>
+      </fieldset>
+      <fieldset>
+        <legend>🔒 Protection des données</legend>
+        <p class="small muted">Le journal, la conversation et la clé restent sur cet appareil. Pour comprendre la voix, Chrome envoie le son à Google. Pour répondre, les phrases partent chez Groq (ou restent à la maison avec l'IA locale). Avant l'envoi, Shadow cache les adresses, numéros de téléphone, e-mails et mots de passe.</p>
+        <div class="row">
+          <button type="button" id="s-journal" class="ghost">📖 Voir le journal</button>
+          <button type="button" id="s-clear-chat" class="ghost">Effacer la conversation</button>
+          <button type="button" id="s-clear-journal" class="ghost danger">Effacer le journal</button>
+        </div>
+      </fieldset>
+      <menu><button type="button" class="ghost" data-close>Annuler</button><button value="save" class="go">Enregistrer</button></menu>
+    </form>
+  </dialog>
+
+
+  <div id="fx" aria-hidden="true"></div>
+
+  <script src="orthographe.js"></script>
+  <script src="cerveau.js"></script>
+  <script src="jeux.js"></script>
+  <script src="oreilles.js"></script>
+  <script src="vision.js"></script>
+  <script src="corps.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
