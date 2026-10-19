@@ -450,8 +450,8 @@ html, body { overscroll-behavior: none; touch-action: manipulation; }
 /* le visage (320×232) prend la plus grande taille qui tient en largeur ET en hauteur */
 body.robot #face-wrap { width: min(96vw, calc((100dvh - 24px) * 1.3)) !important; }
 /* sous-titres visibles : le visage remonte et laisse la place au texte */
-body.robot:has(#bubble:not([hidden])) #stage { justify-content: center; padding-bottom: 30dvh; }
-body.robot:has(#bubble:not([hidden])) #face-wrap { width: min(94vw, calc((100dvh - 34dvh) * 1.3)) !important; }
+body.robot.subs #stage { justify-content: center; padding-bottom: 30dvh; }
+body.robot.subs #face-wrap { width: min(94vw, calc((100dvh - 34dvh) * 1.3)) !important; }
 body.robot .bubble { max-height: 28dvh; overflow-y: auto; }
 @media (max-height: 480px) {
   body.robot .bubble { font-size: 15px; padding: 6px 12px; bottom: 2dvh; }
@@ -466,3 +466,16 @@ dialog { overflow-y: auto; }
 dialog:not([open]) { display: none; }
 dialog.poly[open] { position: fixed; inset: 0; margin: auto; height: fit-content; z-index: 50; box-shadow: 0 0 0 100vmax rgba(3, 6, 16, .7); }
 .hint .ver { opacity: .5; font-size: .75em; margin-left: 6px; }
+
+/* vieux navigateurs (ex. Chrome 70 d'Android 8) : pas de min(), dvh, inset… on fait autrement */
+@supports not (width: min(1px, 2px)) {
+  body.robot main, body.robot #stage { height: 100vh; }
+  body.robot #face-wrap { width: 94vw !important; max-width: calc((100vh - 24px) * 1.3); }
+  body.robot.subs #face-wrap { max-width: calc(66vh * 1.3); }
+  body.robot.subs #stage { padding-bottom: 30vh; }
+  body.robot .bubble { width: 92vw; max-width: 900px; bottom: 3vh; max-height: 28vh; }
+  .hint { bottom: 7vh; }
+  .journal, .pause, dialog.poly[open] { top: 0; right: 0; bottom: 0; left: 0; }
+  dialog { max-height: calc(100vh - 40px); }
+  .bubble p + p, .dlg > * + * { margin-top: 10px; }
+}

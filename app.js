@@ -116,7 +116,7 @@ const voice = {
   },
   clean(t) {
     return String(t).replace(/<[^>]+>/g, ' ')
-      .replace(/\p{Extended_Pictographic}|️|‍/gu, '')
+      .replace(/[\u2600-\u27BF\u2B00-\u2BFF]|[\uD83C-\uDBFF][\uDC00-\uDFFF]|\uFE0F|\u200D/g, '') // émojis (écrit à l'ancienne pour les vieux téléphones)
       .replace(/n°\s?/g, 'numéro ').replace(/×/g, ' fois ').replace(/−/g, ' moins ')
       .replace(/[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŒ]{2,}/g, m => m.toLowerCase()) // « VALIDÉ » se lit comme un mot, pas lettre par lettre
       .replace(/[«»]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -169,6 +169,7 @@ function subtitle(html, heard) {
   if (html !== null) $('#bubble-text').innerHTML = html;
   const empty = !$('#bubble-text').textContent.trim() && !$('#heard').textContent.trim();
   $('#bubble').hidden = empty || !(S.settings.subtitles || !voice.ok || !S.settings.sound || mustShow);
+  document.body.classList.toggle('subs', !$('#bubble').hidden);
 }
 // Shadow parle (et affiche des sous-titres si papa les a activés)
 function say(text) {
@@ -924,13 +925,13 @@ setInterval(() => {
 
 /* =================== RÉGLAGES (coin de papa) =================== */
 function brainVis() {
-  const local = $('input[name=s-brain]:checked')?.value === 'local';
+  const local = ($('input[name=s-brain]:checked') || {}).value === 'local';
   $('#s-groq').hidden = local;
   $('#s-local').hidden = !local;
 }
 function readSettingsForm() {
   return {
-    brain: $('input[name=s-brain]:checked')?.value || 'groq',
+    brain: ($('input[name=s-brain]:checked') || {}).value || 'groq',
     key: $('#s-key').value.trim(),
     model: $('#s-model').value.trim() || AI.DEFAULT_MODEL,
     localUrl: $('#s-local-url').value.trim() || 'http://localhost:11434/v1',
@@ -1030,19 +1031,21 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2600);
 }
 
+const lockLandscape = () => (screen.orientation && screen.orientation.lock ? screen.orientation.lock('landscape') : Promise.resolve());
+
 /* =================== MODE VERROUILLÉ =================== */
 // L'enfant ne peut pas sortir de Shadow par accident. La roue ⚙️ disparaît :
 // papa l'ouvre en restant appuyé 3 secondes dans le coin en haut à gauche.
 function applyLock() {
   const on = !!S.settings.lock;
   document.body.classList.toggle('locked', on);
-  if (on && history.state?.shadow !== 1) history.pushState({ shadow: 1 }, '');
+  if (on && (history.state || {}).shadow !== 1) history.pushState({ shadow: 1 }, '');
 }
 // Plein écran : chaque toucher le remet si on en est sorti (le navigateur exige un geste du doigt)
 function keepFullscreen(e) {
   if (document.fullscreenElement || !document.documentElement.requestFullscreen || $('dialog[open]')) return;
   if (!S.settings.lock && !(e && e.target && e.target.closest && e.target.closest('#face-wrap, #hint'))) return;
-  document.documentElement.requestFullscreen().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  document.documentElement.requestFullscreen().then(() => lockLandscape()).catch(() => {});
 }
 function bindLock() {
   // bouton « retour » d'Android : on reste dans Shadow
@@ -1056,7 +1059,7 @@ function bindLock() {
   // appui long de 3 s dans le coin secret → coin de papa
   const spot = $('#secret');
   let timer = null;
-  const start = e => { e.preventDefault(); clearTimeout(timer); timer = setTimeout(() => { navigator.vibrate?.(60); openGate(); }, 3000); };
+  const start = e => { e.preventDefault(); clearTimeout(timer); timer = setTimeout(() => { if (navigator.vibrate) navigator.vibrate(60); openGate(); }, 3000); };
   const cancel = () => clearTimeout(timer);
   spot.addEventListener('pointerdown', start);
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => spot.addEventListener(ev, cancel));
@@ -1147,7 +1150,7 @@ function firstStart() {
   voice.unlock();          // débloque la voix (obligatoire sur iPhone/iPad)
   fx.tone([[1, 0.01]]);    // débloque les bips
   const de = document.documentElement;
-  if (de.requestFullscreen) de.requestFullscreen().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  if (de.requestFullscreen) de.requestFullscreen().then(() => lockLandscape()).catch(() => {});
   wake();
   (async () => {
     try {

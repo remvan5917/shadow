@@ -35,7 +35,7 @@ const AI = {
     const j = await this._fetch(c, '/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }, c.local ? Math.max(timeout, 45000) : timeout);
-    return cleanReply(j.choices?.[0]?.message?.content || '');
+    return cleanReply((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
   },
 
   // Vision détaillée (option de papa) : une photo est envoyée à Groq pour la décrire
@@ -51,7 +51,7 @@ const AI = {
     const j = await this._fetch({ base: this.GROQ, key: S.settings.key }, '/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }, 25000);
-    return cleanReply(j.choices?.[0]?.message?.content || '');
+    return cleanReply((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
   },
 
   // Oreilles (quand le navigateur n'a pas de reconnaissance vocale)
@@ -80,7 +80,7 @@ const AI = {
       });
       if (!res.ok) {
         let msg = `Erreur ${res.status}`;
-        try { const j = await res.json(); if (j.error?.message) msg += ` : ${j.error.message}`; } catch (e) { /* ignore */ }
+        try { const j = await res.json(); if (j.error && j.error.message) msg += ` : ${j.error.message}`; } catch (e) { /* ignore */ }
         throw new Error(msg);
       }
       return await res.json();
