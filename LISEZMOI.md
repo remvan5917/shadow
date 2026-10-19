@@ -23,7 +23,17 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 | « Raconte une histoire », « Devine l'animal », ou n'importe quelle question | discute avec le grand cerveau (Groq) |
 | « Souviens-toi que mon chat s'appelle Moustache » / « Qu'est-ce que tu sais sur moi ? » | retient / raconte ses souvenirs |
 | « On révise mes mots difficiles » | fait réépeler les mots du journal qui ont demandé plusieurs essais |
+| « Apprends ma voix » / « Qui parle ? » | apprend une voix (3 petites phrases) / dit qui parle |
 | « Stop » / « Répète » / « Va dormir » | arrête / répète / s'endort |
+
+## Les voix
+« Shadow, apprends ma voix » : il demande le prénom (ou reconnaît la personne à la caméra) et fait dire 3 petites phrases. Ensuite il sait qui lui parle (« Oui papa ? ») et adapte ses réponses. Il garde une **empreinte de voix** (des nombres calculés sur l'appareil), jamais d'enregistrement, et l'affine quand il voit la personne parler. C'est une reconnaissance simple : très sûre pour enfant / adulte, correcte entre les membres d'une famille. Il faut les oreilles Whisper (clé Groq). Papa voit et efface les voix dans ⚙️.
+
+## Pour qu'il n'invente pas
+- Les morceaux de voix dont la reconnaissance n'est pas sûre (bruit, « Merci. » inventé, autre langue) sont jetés.
+- Il reconnaît sa propre voix qui revient dans le micro et ne se répond pas.
+- Le grand cerveau reçoit les vraies infos du moment (heure, qui est là) et des règles strictes : dire « je ne sais pas » plutôt qu'inventer, pas de faux souvenirs, pas de fausses actions.
+- La mémoire ne retient que ce que l'enfant a vraiment dit.
 
 ## La mémoire à long terme
 Shadow se souvient d'un jour à l'autre : après chaque discussion, le grand cerveau range dans sa mémoire ce qui compte (goûts, animaux, amis, projets, événements à venir), plus un résumé des activités (journal, quiz, calcul). Il retient aussi les mots difficiles du journal. Il s'en sert pour dire bonjour (« Alors, ce match samedi ? ») et dans ses réponses.

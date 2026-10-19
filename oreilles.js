@@ -17,7 +17,7 @@ const OREILLES = (() => {
   let ctx = null, stream = null, proc = null, src = null;
   let muted = false, muteUntil = 0;
   let noise = 0.004, speaking = false, voiced = 0, silent = 0, buf = [], pre = [], peak = 0, frames = 0;
-  let level = 0, threshold = 0.012, lastHeard = '';
+  let level = 0, threshold = 0.012, lastHeard = '', lastPrint = null;
   // Sensibilité du micro (réglage de papa) : seuil minimum et marge au-dessus du bruit de la pièce
   const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2] };
   let pending = null; // la demande d'écoute en cours
@@ -144,6 +144,8 @@ const OREILLES = (() => {
     if (!p) return;
     p.busy = true;
     emit('thinking');
+    // empreinte de la voix, calculée sur l'appareil (jamais envoyée)
+    try { lastPrint = (typeof VOIX !== 'undefined') ? VOIX.print(audio) : null; } catch (e) { lastPrint = null; }
     try {
       const t = await AI.transcribe(wav(audio), p.prompt);
       if (pending !== p) return;
@@ -206,7 +208,7 @@ const OREILLES = (() => {
   function mute(on) {
     muted = on;
     if (on && rec) { const r = rec; rec = null; r.abort(); }
-    if (!on) muteUntil = performance.now() + 250;
+    if (!on) muteUntil = performance.now() + 350; // le temps que l'écho de sa voix s'éteigne
   }
 
   return {
@@ -214,6 +216,7 @@ const OREILLES = (() => {
     engine: () => engine,
     listening: () => !!pending,
     meter: () => ({ level, threshold, noise, lastHeard, speaking }),
+    takePrint: () => { const p = lastPrint; lastPrint = null; return p; },
     hearing: () => speaking || !!(pending && pending.busy),
     on: (ev, fn) => handlers[ev].push(fn),
   };

@@ -126,12 +126,19 @@ const AI = {
     fd.append('model', this.STT_MODEL);
     fd.append('language', 'fr');
     fd.append('temperature', '0');
-    fd.append('response_format', 'json');
+    fd.append('response_format', 'verbose_json'); // avec l'indice de confiance de chaque morceau
     fd.append('prompt', prompt || `Conversation en français avec Shadow, un robot, et ${S.prenom || 'un enfant'}.`);
     const j = await this._fetch({ base: this.GROQ, key: S.settings.key }, '/audio/transcriptions', { method: 'POST', body: fd }, 30000);
-    const t = (j.text || '').trim();
-    // Whisper « hallucine » parfois sur du silence
-    return /amara|sous-titr|merci d'avoir regard|abonnez-vous/i.test(t) ? '' : t;
+    // Whisper « hallucine » parfois sur du bruit : on jette les morceaux où il n'est pas sûr qu'on ait parlé
+    let t = (j.text || '').trim();
+    if (Array.isArray(j.segments) && j.segments.length) {
+      const good = j.segments.filter(s => !(s.no_speech_prob > 0.6 && s.avg_logprob < -0.6) && !(s.avg_logprob < -1.2));
+      t = good.map(s => s.text).join(' ').replace(/\s+/g, ' ').trim();
+    }
+    if (/amara|sous-titr|merci d'avoir regard|abonnez-vous|^\W*$/i.test(t)) return '';
+    if (/^(merci( beaucoup)?|au revoir|bon appétit|\.+)[.!]?$/i.test(t) && j.duration && j.duration < 1.2) return ''; // classiques du bruit
+    if ((t.match(/[^\u0000-\u024F\s\d.,!?'’«»…-]/g) || []).length > t.length * 0.3) return ''; // pas du français (bruit)
+    return t;
   },
 
   async _fetch(c, path, opt, timeout) {
@@ -188,6 +195,14 @@ Comment tu parles :
 - Pas de listes, pas de markdown.
 - Pour enseigner : explique avec un exemple de tous les jours, puis propose une mini-question pour vérifier.
 - Jeux que tu connais : devinettes, « je pense à un animal » (il pose des questions), calcul mental facile, quiz de culture, histoire inventée à deux, mots qui riment. Un tour à la fois.
+
+Ne jamais inventer :
+- Si tu ne sais pas, ou si tu n'es pas sûr, dis-le simplement (« je ne suis pas sûr, demande à papa ») au lieu d'inventer. C'est très bien de dire « je ne sais pas ».
+- N'invente pas de souvenirs : tu ne te souviens QUE de ce qui est écrit dans ta mémoire plus bas. Si on te demande quelque chose qui n'y est pas, dis que tu ne t'en souviens pas.
+- N'invente rien sur la famille, les amis, la maison ou ce que tu vois. Tu ne vois que les prénoms que ta caméra reconnaît (on te les donne).
+- Ne fais pas semblant d'avoir fait quelque chose (chercher sur Internet, allumer une lumière, regarder dehors, jouer de la musique) : tu ne peux pas.
+- Pour les questions d'école ou de culture, donne seulement ce dont tu es sûr, avec des mots simples.
+- Si tu n'as pas bien compris la phrase (elle ne veut rien dire, ou il manque des mots), demande gentiment de répéter au lieu de deviner.
 
 Règles très importantes :
 - Tout ce que tu dis est adapté à un enfant : rien d'effrayant, de violent ou pour les grands. Si un sujet n'est pas pour les enfants, dis gentiment d'en parler avec papa.
@@ -308,6 +323,7 @@ const MEMOIRE = {
     const sys = `Tu es la mémoire de Shadow, un robot ami de ${p}, un enfant de 7 ans.
 Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": ["…"]}
 "faits" : de 0 à 5 choses NOUVELLES et durables à retenir sur ${p} ou ses proches (goûts, animaux, amis, activités, projets, événements à venir avec leur date, ce qu'il apprend, ce qui le rend heureux ou l'inquiète). Une phrase courte chacune, à la 3e personne, avec le prénom.
+Retiens UNIQUEMENT ce que ${p} a vraiment dit lui-même (les lignes « ${p} : »), jamais ce que Shadow a dit ou imaginé, et sans rien supposer.
 Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé, ni rien de privé ou de gênant. Ne répète pas ce qui est déjà connu. Si rien de nouveau : "faits": [].`;
     const raw = await AI.chat([{ role: 'system', content: sys }, { role: 'user', content: `Déjà connu :\n${known}\n\nConversation :\n${conv}` }],
       { maxTokens: 400, temperature: 0.2, timeout: 25000 });

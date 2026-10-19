@@ -228,7 +228,8 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen' } = {}) {
   if (face.state !== 'sleep' || f === 'sleep') face.set(f);
   // Whisper comprend mieux s'il sait de quoi on parle : on lui donne la dernière phrase de Shadow
   const ctxPrompt = prompt || `Conversation en français avec Shadow, un robot, et ${name()}. Shadow : ${voice.clean(lastSaid).slice(-200)}`;
-  const r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: prompt === SPELL_PROMPT ? 2.2 : 0.9 });
+  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: prompt === SPELL_PROMPT ? 2.2 : 0.9 });
+  if (typeof r === 'string' && r && isEcho(r)) { OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
     face.set('oops');
@@ -240,9 +241,32 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen' } = {}) {
     return '';
   }
   mustShow = false;
-  if (r) subtitle(null, `🎤 « ${r} »`);
+  if (r) { subtitle(null, `🎤 « ${r} »`); whoSpoke(); }
   return r;
 }
+// Sa propre voix qui revient du haut-parleur : on la reconnaît et on l'ignore
+function isEcho(t) {
+  const words = s => N(s).split(' ').filter(w => w.length > 2);
+  const a = words(t), b = new Set(words(lastSaid));
+  if (a.length < 2 || !b.size) return false;
+  return a.filter(w => b.has(w)).length / a.length > 0.7;
+}
+// Qui vient de parler ? (empreinte de voix + ce que voit la caméra)
+let lastPrint = null, voiceLearnAt = 0;
+function whoSpoke() {
+  const vp = OREILLES.takePrint();
+  lastPrint = vp;
+  if (!vp) return;
+  const id = VOIX.identify(vp);
+  const faces = VISION.state.faces;
+  const seenName = faces.length === 1 && faces[0].name ? faces[0].name : '';
+  if (id) { dlg.speaker = id.name; dlg.speakerAt = Date.now(); }
+  else if (seenName && !VOIX.people().length) { dlg.speaker = seenName; dlg.speakerAt = Date.now(); }
+  // il affine la voix de la personne qu'il voit parler (au plus une fois par minute)
+  if (seenName && Date.now() - voiceLearnAt > 60000 && (!id || id.name === seenName) && VOIX.learn(seenName, vp)) voiceLearnAt = Date.now();
+}
+const speakerNow = () => (dlg.speaker && Date.now() - dlg.speakerAt < 90000 ? dlg.speaker : '');
+
 OREILLES.on('thinking', () => {
   face.el.classList.remove('hearing');
   if (['listen', 'idle'].includes(face.state)) { face.set('think'); fx.tone([[1175, 0.06]]); } // « bip » : je t'ai entendu
@@ -266,27 +290,29 @@ const RE = {
   help: /\b(qu est ce que tu sais faire|que sais tu faire|tu sais faire quoi|qu est ce qu on peut faire|on fait quoi|qu est ce qu on fait|propose moi|j ai rien a faire|je m ennuie)\b/,
   readJournal: /\b(lis|lire|relis|montre|affiche|ouvre)\b.*\bjournal\b/,
   closeJournal: /\b(ferme|cache|range)\b.*\bjournal\b/,
-  journal: /\b(journal|dictee|ecrire|epeler|orthographe|une phrase)\b/,
+  journal: /\b(mon journal|le journal|dans le journal|dictee|on ecrit|ecrire une phrase|ecrire dans|epeler|on epelle|orthographe)\b/,
   animal: /\b(devine l animal|je pense a un animal|pense a un animal|devine a quel animal)\b/,
   devinette: /\bdevinette/,
   calc: /\b(calcul|calculs|maths|math|mathematiques|addition|additions|soustraction|soustractions|multiplication|compter)\b/,
-  quiz: /\b(quiz|quizz|questionnaire|pose moi des questions|pose moi une question|des questions)\b/,
+  quiz: /\b(quiz|quizz|questionnaire|pose moi des questions|on fait des questions)\b/,
   learn: /\b(apprends moi|parle moi|explique moi|raconte moi des choses|je veux apprendre|tu m apprends)\b/,
-  story: /\b(histoire|invente)\b/,
+  story: /\b(une histoire|invente une histoire|inventer une histoire|on invente)\b/,
   meet: /\b(apprends (mon|ton|son|le) visage|souviens toi de (moi|mon visage)|retiens mon visage|faire connaissance|fais connaissance|on fait connaissance|enregistre mon visage|memorise mon visage)\b/,
   who: /\b(tu me reconnais|qui je suis|qui suis je|tu sais qui je suis|qui tu vois|tu vois qui|qui est la|tu me vois)\b/,
-  what: /\b(qu est ce que tu vois|tu vois quoi|c est quoi ca|qu est ce que c est|regarde|qu est ce que je tiens|qu est ce que j ai dans la main|tu vois ca|devine ce que)\b/,
+  what: /(\bqu est ce que tu vois\b|\btu vois quoi\b|\bc est quoi ca\b|^qu est ce que c est( ca)?$|\bregarde (ca|ce que|mon|ma|mes)\b|\bqu est ce que je tiens\b|\bqu est ce que j ai dans la main\b|\btu vois ca\b|\bdevine ce que (je|j ai)\b)/,
   hunt: /\b(chasse au tresor|cherche un objet|va chercher|jeu des objets|trouve un objet|apporte|chasse aux objets)\b/,
   time: /\b(quelle heure|l heure qu il est)\b/,
   date: /\b(quel jour|on est quel jour|la date|quel mois)\b/,
-  maison: /\b(allume|eteins|eteint|lumiere|lampe|volet|volets|television|tele|chauffage)\b/,
+  maison: /\b(allume|eteins|eteint|ouvre|ferme|monte|baisse)\b.*\b(lumiere|lumieres|lampe|volets?|television|tele|chauffage|radio)\b/,
   dance: /\b(danse|danser)\b/,
-  move: /\b(avance|recule|tourne|viens ici|viens|bouge|marche|roule|deplace toi)\b/,
+  move: /^(avance|recule|tourne a (gauche|droite)|viens ici|viens vers moi|deplace toi|roule|bouge)\b/,
   joke: /\b(blague|blagues|fais moi rire|un truc drole)\b/,
   name: /\b(comment tu t appelles|c est quoi ton nom|tu t appelles comment|qui es tu|t es qui)\b/,
   hello: /^(bonjour|salut|coucou|hello|yo|bonsoir)\b/,
   howareyou: /\b(ca va|comment vas tu|comment tu vas|tu vas bien)\b/,
   thanks: /\b(merci)\b/,
+  voiceLearn: /\b(apprends ma voix|retiens ma voix|enregistre ma voix|memorise ma voix|apprends a reconnaitre ma voix|apprendre ma voix)\b/,
+  whoTalks: /\b(qui parle|tu reconnais ma voix|c est qui qui parle|qui c est qui parle|tu sais qui parle|c est quelle voix)\b/,
   remember: /\b(souviens toi que|retiens que|n oublie pas que|rappelle toi que|souviens toi bien que|note que)\b/,
   recall: /\b(qu est ce que tu sais (sur|de) moi|tu te souviens de quoi|qu est ce que tu te rappelles|tu te souviens de moi|qu est ce que tu sais de moi|ta memoire)\b/,
   forget: /\b(oublie tout|efface ta memoire|vide ta memoire)\b/,
@@ -369,7 +395,7 @@ async function life() {
       if (!m) continue;
       text = n.slice(m.index + m[0].length).trim();
       dlg.state = 'talk';
-      if (!text) { face.set('happy'); dlg.silence = 0; await say(pick(["Oui ? Je t'écoute !", 'Bip ! Oui ?', 'Je suis là !'])); continue; }
+      if (!text) { face.set('happy'); dlg.silence = 0; const w = speakerNow(); await say(w ? pick([`Oui ${w} ? Je t'écoute !`, `Bip ! Oui ${w} ?`]) : pick(["Oui ? Je t'écoute !", 'Bip ! Oui ?', 'Je suis là !'])); continue; }
     } else if (m && m.index === 0) {
       // le nom au début de la phrase ne compte pas : « Shadow, on joue ? »
       text = n.slice(m[0].length).trim() || text;
@@ -422,7 +448,7 @@ async function memoryGreeting(who) {
     const r = await Promise.race([
       AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
         { role: 'user', content: `(${n} vient d'arriver devant toi.) Dis-lui bonjour en 1 ou 2 phrases courtes. Si c'est naturel, parle d'un souvenir de ta mémoire (une question sur un événement prévu, un goût…). Termine par une proposition ou une question.` }],
-      { maxTokens: 120, temperature: 0.8 }),
+      { maxTokens: 120, temperature: 0.6 }),
       wait(5000).then(() => ''),
     ]);
     if (r) return say(ETHIQUE.safe(r));
@@ -442,6 +468,8 @@ function greeting(who) {
 /* ---------- comprendre ce qu'on lui dit ---------- */
 async function handle(text) {
   const n = N(text);
+  // « euh », « hum »… : ce n'est pas une phrase, il continue d'écouter sans répondre
+  if (/^(euh+|heu+|hum+|hm+|ben|bah|ah|oh|eh|mmh+|pff+)$/.test(n)) return;
   if (dlg.expect && Date.now() < dlg.expect.until) {
     const ex = dlg.expect;
     dlg.expect = null;
@@ -456,6 +484,8 @@ async function handle(text) {
   if (RE.closeJournal.test(n)) { closeJournal(); return say("C'est rangé !"); }
   if (RE.readJournal.test(n)) return readJournal();
   if (RE.meet.test(n)) return activity(meetFlow);
+  if (RE.voiceLearn.test(n)) return activity(voiceFlow);
+  if (RE.whoTalks.test(n)) return whoTalks();
   if (RE.remember.test(n)) return rememberThat(text);
   if (RE.recall.test(n)) return recall();
   if (RE.forget.test(n)) { face.flash('oops'); return say("Ma mémoire, c'est précieux ! Seul papa peut l'effacer, dans les réglages."); }
@@ -533,7 +563,11 @@ async function chatReply(text, hidden = false) {
   face.set('think');
   try {
     const vus = VISION.state.faces.map(f => f.name).filter(Boolean);
-    const sys = CERVEAU.personality() + MEMOIRE.context() + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '');
+    const who = speakerNow();
+    const now = new Date();
+    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités, ni de corps pour l'instant.`;
+    const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
+      + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
     const msgs = [{ role: 'system', content: sys }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
     let queue = Promise.resolve(), bad = false, spoken = 0;
@@ -545,10 +579,10 @@ async function chatReply(text, hidden = false) {
     };
     let raw;
     try {
-      raw = await AI.chatStream(msgs, { maxTokens: 200, temperature: 0.8 }, onSentence);
+      raw = await AI.chatStream(msgs, { maxTokens: 200, temperature: 0.55 }, onSentence);
     } catch (e) {
       if (spoken) throw e;
-      raw = await AI.chat(msgs, { maxTokens: 200, temperature: 0.8 }); // secours sans « mot à mot »
+      raw = await AI.chat(msgs, { maxTokens: 200, temperature: 0.55 }); // secours sans « mot à mot »
       onSentence(raw);
     }
     await queue;
@@ -601,6 +635,40 @@ async function reviseFlow() {
   }
   face.set('happy'); fx.confetti(40);
   await say('Révision terminée ! Ton cerveau devient de plus en plus fort.');
+}
+
+/* =================== LES VOIX =================== */
+async function voiceFlow() {
+  if (OREILLES.engine() !== 'whisper') return say("Pour reconnaître les voix, j'ai besoin de mes oreilles Whisper : papa doit mettre la clé Groq dans les réglages.");
+  let who = '';
+  const faces = VISION.state.faces;
+  if (faces.length === 1 && faces[0].name && (await askYesNo(`Je vois ${faces[0].name}. C'est ta voix que j'apprends ?`))) who = faces[0].name;
+  while (!who) {
+    const n = cleanName(await ask("D'accord ! Comment tu t'appelles ?", { wait: 20000 }));
+    if (n && (await askYesNo(`Tu t'appelles ${n} ? C'est bien ça ?`))) who = n;
+  }
+  const prompts = ["Super ! Raconte-moi ce que tu as mangé aujourd'hui.", 'Maintenant, dis-moi ton animal préféré, et pourquoi.', "Et pour finir, compte jusqu'à dix."];
+  const prints = [];
+  for (const q of prompts) {
+    let line = q;
+    for (let tries = 0; tries < 2; tries++) {
+      await ask(line, { wait: 25000 });
+      if (lastPrint) { prints.push(lastPrint); lastPrint = null; break; }
+      line = 'Parle un peu plus longtemps, pour que je connaisse bien ta voix !';
+    }
+  }
+  if (prints.length < 2) { face.flash('oops'); return say("Je n'ai pas assez bien entendu ta voix. On réessaiera, dans un endroit plus calme !"); }
+  VOIX.enroll(who, prints);
+  dlg.speaker = who; dlg.speakerAt = Date.now();
+  face.set('happy'); fx.ok(); fx.confetti(30);
+  await say(`Ça y est, je connais ta voix, ${who} ! Maintenant, je saurai quand c'est toi qui me parles.`);
+}
+async function whoTalks() {
+  if (!VOIX.people().length) return say("Je ne connais encore aucune voix. Dis « apprends ma voix » et je la retiens !");
+  const id = lastPrint ? VOIX.identify(lastPrint) : null;
+  if (id) { face.set('happy'); return say(id.sure ? `C'est toi, ${id.name} ! Je reconnais ta voix.` : `Je crois que c'est toi, ${id.name}. Je me trompe ?`); }
+  face.flash('oops');
+  return say("Hmm, je ne reconnais pas bien cette voix. Tu veux que je l'apprenne ? Dis « apprends ma voix ».");
 }
 
 /* =================== LE JOURNAL (épeler à voix haute) =================== */
@@ -1110,6 +1178,12 @@ async function checkGate() {
   if (gate.fails >= 5) { gate.fails = 0; gate.until = Date.now() + 5 * 60000; toast('Trop d\'essais : coin de papa bloqué 5 minutes 🔒'); }
   else toast(S.settings.pinHash ? 'Mauvais code 🔒' : 'Raté ! Ce coin est réservé à papa 😉');
 }
+function renderVoices() {
+  const v = VOIX.people();
+  $('#s-voices').innerHTML = v.length
+    ? v.map(p => `<div class="person"><span>🎙️ ${esc(p.name)} <small class="muted">(${p.prints.length} empreinte${p.prints.length > 1 ? 's' : ''})</small></span><button type="button" class="ghost sm danger" data-forget-voice="${p.id}">Oublier</button></div>`).join('')
+    : '<p class="small muted">Shadow ne connaît encore aucune voix. Dites-lui « apprends ma voix ».</p>';
+}
 function renderPinState() {
   $('#s-pin-state').textContent = S.settings.pinHash ? '✅ Un code secret protège ce coin.' : '⚠️ Pas encore de code : le coin de papa n\'est protégé que par un calcul.';
 }
@@ -1139,8 +1213,8 @@ function importShadow(file) {
       const d = JSON.parse(r.result);
       if (!d || d.v !== 1) throw new Error('fichier');
       if (!confirm('Remplacer la mémoire, le journal et les visages de Shadow par ceux du fichier ? (les réglages et la clé restent)')) return;
-      ['prenom', 'journal', 'people', 'memory', 'stats', 'chat', 'memPos', 'cur'].forEach(k => { if (k in d) S[k] = d[k]; });
-      save(); renderMemory(); renderPeople();
+      ['prenom', 'journal', 'people', 'voices', 'memory', 'stats', 'chat', 'memPos', 'cur'].forEach(k => { if (k in d) S[k] = d[k]; });
+      save(); renderMemory(); renderPeople(); renderVoices();
       toast('Mémoire restaurée ✅');
     } catch (e) { toast("Ce fichier n'est pas une sauvegarde de Shadow"); }
   };
@@ -1172,6 +1246,7 @@ function openSettings() {
   $('#s-status').textContent = `Oreilles : ${({ whisper: 'Whisper (Groq), micro toujours ouvert', chrome: 'Chrome (Google)' })[OREILLES.engine()] || 'aucune'} · Yeux : ${VISION.isOn() ? 'ouverts' : 'fermés'}`;
   renderPeople();
   renderMemory();
+  renderVoices();
   renderPinState();
   $('#s-msg').textContent = '';
   $('#dlg-settings').returnValue = '';
@@ -1315,6 +1390,10 @@ function bind() {
   $('#s-clear-chat').addEventListener('click', () => { if (confirm('Effacer toute la conversation avec Shadow ?')) { S.chat = []; save(); toast('Conversation effacée'); } });
   $('#s-clear-journal').addEventListener('click', () => {
     if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
+  });
+  $('#s-voices').addEventListener('click', e => {
+    const b = e.target.closest('[data-forget-voice]');
+    if (b && confirm('Shadow va oublier cette voix. Continuer ?')) { S.voices = VOIX.people().filter(p => String(p.id) !== b.dataset.forgetVoice); save(); renderVoices(); }
   });
   $('#s-mem').addEventListener('click', e => {
     const b = e.target.closest('[data-unfact]');
