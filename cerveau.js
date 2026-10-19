@@ -24,8 +24,27 @@ const AI = {
   },
   canTranscribe() { return !!S.settings.key && !!window.MediaRecorder && !!navigator.mediaDevices; },
 
-  async chat(messages, { maxTokens = 220, temperature = 0.8, timeout = 20000 } = {}) {
+  // Modèles de secours si Groq retire celui qu'on utilise
+  FALLBACK: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
+  async robust(once) {
     const c = this.cfg();
+    try { return await once(c.model); } catch (e) {
+      if (e.status === 429 && e.retryAfter && e.retryAfter <= 6) { // limite par minute : on patiente un peu et on réessaie une fois
+        await new Promise(r => setTimeout(r, e.retryAfter * 1000));
+        return once(c.model);
+      }
+      if (c.local || !isModelError(e)) throw e;
+      for (const m of this.FALLBACK) {
+        if (m === c.model) continue;
+        try { const r = await once(m); S.settings.model = m; save(); return r; } catch (e2) { if (!isModelError(e2)) throw e2; }
+      }
+      throw e;
+    }
+  },
+  chat(messages, opts) { return this.robust(m => this.chatOnce(m, messages, opts)); },
+  chatStream(messages, opts, onSentence) { return this.robust(m => this.chatStreamOnce(m, messages, opts, onSentence)); },
+  async chatOnce(model, messages, { maxTokens = 220, temperature = 0.8, timeout = 20000 } = {}) {
+    const c = Object.assign({}, this.cfg(), { model });
     const body = { model: c.model, messages, temperature, max_tokens: maxTokens };
     if (!c.local) {
       // Les modèles « qui réfléchissent » : réflexion courte, et on ne garde que la réponse
@@ -40,8 +59,8 @@ const AI = {
 
   // Même chose, mais la réponse arrive mot à mot : onSentence(phrase) est appelé dès qu'une phrase est complète,
   // pour que Shadow commence à parler sans attendre la fin.
-  async chatStream(messages, { maxTokens = 200, temperature = 0.8, timeout = 20000 } = {}, onSentence) {
-    const c = this.cfg();
+  async chatStreamOnce(model, messages, { maxTokens = 200, temperature = 0.8, timeout = 20000 } = {}, onSentence) {
+    const c = Object.assign({}, this.cfg(), { model });
     const body = { model: c.model, messages, temperature, max_tokens: maxTokens, stream: true };
     if (!c.local) {
       if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = 'low'; body.max_tokens = maxTokens + 300; }
@@ -66,7 +85,8 @@ const AI = {
         headers: Object.assign({ 'Content-Type': 'application/json' }, c.key ? { Authorization: `Bearer ${c.key}` } : {}),
         body: JSON.stringify(body),
       });
-      if (!res.ok || !res.body) throw new Error(`Erreur ${res.status}`);
+      if (!res.ok) throw await httpError(res);
+      if (!res.body) throw new Error('Pas de flux');
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
@@ -149,11 +169,7 @@ const AI = {
         ...opt, signal: ctl.signal,
         headers: { ...(opt.headers || {}), ...(c.key ? { Authorization: `Bearer ${c.key}` } : {}) },
       });
-      if (!res.ok) {
-        let msg = `Erreur ${res.status}`;
-        try { const j = await res.json(); if (j.error && j.error.message) msg += ` : ${j.error.message}`; } catch (e) { /* ignore */ }
-        throw new Error(msg);
-      }
+      if (!res.ok) throw await httpError(res);
       return await res.json();
     } catch (e) {
       if (e.name === 'AbortError') throw new Error('Trop long… (pas de WiFi ?)');
@@ -164,6 +180,18 @@ const AI = {
     }
   },
 };
+
+// Une erreur de Groq, avec son code (401 = clé refusée, 429 = limite atteinte, 5xx = souci chez Groq…)
+async function httpError(res) {
+  let detail = '';
+  try { const j = await res.json(); detail = (j.error && j.error.message) || ''; } catch (e) { /* pas de détail */ }
+  const e = new Error(`Erreur ${res.status}${detail ? ` : ${detail}` : ''}`);
+  e.status = res.status;
+  const ra = parseFloat(res.headers.get('retry-after'));
+  if (!isNaN(ra)) e.retryAfter = ra;
+  return e;
+}
+const isModelError = e => (e.status === 400 || e.status === 404) && /model|decommission|not found|does not exist|n'existe/i.test(e.message);
 
 function cleanReply(t) {
   return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*(.+?)\*\*/g, '$1')

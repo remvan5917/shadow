@@ -224,17 +224,25 @@ const fx = {
 
 /* =================== ÉCOUTER =================== */
 // Écoute une phrase. Renvoie le texte, '' si personne n'a parlé, null si l'écoute a été interrompue.
-async function hear({ prompt = '', maxWait = 20000, face: f = 'listen' } = {}) {
+async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = false } = {}) {
   if (face.state !== 'sleep' || f === 'sleep') face.set(f);
   // Whisper comprend mieux s'il sait de quoi on parle : on lui donne la dernière phrase de Shadow
   const ctxPrompt = prompt || `Conversation en français avec Shadow, un robot, et ${name()}. Shadow : ${voice.clean(lastSaid).slice(-200)}`;
-  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: prompt === SPELL_PROMPT ? 2.2 : 0.9 });
+  let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, cheap, endSilence: prompt === SPELL_PROMPT ? 2.2 : 0.9 });
   if (typeof r === 'string' && r && isEcho(r)) { OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
     face.set('oops');
     mustShow = true;
-    if (r.error === 'no-ears') await say("Je n'ai pas d'oreilles sur cet appareil. Papa doit mettre la clé Groq dans les réglages.");
+    if (r.status === 429) {
+      // limite de Groq atteinte : il le dit une fois, puis se repose sans répéter
+      if (Date.now() - (dlg.tiredAt || 0) > 120000) { dlg.tiredAt = Date.now(); await say("Mes oreilles sont fatiguées, Groq me demande de me reposer un peu. Je reviens dans une minute !"); }
+      await wait(Math.max(20, Math.min(r.retryAfter || 60, 300)) * 1000);
+      mustShow = false;
+      return '';
+    }
+    if (r.status === 401 || r.status === 403) await say("Ma clé d'intelligence est refusée. Papa doit vérifier la clé Groq dans les réglages.");
+    else if (r.error === 'no-ears') await say("Je n'ai pas d'oreilles sur cet appareil. Papa doit mettre la clé Groq dans les réglages.");
     else if (r.error === 'not-allowed') await say('Mes oreilles sont bloquées. Il faut autoriser le micro, demande à papa.');
     else await say('Oups, mes oreilles ont un petit souci. Je réessaie.');
     await wait(4000);
@@ -376,12 +384,12 @@ async function life() {
     if (dlg.sayNext) { const s = dlg.sayNext; dlg.sayNext = null; if (typeof s === 'function') await s(); else await say(s); }
     if (dlg.state === 'sleep') {
       // Endormi : il se réveille si on l'appelle « Shadow » (ou s'il voit quelqu'un, ou si on le touche)
-      const t = await hear({ maxWait: 60000, face: 'sleep' });
+      const t = await hear({ maxWait: 60000, face: 'sleep', cheap: true });
       if (t && RE.wake.test(N(t)) && dlg.state === 'sleep') wake();
       continue;
     }
     const talk = dlg.state === 'talk';
-    const t = await hear({ maxWait: talk ? 25000 : 60000, face: talk ? 'listen' : 'idle' });
+    const t = await hear({ maxWait: talk ? 25000 : 60000, face: talk ? 'listen' : 'idle', cheap: !talk });
     if (t === null || dlg.state === 'sleep') continue;
     if (!t) {
       if (talk && ++dlg.silence >= 2) toStandby();
@@ -593,7 +601,18 @@ async function chatReply(text, hidden = false) {
     if (S.chat.length - S.memPos >= 16) memorize(); // longue discussion : on range au fur et à mesure
   } catch (e) {
     face.set('oops');
-    await say(/401|invalid|key/i.test(e.message) ? "Ma clé d'intelligence ne marche pas. Demande à papa de vérifier les réglages." : 'Oups, mon cerveau ne répond pas. Le WiFi est peut-être coupé.');
+    // un message qui dit la VRAIE cause (et le code d'erreur pour papa, en sous-titre)
+    const st = e.status || 0;
+    const why = st === 401 || st === 403 ? "Ma clé d'intelligence est refusée. Demande à papa de vérifier la clé Groq dans les réglages."
+      : st === 429 ? `Mon cerveau est fatigué : j'ai beaucoup parlé aujourd'hui, Groq me demande de me reposer. Réessaie ${e.retryAfter > 300 ? `dans environ ${e.retryAfter >= 5400 ? `${Math.round(e.retryAfter / 3600)} heures` : `${Math.max(1, Math.round(e.retryAfter / 60))} minutes`}` : 'dans quelques minutes'} ! En attendant, on peut jouer aux devinettes ou faire du calcul.`
+        : st >= 500 ? "Le cerveau de Groq a un petit souci de son côté. Réessaie dans un moment."
+          : /connexion|WiFi|Trop long/i.test(e.message) ? 'Oups, je ne capte pas Internet. Le WiFi est peut-être coupé.'
+            : "Oups, mon cerveau ne répond pas.";
+    mustShow = true;
+    await say(why);
+    subtitle(esc(`${why} (${e.message.slice(0, 120)})`), null);
+    mustShow = false;
+    console.warn('cerveau', e);
   }
 }
 

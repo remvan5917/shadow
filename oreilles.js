@@ -111,7 +111,7 @@ const OREILLES = (() => {
       const speech = dur - (silent * f.length) / ctx.sampleRate;
       buf = []; speaking = false; voiced = 0;
       emit('speechend');
-      if (speech > 0.15) transcribe(audio);
+      if (speech > 0.15 && worthSending(speech)) transcribe(audio);
     }
   }
   function downsample(f, sr) {
@@ -139,6 +139,19 @@ const OREILLES = (() => {
     }
     return new Blob([b], { type: 'audio/wav' });
   }
+  // Quand il attend son nom, il n'envoie pas tout à Groq : seulement les phrases courtes
+  // (« Shadow ! », « Shadow, on joue ? ») et pas plus de 8 par minute. La télé et les longues
+  // conversations d'adultes ne partent plus, ce qui économise la limite gratuite de Groq.
+  const cheapSent = [];
+  function worthSending(speech) {
+    if (!pending || !pending.cheap) return true;
+    if (speech > 4.5) return false;
+    const now = performance.now();
+    while (cheapSent.length && now - cheapSent[0] > 60000) cheapSent.shift();
+    if (cheapSent.length >= 8) return false;
+    cheapSent.push(now);
+    return true;
+  }
   async function transcribe(audio) {
     const p = pending;
     if (!p) return;
@@ -153,7 +166,7 @@ const OREILLES = (() => {
       lastHeard = t.trim() || '(rien compris)';
       if (t.trim()) finish(t.trim()); else p.deadline = performance.now() + 8000; // bruit : on réécoute un peu
     } catch (e) {
-      if (pending === p) finish({ error: e.message });
+      if (pending === p) finish({ error: e.message, status: e.status || 0, retryAfter: e.retryAfter || 0 });
     }
   }
 
@@ -182,10 +195,10 @@ const OREILLES = (() => {
   /* ---------- ce que le reste de Shadow utilise ---------- */
   function finish(v) { const p = pending; pending = null; if (p) p.resolve(v); }
   // Écoute UNE phrase. Résout avec le texte, '' si personne n'a parlé, null si annulé, {error} en cas de souci.
-  function listen({ prompt = '', maxWait = 20000, endSilence = 0.9 } = {}) {
+  function listen({ prompt = '', maxWait = 20000, endSilence = 0.9, cheap = false } = {}) {
     if (pending) finish(null);
     return new Promise(resolve => {
-      const p = { resolve, prompt, endSilence, deadline: performance.now() + maxWait, busy: false };
+      const p = { resolve, prompt, endSilence, cheap, deadline: performance.now() + maxWait, busy: false };
       pending = p;
       if (!engine) return finish({ error: 'no-ears' });
       if (engine === 'chrome') chromeListen(p);
