@@ -1038,8 +1038,10 @@ function applyLock() {
   document.body.classList.toggle('locked', on);
   if (on && history.state?.shadow !== 1) history.pushState({ shadow: 1 }, '');
 }
-function keepFullscreen() {
-  if (!S.settings.lock || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+// Plein écran : chaque toucher le remet si on en est sorti (le navigateur exige un geste du doigt)
+function keepFullscreen(e) {
+  if (document.fullscreenElement || !document.documentElement.requestFullscreen || $('dialog[open]')) return;
+  if (!S.settings.lock && !(e && e.target && e.target.closest && e.target.closest('#face-wrap, #hint'))) return;
   document.documentElement.requestFullscreen().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
 }
 function bindLock() {

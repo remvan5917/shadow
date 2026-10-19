@@ -33,7 +33,7 @@ Une page web ne peut pas bloquer le bouton d'accueil. Pour verrouiller complète
 - **iPad** : Réglages → Accessibilité → *Accès guidé*, puis triple-clic sur le bouton latéral dans Shadow.
 
 ## Sur tous les écrans
-Le visage prend la plus grande taille possible, que l'écran soit vertical ou horizontal (téléphone, tablette, ordinateur). Sur tablette, on peut l'installer comme une appli : menu de Chrome → *Ajouter à l'écran d'accueil*.
+Le visage prend la plus grande taille possible, que l'écran soit vertical ou horizontal (téléphone, tablette, ordinateur). **Plein écran** : toucher le visage passe en plein écran, et le remet si on en sort. Le mieux est de l'installer comme une appli (Chrome → menu ⋮ → *Ajouter à l'écran d'accueil* ; iPhone/iPad : Safari → Partager → *Sur l'écran d'accueil*) : il s'ouvre alors directement en plein écran, sans barre du navigateur. Sur iPhone, seule l'installation sur l'écran d'accueil enlève les barres, car Safari ne permet pas le plein écran d'une page.
 
 ## Ce que la fiche « Le cerveau » est devenue
 - **Gentil, bienveillant, bavard, sociable** : sa personnalité, dans `cerveau.js`.
