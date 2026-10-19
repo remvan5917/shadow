@@ -16,7 +16,9 @@ function logAct(type, detail, score, total) {
   if (!S.log) S.log = [];
   S.log.push({ at: Date.now(), type, d: detail || '', s: score, n: total });
   if (S.log.length > 500) S.log = S.log.slice(-500);
+  if (!AI.online()) S.explorer = true; // il a joué sans réseau : médaille de l'explorateur
   save();
+  checkBadges();
 }
 
 /* ---------- le tableau : ce que Shadow montre sur son écran (texte à lire, horloge, sa main…) ---------- */
@@ -110,8 +112,70 @@ function calcQ(kind) {
   }
   if (kind === 'c10') { const a = rnd(1, 9); return { ask: `combien faut-il ajouter à ${a} pour faire 10 ?`, r: 10 - a, tip: `Compte sur tes doigts à partir de ${a}, jusqu'à 10.` }; }
   if (kind === 'c100') { const a = rnd(1, 9) * 10; return { ask: `combien faut-il ajouter à ${a} pour faire 100 ?`, r: 100 - a, tip: `Compte de dix en dix : ${a}, ${a + 10}… jusqu'à 100.` }; }
+  const lvl = S.calcLevel || 2;
+  if (lvl === 1) { // niveau 1 : petits nombres, jusqu'à 10
+    if (Math.random() < 0.6) { const a = rnd(1, 6), b = rnd(1, Math.min(4, 10 - a)); return { ask: `combien font ${a} plus ${b} ?`, r: a + b, tip: `Compte à partir de ${a} : encore ${b}.` }; }
+    const a = rnd(3, 10), b = rnd(1, a - 1); return { ask: `combien font ${a} moins ${b} ?`, r: a - b, tip: `Pars de ${b} et compte jusqu'à ${a}.` };
+  }
+  if (lvl === 3) { // niveau 3 : avec des retenues, et les tables
+    const k = Math.random();
+    if (k < 0.4) { const a = rnd(15, 89), b = rnd(3, 9); return { ask: `combien font ${a} plus ${b} ?`, r: a + b, tip: `Ajoute d'abord pour arriver à la dizaine suivante, puis le reste.` }; }
+    if (k < 0.7) { const a = rnd(11, 19), b = rnd((a % 10) + 1, 9); return { ask: `combien font ${a} moins ${b} ?`, r: a - b, tip: `Enlève d'abord ${a % 10} pour arriver à 10, puis le reste.` }; }
+    const t = JEUX.shuffle([2, 3, 4, 5, 10])[0], b = rnd(2, 10); return { ask: `combien font ${t} fois ${b} ?`, r: t * b, tip: `C'est ${b} fois le nombre ${t}.` };
+  }
   const q = JEUX.calcQuestion();
   return { ask: `combien font ${q.say} ?`, r: q.r, tip: q.tip };
+}
+
+/* =================== MÉDAILLES =================== */
+const BADGES = [
+  { id: 'journal1', nom: 'Petit journaliste', ico: '📰', test: () => (S.journal || []).length >= 1 },
+  { id: 'journal10', nom: 'Grand écrivain', ico: '✒️', test: () => (S.journal || []).length >= 10 },
+  { id: 'ortho20', nom: "Champion d'orthographe", ico: '🔤', test: () => (S.stats.first || 0) >= 20 },
+  { id: 'dictee', nom: 'As de la dictée', ico: '📝', test: () => logs('dictee').some(x => x.s === x.n) },
+  { id: 'lecteur', nom: 'Super lecteur', ico: '📖', test: () => logs('lecture').filter(x => x.s >= 90).length >= 3 },
+  { id: 'calcul', nom: 'Roi du calcul', ico: '➗', test: () => logs('calc').filter(x => x.s === 5).length >= 2 },
+  { id: 'heure', nom: "Maître de l'heure", ico: '⏰', test: () => logs('heure').some(x => x.s === 4) },
+  { id: 'savant', nom: 'Petit savant', ico: '🧪', test: () => logs('quiz').some(x => x.s === 5) },
+  { id: 'anglais', nom: 'Globe-trotteur', ico: '🌍', test: () => logs('anglais').reduce((t, x) => t + (x.s || 0), 0) >= 12 },
+  { id: 'jacques', nom: 'Impiégeable', ico: '🕺', test: () => logs('jacques').some(x => x.s === x.n) },
+  { id: 'animaux', nom: 'Ami des animaux', ico: '🐾', test: () => logs('cris').reduce((t, x) => t + (x.s || 0), 0) >= 10 },
+  { id: 'detective', nom: 'Détective', ico: '🔍', test: () => (S.stats.dev || 0) >= 10 },
+  { id: 'explorateur', nom: 'Explorateur', ico: '🧭', test: () => !!S.explorer },
+  { id: 'copain', nom: 'Meilleur copain', ico: '💙', test: () => playStreak() >= 5 },
+  { id: 'visage', nom: 'On se connaît !', ico: '👋', test: () => (S.people || []).length >= 1 },
+];
+const logs = t => (S.log || []).filter(x => x.type === t);
+function playStreak() {
+  let n = 0;
+  for (let i = 0; i < 60; i++) { const k = dayKey(new Date(Date.now() - i * 86400000)); if ((S.playLog || {})[k]) n++; else if (i) break; }
+  return n;
+}
+const newBadges = [];
+function checkBadges() {
+  if (!S.badges) S.badges = [];
+  for (const b of BADGES) if (!S.badges.includes(b.id)) { try { if (b.test()) { S.badges.push(b.id); newBadges.push(b); } } catch (e) { /* rien */ } }
+  if (newBadges.length) save();
+}
+async function announceBadges() {
+  checkBadges();
+  while (newBadges.length) {
+    const b = newBadges.shift();
+    showBoard(`<div class="pfc">${b.ico}<small>${esc(b.nom)}</small></div>`, 'pfcb');
+    face.set('happy'); fx.ok(); fx.confetti(70);
+    await say(`Médaille ! Tu as gagné la médaille « ${b.nom} » ! Bravo ${name()} !`);
+    await wait(1200);
+    hideBoard();
+  }
+}
+async function medaillesAnswer() {
+  checkBadges();
+  const mine = BADGES.filter(b => (S.badges || []).includes(b.id));
+  if (!mine.length) return say("Tu n'as pas encore de médaille… mais ça va venir ! Essaie une dictée, un quiz ou Jacques a dit.");
+  showBoard(`<div class="medals">${mine.map(b => `<span>${b.ico}<small>${esc(b.nom)}</small></span>`).join('')}</div>`, 'medalsb');
+  await say(`Tu as ${mine.length} médaille${mine.length > 1 ? 's' : ''} sur ${BADGES.length} : ${mine.map(b => b.nom).join(', ')} !`);
+  await wait(2500);
+  hideBoard();
 }
 
 /* =================== 3. LECTURE À VOIX HAUTE =================== */
@@ -581,6 +645,7 @@ function renderBilan() {
     <p class="small"><b>Activités</b> : ${Object.keys(byType).length ? Object.entries(byType).map(([k, t]) => `${ACT_NOMS[k]} ×${t.n}${t.tot ? ` (${Math.round((100 * t.s) / t.tot)} % réussi)` : ''}`).join(' · ') : 'rien encore'}</p>
     <p class="small"><b>Journal</b> : ${journal.length ? journal.map(esc).join(' / ') : 'pas de phrase cette semaine'}</p>
     <p class="small"><b>Mots difficiles</b> : ${hard.length ? hard.map(esc).join(', ') : 'aucun'}</p>
+    <p class="small"><b>Médailles</b> : ${(S.badges || []).length ? BADGES.filter(b => S.badges.includes(b.id)).map(b => `${b.ico} ${esc(b.nom)}`).join(' · ') : 'pas encore'} · <b>niveau de calcul</b> ${S.calcLevel || 2}/3</p>
     <p class="small"><b>Humeur</b> : ${moods.length ? moods.map(m => `${new Date(m.at).toLocaleDateString('fr-FR', { weekday: 'short' })} « ${esc(m.d)} »`).join(' · ') : 'pas encore demandée'}</p>`;
 }
 

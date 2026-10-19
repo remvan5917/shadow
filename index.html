@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '26';
+      window.SHADOW_VERSION = '27';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -91,7 +91,7 @@
         </svg>
       </div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v26</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v27</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -216,6 +216,12 @@
         </div>
         <input id="s-import-file" type="file" accept="application/json,.json" hidden>
         <p class="small muted">La sauvegarde (sans la clé Groq) permet de garder sa mémoire, son journal et les visages appris, ou de les mettre sur la tablette.</p>
+      </fieldset>
+      <fieldset>
+        <legend>🤖 Le corps (Bluetooth)</legend>
+        <p id="s-corps-state" class="small"></p>
+        <button type="button" id="s-corps" class="ghost">🔵 Connecter le corps (Bluetooth)</button>
+        <p class="small muted">Pour le jour où vous fabriquez le corps : une carte ESP32 avec deux moteurs, des lumières et un capteur d'obstacles. Le programme de la carte et le montage sont dans le dossier <code>corps/</code> et le LISEZMOI. Une fois connecté : « Shadow, avance », « recule », « tourne à gauche », « danse »… Il s'arrête tout seul devant un obstacle.</p>
       </fieldset>
       <fieldset>
         <legend>🩺 Auto-test et rapport</legend>

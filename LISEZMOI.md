@@ -105,8 +105,51 @@ Le visage prend la plus grande taille possible, que l'écran soit vertical ou ho
 
 Attention : depuis une tablette, `localhost` désigne la tablette, pas l'ordi. Ce mode marche quand l'appli tourne sur la machine qui héberge Ollama.
 
-## Plus tard : le corps et la maison
-`corps.js` contient les fonctions `bouger()` et `maison()`, encore vides. On les branchera sur les moteurs (par exemple une carte ESP32 en WiFi) et sur la maison (par exemple Home Assistant) sans toucher au reste du cerveau.
+## Le corps (étape 4 : « Fabriquer le robot »)
+Le téléphone reste **la tête** de Shadow : il garde le visage, les yeux, les oreilles et le cerveau. Le corps est une petite carte **ESP32** qui reçoit ses ordres par **Bluetooth** et fait rouler les roues. Il n'y a pas besoin de WiFi.
+
+⚠️ **Pas encore testé sur du vrai matériel.** Le côté appli a été essayé avec une carte simulée. Le programme de la carte (`corps/shadow_corps_esp32.ino`) n'a pas encore été compilé : on le vérifiera ensemble au moment du montage.
+
+**Matériel (environ 40 à 60 €)**
+- 1 carte ESP32 DevKit (USB) ;
+- 1 châssis de robot à 2 roues avec 2 moteurs jaunes à engrenages (kit « 2WD ») ;
+- 1 pilote de moteurs **TB6612FNG** ;
+- 1 capteur de distance **HC-SR04P** (version 3,3 V, important) ;
+- 1 ruban de 8 LEDs WS2812 (« NeoPixel ») ;
+- 2 accus 18650 avec leur support, 1 régulateur 5 V (« buck »), 1 interrupteur ;
+- 2 résistances pour mesurer la batterie (20 kΩ + 10 kΩ), des fils Dupont ;
+- un support pour poser le téléphone debout sur le robot.
+
+**Câblage**
+| Pièce | Broche de la carte ESP32 |
+|---|---|
+| TB6612 : moteur gauche AIN1 / AIN2 / PWMA | 25 / 26 / 27 |
+| TB6612 : moteur droit BIN1 / BIN2 / PWMB | 14 / 12 / 13 |
+| TB6612 : STBY | 33 |
+| TB6612 : VM (moteurs) | batterie 7,4 V (après l'interrupteur) |
+| TB6612 : VCC | 3V3 |
+| Ruban LEDs : DIN | 4 (alimentation par le 5 V du régulateur) |
+| HC-SR04P : TRIG / ECHO | 5 / 18 (VCC sur 3V3) |
+| Batterie : point milieu du pont 20 kΩ / 10 kΩ | 34 |
+Toutes les masses (GND) sont reliées ensemble. L'ESP32 est alimentée par le régulateur 5 V, sur la broche 5V/VIN.
+
+**Mettre le programme dans la carte**
+1. Installer **Arduino IDE**.
+2. Dans *Gestionnaire de cartes*, ajouter « esp32 by Espressif ». Dans *Gestionnaire de bibliothèques*, ajouter « Adafruit NeoPixel ».
+3. Ouvrir `corps/shadow_corps_esp32.ino`, choisir la carte « ESP32 Dev Module », brancher l'USB, puis cliquer sur **Téléverser**.
+4. Faire le premier essai **roues en l'air** : si un moteur tourne à l'envers, inverser ses deux fils.
+
+**Brancher Shadow à son corps** : ⚙️ → *Le corps* → **Connecter**, puis choisir « Shadow-corps ». Il faut Chrome sur Android ; le Bluetooth ne marche pas sur iPhone ni sur iPad. Ensuite, on lui parle :
+- « avance », « recule », « tourne à gauche », « tourne à droite », « arrête » ;
+- « danse » ;
+- les lumières du corps prennent la couleur de son visage (vert quand c'est juste, orange quand il y a un piège…).
+
+**Sécurité** : chaque mouvement dure 3 secondes au maximum. La carte s'arrête toute seule devant un obstacle à moins de 20 cm, et Shadow dit alors qu'il y a quelque chose devant lui. Elle s'arrête aussi si le Bluetooth se coupe. La vitesse est réduite exprès.
+
+**La maison (plus tard)** : `maison()` dans `corps.js` est prévue pour la domotique (par exemple Home Assistant), sans toucher au reste du cerveau.
+
+## Médailles et niveaux
+Shadow donne des **médailles** (15 en tout) : premier journal, roi du calcul, explorateur sans WiFi… Il les annonce au moment où l'enfant les gagne. Pour les entendre : « mes médailles ». Le **calcul s'adapte** tout seul : quand ça va bien, le niveau monte (jusqu'aux tables et aux nombres plus grands), et il redescend quand c'est trop dur. Le niveau et les médailles apparaissent dans ⚙️ → *Bilan*.
 
 ## Fichiers
 `index.html` (le visage) · `app.js` (la conversation) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).

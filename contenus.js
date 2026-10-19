@@ -43,6 +43,14 @@ const CONTENUS = (() => {
     "Le boulanger prépare le pain très tôt. Ça sent bon dans toute la rue.",
     'Mon ballon rouge roule jusqu’à la mare. Un canard le regarde, très surpris.',
     "Le soir, la maman ours raconte une histoire. Les oursons s'endorment tout doucement.",
+    'Le pirate cherche un trésor sur une île. Il creuse, il creuse… et trouve une vieille boîte pleine de coquillages.',
+    "Il neige ! Les enfants font un bonhomme de neige avec une carotte pour le nez et deux cailloux pour les yeux.",
+    "Le dragon a mal aux dents. Le dentiste monte sur une échelle et lui dit : ouvre grand la bouche !",
+    'Au zoo, la girafe mange les feuilles en haut de l’arbre. Le petit éléphant l’arrose avec sa trompe.',
+    "Le train part de la gare à huit heures. Dans le wagon, une petite fille regarde les vaches par la fenêtre.",
+    "Ce matin, le soleil brille. Papa prépare un pique-nique, et on part au parc avec le ballon.",
+    "La tortue et le lapin font une course. Le lapin court vite, mais il s'arrête pour dormir. La tortue gagne !",
+    "Shadow, le petit robot, apprend à lire avec son ami. Ensemble, ils lisent une histoire de dinosaures.",
   ];
 
   /* ---------- Anglais (Shadow prononce le mot avec une voix anglaise) ---------- */
@@ -54,6 +62,10 @@ const CONTENUS = (() => {
     ['pomme', 'apple'], ['banane', 'banana'], ['lait', 'milk'], ['eau', 'water'], ['pain', 'bread'],
     ['maman', 'mum'], ['papa', 'dad'], ['frère', 'brother'], ['sœur', 'sister'], ['maison', 'house'], ['soleil', 'sun'],
     ['lune', 'moon'], ['livre', 'book'], ['ballon', 'ball'], ['robot', 'robot'],
+    ['sept', 'seven'], ['huit', 'eight'], ['neuf', 'nine'], ['rose', 'pink'],
+    ['tête', 'head'], ['main', 'hand'], ['pied', 'foot'], ['œil', 'eye'], ['bouche', 'mouth'], ['nez', 'nose'],
+    ['grand', 'big'], ['petit', 'small'], ['chaud', 'hot'], ['froid', 'cold'], ['école', 'school'], ['voiture', 'car'],
+    ['arbre', 'tree'], ['fleur', 'flower'], ['lapin', 'rabbit'], ['souris', 'mouse'], ['grenouille', 'frog'], ['étoile', 'star'],
   ].map(([fr, en]) => ({ fr, en }));
 
   /* ---------- Le mot du jour ---------- */
@@ -86,6 +98,29 @@ const CONTENUS = (() => {
     ['un fossile', 'une trace très ancienne d\'un animal ou d\'une plante, gardée dans la pierre', 'On a trouvé un fossile de dinosaure.'],
     ['farfelu', 'un peu bizarre et rigolo', "Quelle idée farfelue !"],
     ['émerveillé', 'très surpris et content devant quelque chose de beau', 'Je suis émerveillé par le feu d\'artifice.'],
+    ['un archipel', "un groupe d'îles proches les unes des autres", 'Les pirates naviguent dans un archipel.'],
+    ['lumineux', 'qui donne de la lumière', 'Les yeux de Shadow sont lumineux.'],
+    ['une boussole', "un objet dont l'aiguille montre toujours le nord", "L'explorateur regarde sa boussole."],
+    ['bondir', "sauter d'un coup, très fort", 'Le kangourou bondit dans la plaine.'],
+    ['murmurer', 'parler tout bas, presque sans bruit', 'Le vent murmure dans les feuilles.'],
+    ['un séisme', 'un tremblement de terre', 'Pendant un séisme, le sol bouge.'],
+    ['généreux', 'qui aime donner et partager', 'Mon copain est généreux, il partage son goûter.'],
+    ['nocturne', 'qui vit ou se passe la nuit', 'Le hibou est un oiseau nocturne.'],
+    ['un télescope', 'un grand tube qui permet de voir les étoiles de près', 'Avec un télescope, on voit les cratères de la Lune.'],
+    ['étonné', "surpris par quelque chose qu'on n'attendait pas", 'Je suis étonné : il neige en avril !'],
+    ['un fennec', 'un petit renard du désert avec de très grandes oreilles', 'Le fennec dort le jour, à l\'abri de la chaleur.'],
+    ['audacieux', 'qui ose faire des choses difficiles', "L'alpiniste audacieux grimpe la montagne."],
+    ['une averse', 'une pluie forte qui ne dure pas longtemps', 'Une averse nous surprend au parc.'],
+    ['habile', 'qui fait les choses avec adresse', 'Le jongleur est très habile.'],
+    ['un écho', 'un son qui revient quand il rebondit sur une paroi', "Dans la grotte, il y a de l'écho !"],
+    ['grimacer', 'faire une drôle de tête', 'Je grimace quand je mange un citron.'],
+    ['un iceberg', 'une énorme montagne de glace qui flotte sur la mer', "L'iceberg est bien plus grand sous l'eau qu'au-dessus."],
+    ['ravi', 'très content', 'Je suis ravi de te voir !'],
+    ['une tornade', 'un vent qui tourne très vite, comme un tourbillon géant', 'La tornade soulève la poussière.'],
+    ['têtu', "qui ne change pas d'avis", "L'âne est têtu, il ne veut pas avancer."],
+    ['une constellation', "un groupe d'étoiles qui dessine une forme dans le ciel", 'La Grande Ourse est une constellation.'],
+    ['se camoufler', 'se cacher en prenant les couleurs autour de soi', 'Le caméléon se camoufle sur la branche.'],
+    ['fragile', 'qui se casse facilement', 'Attention, ce verre est fragile !'],
   ].map(([mot, def, ex]) => ({ mot, def, ex }));
 
   /* ---------- Cris d'animaux ---------- */

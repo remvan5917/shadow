@@ -62,6 +62,7 @@ const face = {
     this.state = st;
     this.el.classList.remove('idle', 'listen', 'think', 'happy', 'oops', 'sleep', 'sad');
     this.el.classList.add(st);
+    if (st !== this._lastBody) { this._lastBody = st; CORPS.mood(st); } // les lumières du corps suivent l'émotion
     this.look(0, 0);
   },
   talk(on) { this.el.classList.toggle('talk', on); },
@@ -340,7 +341,7 @@ const RE = {
   date: /\b(quel jour|on est quel jour|la date|quel mois)\b/,
   maison: /\b(allume|eteins|eteint|ouvre|ferme|monte|baisse)\b.*\b(lumiere|lumieres|lampe|volets?|television|tele|chauffage|radio)\b/,
   dance: /\b(danse|danser)\b/,
-  move: /^(avance|recule|tourne a (gauche|droite)|viens ici|viens vers moi|deplace toi|roule|bouge)\b/,
+  move: /^(avance|recule|tourne|va a (gauche|droite)|viens ici|viens vers moi|deplace toi|roule|bouge|demi tour|fais un tour)\b/,
   joke: /\b(blague|blagues|fais moi rire|un truc drole)\b/,
   name: /\b(comment tu t appelles|c est quoi ton nom|tu t appelles comment|qui es tu|t es qui)\b/,
   hello: /^(bonjour|salut|coucou|hello|yo|bonsoir)\b/,
@@ -350,6 +351,7 @@ const RE = {
   whoTalks: /\b(qui parle|tu reconnais ma voix|c est qui qui parle|qui c est qui parle|tu sais qui parle|c est quelle voix)\b/,
   bedtime: /\b(histoire du soir|histoire pour dormir|histoire pour m endormir|je vais me coucher|je vais dormir|je vais au lit)\b/,
   motJour: /\bmot du jour\b/,
+  medailles: /\b(mes medailles|ma medaille|les medailles|combien de medailles|mes trophees|mes badges)\b/,
   dicteeMots: /\b(dictee|dictees|mots de l ecole|mots du ce1|mots du ce un|une dictee)\b/,
   lecture: /\b(lecture|on lit|je veux lire|lire un texte|lire une histoire|je vais lire|je lis)\b/,
   heureJeu: /\b(lire l heure|apprendre l heure|apprends moi l heure|jeu de l heure|l horloge|une horloge)\b/,
@@ -407,6 +409,7 @@ async function activity(fn) {
   dlg.state = 'activity';
   try {
     await fn();
+    if (!dlg.interrupt) await announceBadges();
     if (dlg.state === 'activity') dlg.state = 'talk';
   } catch (e) {
     if (!(e instanceof Stop)) {
@@ -454,6 +457,7 @@ async function life() {
     }
     dlg.silence = 0;
     dlg.lastActive = Date.now();
+    dlg.lastTalk = Date.now();
     dlg.busy = true;
     try { await handle(text); } catch (e) { console.error(e); } finally { dlg.busy = false; }
   }
@@ -559,10 +563,11 @@ async function handle(text) {
   dlg.moodPending = false;
   if (RE.bedtime.test(n)) return histoireSoirFlow();
   if (RE.sleep.test(n)) return goSleep();
-  if (RE.stop.test(n)) { closeJournal(); hideBoard(); face.set('idle'); await say("D'accord, je me tais. Dis « Shadow » quand tu veux me parler."); dlg.state = 'standby'; return; }
+  if (RE.stop.test(n)) { CORPS.bouger('stop'); closeJournal(); hideBoard(); face.set('idle'); await say("D'accord, je me tais. Dis « Shadow » quand tu veux me parler."); dlg.state = 'standby'; return; }
   if (RE.repeat.test(n)) return say(lastSaid || "Je n'ai encore rien dit !");
   if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Dis-moi ce que tu veux !");
   if (RE.motJour.test(n)) return say(motDuJourText());
+  if (RE.medailles.test(n)) return medaillesAnswer();
   if (RE.dicteeMots.test(n)) return activity(dicteeMotsFlow);
   if (RE.lecture.test(n)) return activity(lectureFlow);
   if (RE.heureJeu.test(n)) return activity(heureFlow);
@@ -600,7 +605,13 @@ async function handle(text) {
   if (RE.date.test(n)) return say(`Nous sommes ${dateFR(Date.now())}.`);
   if (RE.dance.test(n)) return dance();
   if (RE.maison.test(n)) { const r = await CORPS.maison(); face.flash('oops'); return say(`${r.raison} Mais bientôt, avec papa, je pourrai le faire !`); }
-  if (RE.move.test(n)) { const r = await CORPS.bouger(); face.flash('oops'); return say(`${r.raison} Quand papa et toi m'aurez fabriqué un corps, je pourrai me déplacer !`); }
+  if (RE.move.test(n)) {
+    if (!CORPS.branche) { face.flash('oops'); return say("Je n'ai pas encore de roues ! Quand papa et toi m'aurez fabriqué un corps, je pourrai me déplacer !"); }
+    const [dir, dur, msg] = moveCmd(n);
+    face.flash('happy');
+    const r = await CORPS.bouger(dir, dur);
+    return say(r.ok ? msg : r.raison);
+  }
   if (RE.joke.test(n) && !AI.ready()) return say(pick(JOKES));
   if (moodWas && n.split(' ').length > 1) return moodAnswer(text);
   return chatReply(text);
@@ -624,10 +635,20 @@ const JOKES = [
   "Quel est l'animal le plus heureux ? Le hibou, parce que sa femme est chouette !",
 ];
 
+// « avance un peu », « recule », « tourne à gauche »…
+function moveCmd(n) {
+  const dur = /\b(un peu|petit)\b/.test(n) ? 0.6 : /\b(beaucoup|loin|vite)\b/.test(n) ? 2 : 1;
+  if (/\b(recule|arriere)\b/.test(n)) return ['back', dur, 'Je recule !'];
+  if (/\bgauche\b/.test(n)) return ['left', 0.6, 'Je tourne à gauche !'];
+  if (/\bdroite\b/.test(n)) return ['right', 0.6, 'Je tourne à droite !'];
+  if (/\b(tourne|demi tour|fais un tour)\b/.test(n)) return ['right', 1.4, 'Je fais un tour sur moi-même !'];
+  return ['forward', dur, "J'avance !"];
+}
 async function dance() {
   face.set('happy');
   face.el.classList.add('dance');
   fx.tone([[523, 0.15], [659, 0.15], [784, 0.15], [1047, 0.3], [784, 0.15], [1047, 0.4]]);
+  if (CORPS.branche) { CORPS.danse(); await say('Regarde comme je danse ! Bip bop, bip bop !'); setTimeout(() => face.el.classList.remove('dance'), 2500); return; }
   await say("Je n'ai pas encore de jambes, mais regarde : je danse avec mes yeux ! Bip bop, bip bop !");
   setTimeout(() => face.el.classList.remove('dance'), 2500);
 }
@@ -663,7 +684,7 @@ async function chatReply(text, hidden = false) {
     const vus = VISION.state.faces.map(f => f.name).filter(Boolean);
     const who = speakerNow();
     const now = new Date();
-    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités, ni de corps pour l'instant. ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
+    const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu n'as ni Internet, ni la météo, ni les actualités. ${CORPS.branche ? `Ton corps est branché : tu peux bouger avec [[avance]], [[recule]], [[gauche]], [[droite]] ou [[danse]]${CORPS.battery !== null ? ` (batterie du corps : ${CORPS.battery} %)` : ''}.` : "Ton corps n'est pas encore fabriqué."} ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
     const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
@@ -801,7 +822,12 @@ async function runAction(a) {
     jacques: jacquesFlow, pfc: pfcFlow, doigts: doigtsFlow, emotions: emotionsFlow, chanson: () => chanterFlow(''),
     visage: meetFlow, voix: voiceFlow,
   };
-  if (a === 'stop') { face.set('idle'); dlg.state = 'standby'; return; }
+  if (a === 'stop') { CORPS.bouger('stop'); face.set('idle'); dlg.state = 'standby'; return; }
+  if (CORPS.branche && { avance: 1, recule: 1, gauche: 1, droite: 1 }[a]) {
+    const dir = { avance: 'forward', recule: 'back', gauche: 'left', droite: 'right' }[a];
+    return CORPS.bouger(dir, dir === 'forward' || dir === 'back' ? 1 : 0.6);
+  }
+  if (a === 'danse') return dance();
   if (a === 'dormir') return goSleep();
   if (a === 'histoire_soir') return histoireSoirFlow();
   if (map[a]) return activity(map[a]);
@@ -914,7 +940,10 @@ function closeJournal() { $('#journal').classList.add('hidden'); }
 
 /* =================== LES JEUX (à voix haute) =================== */
 async function devinetteFlow() {
-  const list = JEUX.shuffle(JEUX.DEVINETTES);
+  if (!S.devSeen) S.devSeen = [];
+  let fresh = JEUX.DEVINETTES.filter(d => !S.devSeen.includes(d.q));
+  if (fresh.length < 3) { S.devSeen = []; fresh = JEUX.DEVINETTES; }
+  const list = JEUX.shuffle(fresh);
   for (let i = 0; ; i++) {
     const d = (i % 2 === 1 && (await newRiddle())) || list[i % list.length]; // une sur deux est inventée par le grand cerveau
     let q = `Devinette ! ${d.q}`, found = false;
@@ -925,6 +954,7 @@ async function devinetteFlow() {
       else { face.flash('oops'); q = tries < 1 ? `Non, ce n'est pas ça… Réfléchis encore ! ${d.q}` : 'Non plus ! Dernière chance !'; }
     }
     logAct('devinette', d.a, found ? 1 : 0, 1);
+    if (S.devSeen && !S.devSeen.includes(d.q)) { S.devSeen.push(d.q); save(); }
     if (found) { S.stats.dev++; save(); face.set('happy'); fx.ok(); fx.confetti(24); await say(`Bravo ! C'était ${d.a} !`); }
     else { face.set('happy'); await say(`C'était ${d.a} !`); }
     if (!(await askYesNo('Une autre devinette ?'))) return say("D'accord ! C'était rigolo !");
@@ -956,6 +986,11 @@ async function calcFlow(kind = 'mix') {
   logAct('calc', kind, score, 5);
   face.set('happy'); if (score >= 3) { fx.ok(); fx.confetti(40); }
   await say(`Tu as ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur 5 ! ${score === 5 ? 'Parfait, champion !' : score >= 3 ? 'Très bon score !' : "On s'entraînera encore !"}`);
+  if (kind === 'mix') { // le niveau s'adapte : plus dur si tout est juste, plus facile si c'est trop dur
+    const lvl = S.calcLevel || 2;
+    if (score >= 4 && lvl < 3) { S.calcLevel = lvl + 1; save(); await say('Tu es trop fort : la prochaine fois, je te pose des calculs plus difficiles !'); }
+    else if (score <= 1 && lvl > 1) { S.calcLevel = lvl - 1; save(); await say('La prochaine fois, je te pose des calculs un peu plus faciles.'); }
+  }
 }
 
 function quizAnswer(t, q) {
@@ -1240,6 +1275,32 @@ async function meetFlow() {
   await say(p ? `Merci ${who} ! Maintenant je te reconnaîtrai encore mieux.` : `Enchanté, ${who} ! Maintenant, je te reconnaîtrai.`);
 }
 
+/* =================== IL PREND L'INITIATIVE =================== */
+// S'il voit l'enfant à côté de lui depuis un moment, sans rien faire, il propose un jeu (pas plus d'une fois tous les 15 min)
+setInterval(() => {
+  if (!dlg.started || !VISION.isOn() || dlg.busy || voice.speaking || OREILLES.hearing()) return;
+  if (!['standby', 'talk'].includes(dlg.state) || dlg.expect) return;
+  const now = Date.now();
+  if (!seen.present || now - seen.presentSince < 60000) return;
+  if (now - (dlg.lastTalk || 0) < 120000 || now - (dlg.lastProposal || 0) < 15 * 60000) return;
+  if (!VISION.state.faces.some(f => f.name === S.prenom)) return;
+  dlg.lastProposal = now;
+  const today = dayKey();
+  const ideas = [
+    !(S.journal || []).some(e => dayKey(new Date(e.at)) === today) && ['écrire une phrase dans ton journal', journalFlow],
+    ['faire quelques devinettes', devinetteFlow],
+    !LEGACY && ['jouer à Jacques a dit', jacquesFlow],
+    ['faire un petit quiz', () => quizFlow('')],
+    ['faire du calcul', () => calcFlow('mix')],
+    ['chanter une comptine', () => chanterFlow('')],
+  ].filter(Boolean);
+  const [label, fn] = pick(ideas);
+  dlg.state = 'talk'; dlg.silence = 0;
+  dlg.expect = { until: now + 60000, run: () => activity(fn) };
+  face.flash('happy');
+  say(pick([`Psst, ${name()} ! Ça te dit de ${label} ?`, `J'ai une idée : on pourrait ${label}. Tu veux ?`, `Bip ! Et si on allait ${label} ?`]));
+}, 20000);
+
 /* =================== SANS RÉSEAU =================== */
 // Mode « je n'entends pas » : sans réseau (ou sans oreilles), on le touche et il propose un jeu
 // qui n'a pas besoin d'écouter.
@@ -1314,6 +1375,10 @@ async function preloadOffline(manual) {
     if (manual) toast('Téléchargement incomplet : réessaie avec le WiFi');
   }
   if ($('#dlg-settings').hasAttribute('open')) renderOffline();
+}
+function corpsState() {
+  if (!CORPS.supported()) return "Bluetooth indisponible dans ce navigateur (Chrome sur Android ou sur ordinateur).";
+  return CORPS.branche ? `✅ Corps branché${CORPS.battery !== null ? ` · batterie ${CORPS.battery} %` : ''}${CORPS.obstacle !== null ? ` · dernier obstacle à ${CORPS.obstacle} cm` : ''}` : 'Pas de corps connecté.';
 }
 function renderOffline() {
   $('#s-off-state').textContent = S.offlineAt
@@ -1541,6 +1606,8 @@ function openSettings() {
   renderVoices();
   renderExtras();
   renderOffline();
+  $('#s-corps-state').textContent = corpsState();
+  $('#s-corps').textContent = CORPS.branche ? '🔌 Déconnecter le corps' : '🔵 Connecter le corps (Bluetooth)';
   renderPinState();
   $('#s-msg').textContent = '';
   $('#dlg-settings').returnValue = '';
@@ -1686,6 +1753,12 @@ function bind() {
     if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
   });
   $('#s-offline').addEventListener('click', () => preloadOffline(true));
+  $('#s-corps').addEventListener('click', async () => {
+    if (CORPS.branche) { CORPS.disconnect(); return; }
+    try { const n = await CORPS.connect(); toast(`🤖 Corps connecté : ${n}`); } catch (e) { toast(e.name === 'NotFoundError' ? 'Aucun corps choisi' : `Bluetooth : ${e.message}`); }
+  });
+  CORPS.onChange = () => { const el = $('#s-corps-state'); if (el) el.textContent = corpsState(); };
+  CORPS.onObstacle = cm => { if (!voice.speaking && Date.now() - (dlg.obsSaid || 0) > 8000) { dlg.obsSaid = Date.now(); face.flash('oops'); say('Oh ! Il y a quelque chose devant moi, je m\'arrête.'); } };
   $('#s-diag-run').addEventListener('click', autoTest);
   $('#s-diag-copy').addEventListener('click', copyReport);
   $('#s-voices').addEventListener('click', e => {

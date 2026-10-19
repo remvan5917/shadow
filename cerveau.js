@@ -261,6 +261,7 @@ Comment tu parles :
 
 Lancer une activité : si l'enfant veut faire une de ces activités (même dite avec d'autres mots, ou mal prononcée), réponds en une courte phrase joyeuse, puis termine par la commande, entre doubles crochets, toute seule à la fin :
 [[journal]] écrire son journal · [[dictee]] dictée de mots · [[lecture]] lire un texte · [[heure]] apprendre l'heure · [[anglais]] anglais · [[calcul]] calcul / tables · [[quiz]] quiz · [[devinette]] devinettes · [[cris]] cris d'animaux · [[jacques]] Jacques a dit · [[pfc]] pierre-feuille-ciseaux · [[doigts]] compter avec les doigts · [[emotions]] jeu des émotions · [[chanson]] comptine · [[histoire_soir]] histoire pour dormir · [[visage]] apprendre son visage · [[voix]] apprendre sa voix · [[stop]] il veut que tu te taises · [[dormir]] il veut que tu ailles dormir.
+Si (et seulement si) on te dit plus bas que ton corps est branché : [[avance]] [[recule]] [[gauche]] [[droite]] [[danse]] pour bouger.
 N'utilise une commande que si l'enfant le veut vraiment. Ne la dis jamais à voix haute autrement.
 
 Ne jamais inventer :
