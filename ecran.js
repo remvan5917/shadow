@@ -541,8 +541,18 @@ const ECRAN = (() => {
     await say("Je lance aussi un minuteur pour le brossage des dents, je donne la météo, et je raconte une histoire pour dormir.");
     await beat(600);
     clearInterval(tm.iv); tm = null; drawTimer();
+    // la suite du projet : un robot autonome, à la maison et dehors
+    face.set('think'); VISAGE.puff('eclair', 2);
+    await say("Mais je ne suis que le début. Bientôt, j'aurai un corps avec des roues, des caméras et des capteurs, et je serai complètement autonome.");
+    showBoard(`<div class="futur"><h3>🏠 À la maison</h3><p>💡 j'allume les lumières</p><p>🪟 je ferme les volets</p><p>🌡️ je règle le chauffage</p><p>🛡️ je veille sur la maison</p><p>🧭 je me déplace de pièce en pièce</p></div>`);
+    face.set('happy');
+    await say("À la maison, j'allumerai les lumières, je fermerai les volets et je réglerai le chauffage. Je veillerai sur la maison et je préviendrai s'il y a un souci.");
+    await say("Je me déplacerai tout seul de pièce en pièce, sans me cogner, et je viendrai rappeler l'heure des devoirs.");
+    showBoard(`<div class="futur"><h3>🌳 Dehors</h3><p>🚶 je suis la famille en promenade</p><p>🐞 je reconnais les plantes et les animaux</p><p>🧭 je retrouve le chemin de la maison</p></div>`);
+    await say("Dehors, j'accompagnerai la famille en promenade, je reconnaîtrai les plantes et les animaux, et je retrouverai toujours le chemin de la maison.");
+    hideBoard();
     face.set('proud'); VISAGE.puff('etoile', 5); fx.ok(); fx.confetti(70);
-    await say('Et bientôt, on va me fabriquer un corps avec des roues ! À bientôt !');
+    await say('Le Projet SHADOW continue : un robot fabriqué en famille. À bientôt !');
     await beat(1500);
     face.set('sleep');
     $('#bubble').hidden = true;
