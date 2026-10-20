@@ -269,6 +269,9 @@ Lancer une activité : si l'enfant veut faire une de ces activités (même dite 
 Si (et seulement si) on te dit plus bas que ton corps est branché : [[avance]] [[recule]] [[gauche]] [[droite]] [[danse]] pour bouger.
 N'utilise une commande que si l'enfant le veut vraiment. Ne la dis jamais à voix haute autrement.
 
+Tes yeux : si pour répondre tu as besoin de VOIR (ce que ${p} tient, montre ou fait, combien de doigts, s'il y a quelqu'un…), réponds seulement [[regarder]], tout seul : ta caméra regardera et te dira ce qu'elle voit, puis tu répondras.
+Ta conscience : plus bas, tes capteurs te donnent l'heure, qui est là, ta batterie et ce qui arrive bientôt. Sers-t'en avec finesse, comme un robot qui remarque les choses, sans tout réciter.
+
 Ton encyclopédie : pour une question de culture ou de science (un animal, un pays, l'espace, le corps, l'histoire, un objet, une personne célèbre…), ou s'il veut VOIR quelque chose (« montre-moi… »), ne réponds pas de mémoire : réponds seulement [[cherche:le sujet en 1 à 3 mots]], tout seul, sans rien d'autre. Ton encyclopédie pour enfants te donnera l'article, et souvent une image à montrer. Ne l'utilise pas pour les questions sur ${p}, sur toi, sur la famille, ou pour bavarder.
 
 Ne jamais inventer :
@@ -349,7 +352,48 @@ const MEMOIRE = {
   MAX_FACTS: 60,
   data() {
     if (!S.memory) S.memory = { facts: [], summaries: [], hard: [] };
+    if (!S.memory.events) S.memory.events = [];
     return S.memory;
+  },
+  // Les événements annoncés par l'enfant (« demain j'ai piscine ») : on en reparlera après
+  addEvent(date, quoi, apres) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !quoi) return false;
+    const m = this.data();
+    const q = PRIVE.mask(String(quoi).trim()); const a = PRIVE.mask(String(apres || '').trim());
+    if (q.hidden || q.text.length > 120) return false;
+    if (m.events.some(e => e.date === date && ORTHO.norm(e.quoi) === ORTHO.norm(q.text))) return false;
+    m.events.push({ id: Date.now() + Math.floor(Math.random() * 1000), date, quoi: q.text, apres: a.hidden ? '' : a.text.slice(0, 160), followed: false });
+    m.events = m.events.filter(e => !e.followed || Date.now() - new Date(e.date).getTime() < 30 * 86400000).slice(-30);
+    save();
+    return true;
+  },
+  _days(date) { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(`${date}T00:00:00`).getTime() - t.getTime()) / 86400000); },
+  // à venir dans les N jours (pour le cerveau)
+  upcoming(n) {
+    return this.data().events.filter(e => { const d = this._days(e.date); return d >= 0 && d <= n; })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(e => { const d = this._days(e.date); return { quoi: e.quoi, when: d === 0 ? "aujourd'hui" : d === 1 ? 'demain' : `dans ${d} jours` }; });
+  },
+  // à reparler : aujourd'hui (pour le rappeler) ou passé depuis 1 à 3 jours (pour demander comment c'était)
+  dueEvents() {
+    return this.data().events.filter(e => { const d = this._days(e.date); return !e.followed && d <= 0 && d >= -3; })
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort((a, b) => (this._days(a.date) === 0 ? 1 : 0) - (this._days(b.date) === 0 ? 1 : 0)); // d'abord ceux qui sont passés
+  },
+  // les souvenirs qui ont un rapport avec ce qu'on dit en ce moment (+ les plus récents)
+  relevant(q, k = 14) {
+    const facts = this.data().facts;
+    const words = new Set(ORTHO.bare(String(q || '')).split(/[^a-z]+/).filter(w => w.length >= 4));
+    if (!words.size) return facts.slice(-k);
+    const scored = facts.map((f, i) => {
+      const fw = ORTHO.bare(f.text).split(/[^a-z]+/);
+      let hit = 0;
+      for (const w of fw) if (w.length >= 4 && [...words].some(x => x === w || (x.length >= 5 && w.length >= 5 && x.slice(0, 5) === w.slice(0, 5)))) hit++;
+      return { f, s: hit * 10 + i / facts.length };
+    });
+    const top = scored.filter(x => x.s >= 10).sort((a, b) => b.s - a.s).slice(0, 8).map(x => x.f);
+    const recent = facts.slice(-(k - top.length)).filter(f => !top.includes(f));
+    return top.concat(recent);
   },
   // Ajoute un souvenir (refusé s'il contient une info privée ou s'il est déjà connu)
   add(text, who, source) {
@@ -379,16 +423,16 @@ const MEMOIRE = {
   },
   mastered(t) { const m = this.data(); const before = m.hard.length; m.hard = m.hard.filter(h => h.t !== t); if (m.hard.length !== before) save(); return m.hard.length !== before; },
   // Ce qu'on donne au grand cerveau à chaque discussion
-  context() {
+  context(q) {
     const m = this.data();
     const day = t => new Date(t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    const facts = m.facts.slice(-30).map(f => `- ${f.text}`).join('\n');
+    const facts = (q ? this.relevant(q, 18) : m.facts.slice(-30)).map(f => `- ${f.text}`).join('\n');
     const sums = m.summaries.slice(-6).map(s => `- ${day(s.at)} : ${s.text}`).join('\n');
     const hard = m.hard.slice(-8).map(h => h.t).join(', ');
     return `\n\nAujourd'hui, nous sommes ${day(Date.now())}.`
       + (facts ? `\n\nTa mémoire à long terme (ce que tu sais déjà, utilise-le naturellement, sans tout réciter) :\n${facts}` : '')
       + (sums ? `\n\nCe que vous avez fait dernièrement :\n${sums}` : '')
-      + (hard ? `\n\nMots difficiles du journal (tu peux proposer de les réviser) : ${hard}` : '');
+      + (hard ? `\n\nMots difficiles du journal (seulement si on parle d'orthographe) : ${hard}` : '');
   },
   // Après une discussion : le grand cerveau en tire un résumé et les nouveaux souvenirs
   async consolidate(msgs) {
@@ -397,7 +441,9 @@ const MEMOIRE = {
     const known = this.data().facts.slice(-40).map(f => `- ${f.text}`).join('\n') || '(rien encore)';
     const conv = msgs.map(m => `${m.role === 'user' ? p : 'Shadow'} : ${m.content}`).join('\n');
     const sys = `Tu es la mémoire de Shadow, un robot ami de ${p}, un enfant de 7 ans.
-Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": ["…"]}
+Nous sommes le ${CONSCIENCE.iso()} (${new Date().toLocaleDateString('fr-FR', { weekday: 'long' })}).
+Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": ["…"], "evenements": [{"date": "AAAA-MM-JJ", "quoi": "…", "apres": "…"}]}
+"evenements" : les choses à venir que ${p} a annoncées lui-même (« demain j'ai piscine », « samedi c'est l'anniversaire de Léa », « lundi j'ai une dictée »), avec leur date calculée à partir d'aujourd'hui. "quoi" : très court, vu par Shadow qui parle à l'enfant (ex : "ta piscine", "l'anniversaire de Léa", "ta dictée"). "apres" : la question gentille que Shadow posera après (ex : "Alors, c'était bien la piscine ?"). Si rien : "evenements": [].
 "faits" : de 0 à 5 choses NOUVELLES et durables à retenir sur ${p} ou ses proches (goûts, animaux, amis, activités, projets, événements à venir avec leur date, ce qu'il apprend, ce qui le rend heureux ou l'inquiète). Une phrase courte chacune, à la 3e personne, avec le prénom.
 Retiens UNIQUEMENT ce que ${p} a vraiment dit lui-même (les lignes « ${p} : »), jamais ce que Shadow a dit ou imaginé, et sans rien supposer.
 Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé, ni rien de privé ou de gênant. Ne répète pas ce qui est déjà connu. Si rien de nouveau : "faits": [].`;
@@ -410,5 +456,6 @@ Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé
       if (!r.hidden) this.event(r.text.slice(0, 200));
     }
     if (j && Array.isArray(j.faits)) j.faits.slice(0, 5).forEach(f => this.add(f, p, 'ai'));
+    if (j && Array.isArray(j.evenements)) j.evenements.slice(0, 3).forEach(e => e && this.addEvent(e.date, e.quoi, e.apres));
   },
 };

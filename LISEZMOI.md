@@ -52,6 +52,17 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 
 Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 
+## Sa conscience (le cerveau v2)
+Comme un robot de film, Shadow sait où il en est, et s'en sert pour répondre juste :
+- **Il sait ce qui se passe autour de lui** : l'heure et le jour, qui est devant lui et depuis combien de temps, s'il a l'air content, l'activité qu'on vient de faire, ce qui arrive bientôt, sa batterie.
+- **Il regarde quand c'est utile** : à « qu'est-ce que je tiens ? » ou « combien de doigts ? », son cerveau ouvre lui-même les yeux, regarde, puis répond avec ce que la caméra a vu.
+- **Il retient ce qu'on lui annonce** : « demain j'ai piscine ». Le jour même, il le rappelle ; le lendemain, il demande « Alors, c'était bien la piscine ? ».
+- **Il retrouve les bons souvenirs** : à chaque phrase, il cherche dans sa mémoire ce qui a un rapport avec ce qu'on dit.
+- **Sa batterie est son énergie** : à 20 %, il demande à être branché. À 10 %, il ferme les yeux pour économiser. Il remercie quand on le branche. On peut lui demander « ta batterie ? ».
+- **L'heure du coucher** (⚙️, si papa la règle) : il le dit gentiment, une fois par soir, et propose l'histoire du soir.
+- **« État de tes systèmes »** : il fait son rapport (énergie, réseau, cerveau, yeux, oreilles, mémoire), comme J.A.R.V.I.S.
+Le niveau de batterie est lu dans le téléphone et n'est jamais envoyé ailleurs.
+
 ## Son visage
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
 
@@ -173,5 +184,5 @@ Toutes les masses (GND) sont reliées ensemble. L'ESP32 est alimentée par le r�
 Shadow donne des **médailles** (15 en tout) : premier journal, roi du calcul, explorateur sans WiFi… Il les annonce au moment où l'enfant les gagne. Pour les entendre : « mes médailles ». Le **calcul s'adapte** tout seul : quand ça va bien, le niveau monte (jusqu'aux tables et aux nombres plus grands), et il redescend quand c'est trop dur. Le niveau et les médailles apparaissent dans ⚙️ → *Bilan*.
 
 ## Fichiers
-`index.html` (le visage) · `visage.js` (ses expressions) · `app.js` (la conversation) · `ecran.js` (encyclopédie, météo, minuteur, jeux à l'écran) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).
+`index.html` (le visage) · `visage.js` (ses expressions) · `app.js` (la conversation) · `ecran.js` (encyclopédie, météo, minuteur, jeux à l'écran) · `conscience.js` (ce qu'il sait de la situation, ses initiatives) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).
 Pas de compilation : ce sont des fichiers statiques. Après chaque modification, changer `CACHE` dans `sw.js`.

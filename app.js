@@ -532,7 +532,12 @@ function wake(who) {
   sessionStart = Date.now(); pauseDone = false;
   dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
   fx.wake(); face.set('happy');
-  dlg.sayNext = async () => { await memoryGreeting(who); await updateNews(); await dailyNews(); };
+  dlg.sayNext = async () => {
+    await memoryGreeting(who); await updateNews();
+    // il reparle d'abord de ce que l'enfant lui avait annoncé (« alors, la piscine ? »), sinon les nouvelles du jour
+    if (!(await CONSCIENCE.followUp())) await dailyNews();
+    CONSCIENCE.batteryCheck();
+  };
   OREILLES.cancel();
 }
 // Nouvelle version installée ? Shadow l'annonce une fois (la toute première fois, il ne dit rien)
@@ -645,6 +650,8 @@ async function handle(text) {
   if (RE.who.test(n)) return whoFlow();
   if (RE.hunt.test(n)) return activity(huntFlow);
   if (RE.what.test(n)) return whatFlow();
+  const cs = CONSCIENCE.route(text, n); // « état de tes systèmes », « ta batterie »
+  if (cs) return cs();
   const ecran = ECRAN.route(text, n); // encyclopédie, météo, minuteur, brossage, respiration, robot mystère, couleurs
   if (ecran) return ecran();
   if (RE.journal.test(n)) return activity(journalFlow);
@@ -738,7 +745,7 @@ async function chatReply(text, hidden = false) {
     const who = speakerNow();
     const now = new Date();
     const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu ne vas pas sur Internet et tu n'as pas les actualités ; tu as seulement ton encyclopédie pour enfants (avec [[cherche:sujet]]).${ECRAN.meteoFact() || " Tu n'as pas la météo sous les yeux : n'en parle pas au hasard (on peut te demander « quel temps fait-il »)."} ${CORPS.branche ? `Ton corps est branché : tu peux bouger avec [[avance]], [[recule]], [[gauche]], [[droite]] ou [[danse]]${CORPS.battery !== null ? ` (batterie du corps : ${CORPS.battery} %)` : ''}.` : "Ton corps n'est pas encore fabriqué."} ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
-    const sys = CERVEAU.personality() + MEMOIRE.context() + facts + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
+    const sys = CERVEAU.personality() + MEMOIRE.context(text) + facts + CONSCIENCE.etat() + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
     const msgs = [{ role: 'system', content: anonymize(sys) + (S.settings.video ? "\n\n(Mode vidéo : on te filme pour présenter le Projet SHADOW. Ne dis AUCUN prénom, dis « mon ami ». C'est sans doute papa qui te parle.)" : '') }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
@@ -767,6 +774,13 @@ async function chatReply(text, hidden = false) {
     const m = String(raw || '').match(/\[\[\s*([a-z_]+)\s*(?::\s*([^\]]*))?\]\]/i);
     if (m) { action = m[1].toLowerCase(); actionArg = (m[2] || '').trim(); }
     const clean = String(raw || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
+    // [[regarder]] : il a besoin de voir pour répondre → il ouvre les yeux, regarde, puis répond
+    if (!bad && action === 'regarder') {
+      if (clean) S.chat.push({ role: 'assistant', content: clean });
+      save();
+      if (!dlg.interrupt) await CONSCIENCE.lookAndAnswer(text, msgs);
+      return;
+    }
     // [[cherche:volcan]] : il ne répond pas de mémoire, il va lire son encyclopédie
     if (!bad && action === 'cherche' && actionArg) {
       if (clean) S.chat.push({ role: 'assistant', content: clean });
@@ -893,6 +907,7 @@ async function runAction(a, arg) {
   if (a === 'dormir') return goSleep();
   if (a === 'histoire_soir') return histoireSoirFlow();
   if (a === 'meteo') return ECRAN.meteo('');
+  if (a === 'rapport') return CONSCIENCE.rapport();
   if (a === 'minuteur') return ECRAN.minuteur(arg || '');
   if (a === 'cherche' && arg) return ECRAN.savoir(arg, arg, true);
   if (map[a]) return activity(map[a]);

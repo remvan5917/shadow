@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '36';
+      window.SHADOW_VERSION = '37';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -108,7 +108,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v36</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v37</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -268,6 +268,11 @@
         <p class="small muted">Seulement la ville, jamais l'adresse. Pour la météo, Shadow envoie les coordonnées de la ville (arrondies) à Open-Meteo, un service gratuit sans compte. Ensuite l'enfant demande « quel temps fait-il ? ».</p>
       </fieldset>
       <fieldset>
+        <legend>🌙 Heure du coucher</legend>
+        <div class="row"><input id="s-coucher" type="time"><button type="button" id="s-coucher-off" class="ghost">Aucune</button></div>
+        <p class="small muted">Si l'enfant parle encore à Shadow après cette heure, Shadow le lui dit gentiment, une fois par soir, et propose l'histoire du soir.</p>
+      </fieldset>
+      <fieldset>
         <legend>📊 Le bilan des 7 derniers jours</legend>
         <div id="s-bilan"></div>
       </fieldset>
@@ -351,5 +356,6 @@
   <script src="app.js"></script>
   <script src="activites.js"></script>
   <script src="ecran.js"></script>
+  <script src="conscience.js"></script>
 </body>
 </html>
