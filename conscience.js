@@ -138,7 +138,7 @@ const CONSCIENCE = (() => {
   /* ---------- l'heure du coucher ---------- */
   setInterval(() => {
     const co = S.settings.coucher;
-    if (!co || !awake() || dlg.busy || voice.speaking || dlg.expect) return;
+    if (!co || !awake() || dlg.busy || voice.speaking || dlg.expect || (typeof PAPA !== 'undefined' && PAPA.on)) return;
     const [h, m] = co.split(':').map(Number);
     const now = new Date(), d = daily(), k = dayKey();
     if (d.coucher === k || now.getHours() * 60 + now.getMinutes() < h * 60 + m) return;

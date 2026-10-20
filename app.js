@@ -660,6 +660,10 @@ function toStandby() {
 function wake(who) {
   if (dlg.state !== 'sleep') return;
   VISAGE.boot(); // il s'allume, comme un vrai robot
+  if (PAPA.on) { // en mode papa : pas de bonjour d'enfant, pas de limite de temps
+    dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now(); fx.wake(); face.set('idle');
+    dlg.sayNext = () => say('Oui papa ?'); OREILLES.cancel(); return;
+  }
   if (limitReached()) { // temps de jeu du jour fini : il reste endormi
     if (Date.now() - (dlg.limitSaidAt || 0) > 120000) { dlg.limitSaidAt = Date.now(); say(`On a bien joué aujourd'hui, ${name()} ! On se retrouve demain.`).then(() => face.set('sleep')); }
     return;
@@ -738,6 +742,10 @@ function greeting(who) {
 /* ---------- comprendre ce qu'on lui dit ---------- */
 async function handle(text) {
   const n = N(text);
+  // le mode papa : un autre Shadow, l'assistant de papa (voir papa.js)
+  if (PAPA.on && (await PAPA.handle(text, n))) return;
+  const pp = PAPA.route(text, n); // « mode papa » : il demande le code secret
+  if (pp) return pp();
   // « euh », « hum »… : ce n'est pas une phrase, il continue d'écouter sans répondre
   if (/^(euh+|heu+|hum+|hm+|ben|bah|ah|oh|eh|mmh+|pff+)$/.test(n)) return;
   // l'enfant rit : Shadow rit avec lui
@@ -1225,11 +1233,14 @@ async function calcFlow(kind = 'mix') {
     const q0 = calcQ(kind);
     const q = { say: q0.ask.replace(/^combien font /, '').replace(/ \?$/, ''), r: q0.r, tip: q0.tip, ask: q0.ask };
     let line = `Question ${i + 1} : ${q.ask}`;
-    for (let tries = 0; ;) {
+    for (let tries = 0, pasNombre = 0; ;) {
       const t = await ask(line, { wait: 20000 });
       if (RE.dontknow.test(N(t))) { await say(`La réponse, c'est ${q.r}. ${q.tip}`); break; }
       const v = JEUX.parseNumber(t);
-      if (v === null) { line = `Dis-moi juste le nombre. ${q.ask}`; continue; }
+      if (v === null) { // trois fois autre chose qu'un nombre : il donne la réponse et passe à la suite
+        if (++pasNombre >= 3) { await say(`La réponse, c'était ${q.r}. On continue !`); break; }
+        line = `Dis-moi juste le nombre. ${q.ask}`; continue;
+      }
       if (v === q.r) { if (!tries) score++; face.flash('happy'); fx.ok(); await say(`${pick(['Bravo !', 'Exact !', 'Bonne réponse !'])} C'est ${q.r}.`); break; }
       tries++; face.flash('oops'); fx.oops();
       if (tries < 2) { line = `Ce n'est pas ${v}. Petite astuce : ${q.tip} Alors, ${q.ask}`; continue; }
@@ -1540,7 +1551,7 @@ async function meetFlow() {
 /* =================== IL PREND L'INITIATIVE =================== */
 // S'il voit l'enfant à côté de lui depuis un moment, sans rien faire, il propose un jeu (pas plus d'une fois tous les 15 min)
 setInterval(() => {
-  if (!S.settings.propose) return; // papa choisit dans les réglages (par défaut : il ne propose rien de lui-même)
+  if (!S.settings.propose || PAPA.on) return; // papa choisit dans les réglages (par défaut : il ne propose rien de lui-même)
   if (!dlg.started || !VISION.isOn() || dlg.busy || voice.speaking || OREILLES.hearing()) return;
   if (!['standby', 'talk'].includes(dlg.state) || dlg.expect) return;
   const now = Date.now(), d = daily();
@@ -1779,9 +1790,11 @@ async function pinHash(pin, salt) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 const gate = { fails: 0, until: 0 };
-function openGate() {
+function openGate(purpose) {
   voice.stop();
   const g = $('#dlg-gate');
+  g.dataset.purpose = purpose || '';
+  $('#dlg-gate h2').textContent = purpose === 'papa' ? '🔒 Mode papa' : '🔒 Coin de papa';
   if (Date.now() < gate.until) { toast(`Trop d'essais. Réessaie dans ${Math.ceil((gate.until - Date.now()) / 60000)} min.`); return; }
   if (S.settings.pinHash) {
     $('#gate-q').textContent = 'Code secret de papa :';
@@ -1801,7 +1814,7 @@ async function checkGate() {
   const ok = S.settings.pinHash
     ? (await pinHash(v, S.settings.pinSalt)) === S.settings.pinHash
     : parseInt(v, 10) === +$('#dlg-gate').dataset.answer;
-  if (ok) { gate.fails = 0; openSettings(); return; }
+  if (ok) { gate.fails = 0; if ($('#dlg-gate').dataset.purpose === 'papa') PAPA.entrer(); else openSettings(); return; }
   gate.fails++;
   if (gate.fails >= 5) { gate.fails = 0; gate.until = Date.now() + 5 * 60000; toast('Trop d\'essais : coin de papa bloqué 5 minutes 🔒'); }
   else toast(S.settings.pinHash ? 'Mauvais code 🔒' : 'Raté ! Ce coin est réservé à papa 😉');
@@ -1881,6 +1894,7 @@ function renderPeople() {
 }
 function openSettings() {
   const s = S.settings;
+  PAPA.renderNotes();
   $('#s-prenom').value = S.prenom;
   $('#s-key').value = s.key;
   $('#s-model').value = s.model;

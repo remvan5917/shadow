@@ -883,3 +883,88 @@ body.lite .face.hearing .head, body.lite .face.sleep .stars circle { animation: 
 .board .ens li.on { transform: scale(1.04); border-color: var(--c); box-shadow: 0 0 18px rgba(89, 200, 255, .25); }
 .board .ens-histoire p { text-align: left; max-height: 52vh; overflow: auto; line-height: 1.5; font-size: clamp(15px, 3vmin, 19px); }
 @supports not (width: min(1px, 2px)) { .board .ens { width: 88vw; } }
+
+/* ---------- le mode papa : un autre Shadow (ambre, sobre) ---------- */
+body.papa { --eye: #ffb547; --blue: #e0a040; background: radial-gradient(120% 80% at 50% 0%, #2a2214 0%, #0d0c0a 62%) fixed, #0d0c0a; }
+body.papa .face:not(.sleep) { --eyec: #ffc266; --led: #ffb547; }
+body.papa .face .cheeks, body.papa .face .e-heart { display: none; }
+body.papa #aura { color: #ffb547 !important; }
+#papa-badge { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 9; display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px 6px 14px; border-radius: 999px; background: rgba(30, 22, 10, .85); border: 1px solid rgba(255, 181, 71, .55);
+  color: #ffcf8a; font: 700 12px Andika, sans-serif; letter-spacing: .24em; box-shadow: 0 0 18px rgba(255, 181, 71, .25); }
+#papa-badge[hidden] { display: none; }
+#papa-badge button { font: 600 12px Andika, sans-serif; letter-spacing: .04em; color: #1a1206; background: #ffb547; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.board.papa-board { border-color: #e0a040; background: rgba(16, 13, 9, .95); overflow-x: hidden; }
+.board .papa-txt { width: min(80vw, 720px); max-width: 100%; text-align: left; color: #f4ece0; font-size: clamp(15px, 2.6vmin, 18px); line-height: 1.55; }
+.board .papa-txt h3 { margin: 0 0 8px; color: #ffcf8a; font: 700 clamp(16px, 3vmin, 21px) Andika, sans-serif; letter-spacing: .06em; }
+.board .papa-txt h4 { margin: 14px 0 6px; color: #ffcf8a; }
+.board .papa-txt p { margin: 0 0 10px; }
+.board .papa-txt ul, .board .papa-txt ol { margin: 0 0 10px; padding-left: 22px; }
+.board .papa-txt li { margin: 3px 0; }
+.board .papa-txt code { font-family: ui-monospace, 'DejaVu Sans Mono', monospace; font-size: .92em; background: rgba(255, 255, 255, .07); padding: 1px 5px; border-radius: 5px; }
+.board .papa-txt .pcode { position: relative; margin: 8px 0 12px; }
+.board .papa-txt .pcode button { position: absolute; top: 6px; right: 6px; }
+.board .papa-txt pre { margin: 0; padding: 12px 14px; overflow: auto; background: #07090c; border: 1px solid rgba(255, 181, 71, .25); border-radius: 10px; }
+.board .papa-txt pre code { background: none; padding: 0; white-space: pre; }
+@supports not (width: min(1px, 2px)) { .board .papa-txt { width: 80vw; } }
+
+/* ---------- le visage futuriste du mode papa ---------- */
+#face-papa { display: none; width: 100%; height: auto; overflow: visible; }
+.fp { --fpc: #ffb547; }
+body.papa #face { display: none; }
+body.papa #face-papa { display: block; }
+.fp .fp-shell { fill: #1a1d24; stroke: #2c313b; stroke-width: 2; }
+.fp .fp-visor { fill: url(#fp-glass); }
+.fp .fp-rim { fill: none; stroke: url(#fp-rim); stroke-width: 1.6; }
+.fp .fp-grid line { stroke: var(--fpc); stroke-opacity: .05; stroke-width: 1; }
+.fp .fp-scan { animation: fpScan 7s linear infinite; }
+@keyframes fpScan { 0% { transform: translateY(0); } 60%, 100% { transform: translateY(280px); } }
+.fp .fp-hud path { fill: none; stroke: var(--fpc); stroke-opacity: .55; stroke-width: 1.6; stroke-linecap: round; }
+.fp .fp-hud text { fill: var(--fpc); fill-opacity: .55; font: 700 7px Andika, sans-serif; letter-spacing: .32em; }
+.fp .fp-eye { transform-box: fill-box; transform-origin: center; transition: transform .25s ease; }
+.fp .fp-eyes { transform: translateX(calc(var(--gx, 0px) * -3)); transition: transform .35s ease; }
+.fp .fp-cap { fill: var(--fpc); filter: url(#fp-glow); transform-box: fill-box; transform-origin: center; transition: transform .14s ease, fill .3s; }
+.fp .fp-iris { fill: #fff8ec; opacity: .85; transform: translateX(calc(var(--gx, 0px) * -6)); transition: transform .3s ease; }
+.fp .fp-brow { fill: none; stroke: var(--fpc); stroke-opacity: .45; stroke-width: 2; stroke-linecap: round; transform-box: fill-box; transform-origin: center; transition: transform .3s ease; }
+.fp .fp-joy { fill: none; stroke: var(--fpc); stroke-width: 6; stroke-linecap: round; filter: url(#fp-glow); opacity: 0; transition: opacity .2s; }
+.fp .fp-ring { fill: none; stroke: var(--fpc); stroke-opacity: .28; stroke-width: 1.4; stroke-dasharray: 3 7; transform-origin: 160px 160px; animation: fpSpin 24s linear infinite; }
+.fp .fp-ring2 { fill: none; stroke: var(--fpc); stroke-opacity: .12; stroke-width: 1; stroke-dasharray: 40 236; transform-origin: 160px 160px; animation: fpSpin 9s linear infinite reverse; }
+@keyframes fpSpin { to { transform: rotate(360deg); } }
+.fp .fp-bar { fill: var(--fpc); filter: url(#fp-glow); transform-box: fill-box; transform-origin: center; transform: scaleY(.06); transition: transform .09s linear; }
+.fp .fp-dots circle { fill: var(--fpc); opacity: .25; }
+/* il parle : l'égaliseur bouge avec sa voix (et la forme du son : a, o, i, m…) */
+.fp.talk .fp-bar { animation: fpTalk .34s ease-in-out var(--d) infinite alternate; }
+@keyframes fpTalk { from { transform: scaleY(calc(var(--k) * .18)); } to { transform: scaleY(var(--k)); } }
+.fp[data-vis="M"] .fp-mouth, .fp[data-vis="X"] .fp-mouth { transform: scaleY(.25); }
+.fp[data-vis="I"] .fp-mouth, .fp[data-vis="E"] .fp-mouth { transform: scaleY(.6); }
+.fp .fp-mouth { transform-origin: 160px 160px; transition: transform .08s; }
+.fp.talk .fp-dots circle { animation: fpDot .9s ease-in-out infinite; }
+.fp.talk .fp-dots circle:nth-child(2) { animation-delay: .15s; } .fp.talk .fp-dots circle:nth-child(3) { animation-delay: .3s; }
+@keyframes fpDot { 50% { opacity: .9; } }
+/* il écoute : l'égaliseur montre ta voix */
+.fp.hearing:not(.talk) .fp-bar { transform: scaleY(calc(.06 + var(--lv, 0) * var(--k))); }
+.fp.listen .fp-ring, .fp.hearing .fp-ring { stroke-opacity: .5; }
+/* il réfléchit : l'anneau s'emballe, les yeux se plissent */
+.fp.think .fp-ring { animation-duration: 2.2s; stroke-opacity: .6; }
+.fp.think .fp-ring2 { animation-duration: 1.4s; stroke-opacity: .35; }
+.fp.think .fp-cap { transform: scaleY(.55); }
+.fp.think .fp-l .fp-brow { transform: rotate(-6deg); } .fp.think .fp-r .fp-brow { transform: rotate(6deg); }
+.fp.think .fp-dots circle { animation: fpDot .6s ease-in-out infinite; }
+/* content, rire */
+.fp:is(.happy, .laugh, .proud, .love) .fp-cap, .fp:is(.happy, .laugh, .proud, .love) .fp-iris { opacity: 0; }
+.fp:is(.happy, .laugh, .proud, .love) .fp-joy { opacity: 1; }
+/* oups, surprise, triste, sommeil */
+.fp.oops { --fpc: #ff7a45; }
+.fp.surprise .fp-cap { transform: scaleY(1.45); } .fp.surprise .fp-brow { transform: translateY(-4px); }
+.fp.sad .fp-l .fp-brow { transform: rotate(8deg); } .fp.sad .fp-r .fp-brow { transform: rotate(-8deg); } .fp.sad .fp-cap { transform: scaleY(.7); }
+.fp.confused .fp-l .fp-brow { transform: rotate(-8deg) translateY(-3px); }
+.fp:is(.sleep, .sleepy) .fp-cap { transform: scaleY(.12); opacity: .5; } .fp.sleep .fp-iris, .fp.sleep .fp-mouth { opacity: 0; }
+.fp.sleep .fp-ring, .fp.sleep .fp-ring2, .fp.sleep .fp-scan { animation-play-state: paused; opacity: .2; }
+/* clignement */
+.fp.blinking .fp-cap, .fp.blinking .fp-iris { transform: scaleY(.1); }
+/* allumage */
+.fp.boot .fp-eyes, .fp.boot .fp-mouth { animation: fpBoot 1.4s ease-out; }
+@keyframes fpBoot { 0%, 30% { opacity: 0; } 40% { opacity: 1; } 48% { opacity: .2; } 60%, 100% { opacity: 1; } }
+body.lite .fp .fp-cap, body.lite .fp .fp-bar, body.lite .fp .fp-joy { filter: none; }
+body.lite .fp .fp-scan, body.lite .fp .fp-ring, body.lite .fp .fp-ring2 { animation: none; }
+@media (prefers-reduced-motion: reduce) { .fp .fp-scan, .fp .fp-ring, .fp .fp-ring2 { animation: none; } }

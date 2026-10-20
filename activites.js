@@ -656,6 +656,7 @@ let limitWarned = '', limitDone = '';
 setInterval(() => {
   if (!dlg.started || dlg.state === 'sleep') return;
   if (Date.now() - dlg.lastActive > 3 * 60000) return; // personne ne joue
+  if (typeof PAPA !== 'undefined' && PAPA.on) return; // le mode papa ne compte pas dans le temps d'écran de l'enfant
   const k = dayKey();
   if (!S.playLog) S.playLog = {};
   S.playLog[k] = (S.playLog[k] || 0) + 1;

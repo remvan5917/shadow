@@ -158,6 +158,23 @@
     const m = SYNC.merge(a, b);
     return m.jeuxAppris.length === 2 && m.jeuxAppris.find(x => x.id === 1).regles === 'v2';
   });
+  await essai('mode papa : code obligatoire, conversation séparée, détail à l\'écran, sorties', async () => {
+    dits.length = 0; S.settings.pinHash = ''; await handle('mode papa');
+    if (PAPA.on || !/code secret/.test(dits.join(' '))) throw new Error('ouvert sans code');
+    await PAPA.entrer();
+    const chatAvant = S.chat.length, streamB = AI.chatStream;
+    AI.chatStream = async (m, o, onS) => { const r = "C'est simple.\n[[ecran]]\n```sh\nls\n```"; onS("C'est simple."); onS('[[ecran]]'); return r; };
+    await handle('liste les fichiers en shell');
+    AI.chatStream = streamB;
+    const ecranOk = !!document.querySelector('#board .papa-txt pre') && !dits.some(t => /```|ecran/.test(t));
+    const separe = S.chat.length === chatAvant && S.papa.chat.length >= 2;
+    dlg.speaker = 'Testeur'; dlg.speakerAt = Date.now();
+    reponse = 'Bonjour !'; hear = async () => { await wait(5); return null; };
+    await Promise.race([handle('bonjour'), wait(8000)]);
+    dlg.speaker = '';
+    if (!(ecranOk && separe && !PAPA.on && !document.body.classList.contains('papa'))) throw new Error(`écran ${ecranOk}, séparé ${separe}, encore ouvert ${PAPA.on}`);
+    return true;
+  });
   hear = hb; AI.chat = chatB; VISAGE.rire = rireB; AI.ready = readyB; window.activity = actB;
 
   // ---------- on remet tout en place ----------

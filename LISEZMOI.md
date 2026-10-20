@@ -52,6 +52,14 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 
 Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 
+## Le mode papa (l'assistant de papa)
+Dis « mode papa » (ou ⚙️ → *Mode papa*), puis tape ton code secret : il faut avoir choisi un code secret, un simple calcul ne suffit pas.
+- **Un autre visage**, futuriste : visière noire, yeux-capsules ambre, une bouche-égaliseur qui suit sa voix (et la tienne quand il écoute), un anneau qui tourne quand il réfléchit, une ligne de balayage. Le bandeau « MODE PAPA » a un bouton « Quitter ».
+- **Un assistant adulte** : direct et précis (tech, IA, code, domotique, maison, organisation…). Il dit l'essentiel à voix haute et affiche le détail à l'écran (étapes, listes, code avec un bouton « Copier »). Plus de jeux, ni de propositions.
+- **Tes notes** : « note que… », « lis mes notes », « efface mes notes » (aussi visibles dans ⚙️, et partagées entre tes appareils). Rappels, minuteurs, météo. **Le bilan de la journée de l'enfant** : activités, scores, humeur, temps d'écran.
+- Sa conversation avec toi est séparée de celle de l'enfant et n'entre pas dans la mémoire de l'enfant. Le mode papa ne compte pas dans le temps d'écran.
+- Il se referme : « mode enfant », le bouton « Quitter », tout de suite s'il reconnaît la voix de l'enfant, après un moment sans parler (5 min, 15 min, 1 h ou jamais, réglable sur chaque appareil), et à chaque rechargement.
+
 ## Jouer à plusieurs (toute la famille)
 « On joue à plusieurs », « quiz en famille », « on joue avec papa et maman au calcul » : Shadow devient le maître du jeu.
 - Il inscrit les joueurs (chacun dit son prénom, puis « c'est tout » ; il propose de reprendre les joueurs de la dernière fois) et sait qui est un grand ou un enfant (« papa », « maman »… sont des grands ; sinon il demande).
