@@ -34,7 +34,7 @@ const SYNC = (() => {
     'settings.events': { key: x => x.id || `${x.date}|${norm(x.text)}`, time: x => x.id || 0 },
   };
   const SETS = ['badges'];
-  const MAXMAP = ['stats', 'playLog']; // compteurs : on garde le plus grand
+  const MAXMAP = ['stats', 'playLog', 'pokeCaught', 'pokeLvl', 'pokeStats']; // compteurs (et Pokémon attrapés) : on garde le plus grand
   const DICTEE = 'dictee'; // { mot: { ok, fail } } : le plus grand de chaque
   const SCALARS = ['prenom', 'calcLevel', 'humeur', 'explorer', 'settings.coucher', 'settings.ville', 'settings.propose'];
 

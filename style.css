@@ -687,7 +687,7 @@ body.robot .bubble.alert { background: rgba(4, 14, 30, .96); color: #8ff0ff; }
 
 /* =========================================================
    v42 — un vrai robot : métal, verre, LED, chrome, néon
-   (le dessin d'Aden est respecté : tête-écran, yeux carrés, nez en triangle,
+   (le dessin de l'enfant est respecté : tête-écran, yeux carrés, nez en triangle,
    moustaches de chat, sourire à dents pointues, lèvre bleue, crête bleue, vis)
    ========================================================= */
 /* l'ombre sous la tête : fixe (rien à recalculer pendant qu'il bouge, important pour les vieux téléphones) */
@@ -818,3 +818,52 @@ body.lite .face.hearing .head, body.lite .face.sleep .stars circle { animation: 
 /* le carnet de papa */
 .carnet-h { margin: 14px 0 6px; font-size: 14px; color: var(--eye); letter-spacing: .04em; }
 .carnet-who { margin: 8px 0 2px; color: var(--muted); font-weight: 700; }
+
+/* =========================================================
+   Pokémon : les fiches du Pokédex, les combats, la collection (style néon de Shadow, sans image officielle)
+   ========================================================= */
+.board .pcard { --c: #59c8ff; width: min(84vw, 420px); color: var(--text); text-align: center; }
+.board .porb { width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font: 700 15px Andika, sans-serif; color: #fff; background: radial-gradient(circle at 35% 30%, #ffffff55, transparent 45%), var(--c); box-shadow: 0 0 22px var(--c); }
+.board .pcard h3 { margin: 0; font: 700 clamp(26px, 6vmin, 40px) Andika, sans-serif; letter-spacing: .02em; }
+.board .pcat { margin: 2px 0 8px; color: var(--muted); font-size: 15px; }
+.board .ptypes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 4px 0; }
+.board .ptype { display: inline-block; padding: 3px 10px; border-radius: 999px; font: 700 13px Andika, sans-serif; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+.board .pmes { margin: 8px 0; font-size: 16px; }
+.board .pstats { display: grid; gap: 5px; margin: 8px auto; max-width: 340px; text-align: left; }
+.board .pstats div { display: grid; grid-template-columns: 72px 1fr 34px; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.board .pstats i { display: block; height: 8px; border-radius: 4px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.board .pstats b { color: var(--text); text-align: right; }
+.board .pevo { margin: 10px 0 6px; font-size: 15px; color: var(--muted); }
+.board .pevo b { color: var(--text); }
+.board .pfort { margin: 4px 0; font-size: 13px; color: var(--muted); }
+.board .pfort .ptype { font-size: 11px; padding: 2px 7px; }
+.board .pmyst .porb { font-size: 30px; }
+.board .pwild .pmsg { margin: 10px 0 0; font: 700 clamp(18px, 4vmin, 26px) Andika, sans-serif; color: #ffd84d; }
+.board .parena { display: flex; align-items: center; gap: 12px; width: min(90vw, 620px); }
+.board .pfight { --c: #59c8ff; flex: 1; text-align: center; color: var(--text); }
+.board .pfight b { display: block; font: 700 clamp(18px, 4.4vmin, 28px) Andika, sans-serif; }
+.board .php { height: 12px; margin: 8px 0 4px; border-radius: 6px; background: #1b2650; overflow: hidden; }
+.board .php i { display: block; height: 100%; background: linear-gradient(90deg, #3ddc84, #a4f078); transition: width .6s ease; }
+.board .pfight small { color: var(--muted); }
+.board .pvs { font: 700 22px Andika, sans-serif; color: var(--warn); }
+.board .pdex { color: var(--text); width: min(86vw, 520px); }
+.board .pdex h3 { margin: 0 0 6px; font: 700 15px Andika, sans-serif; letter-spacing: .28em; text-transform: uppercase; color: var(--eye); }
+.board .pbig { margin: 0; font: 700 54px Andika, sans-serif; }
+.board .pbig small { font-size: 16px; color: var(--muted); margin-left: 6px; }
+.board .pchips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+.board .pchips span { --c: #59c8ff; padding: 3px 10px; border-radius: 999px; border: 1.5px solid var(--c); font-size: 13px; }
+@supports not (width: min(1px, 2px)) { .board .pcard, .board .pdex { width: 84vw; } .board .parena { width: 90vw; } }
+
+/* les images des Pokémon */
+.board .pimgbox { position: relative; width: clamp(130px, 30vmin, 210px); height: clamp(130px, 30vmin, 210px); margin: -4px auto 4px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%); border-radius: 50%; }
+@supports not (background: color-mix(in srgb, red 50%, blue)) { .board .pimgbox { background: radial-gradient(circle, rgba(255, 255, 255, .14), transparent 70%); } }
+.board .pimg { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5)); }
+.board .pimg.pombre { filter: brightness(0) drop-shadow(0 0 10px var(--eye)); }
+.board .pnum { position: absolute; right: 2px; bottom: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, .55); font: 700 12px Andika, sans-serif; color: #fff; }
+.board .pimg.pmini { width: clamp(70px, 16vmin, 110px); height: clamp(70px, 16vmin, 110px); display: block; margin: 0 auto 2px; }
+.board .pimg.pchip { width: 22px; height: 22px; vertical-align: middle; margin: -4px 4px -4px -4px; filter: none; }
+.board .pchips span { display: inline-flex; align-items: center; }
+.board .pwild .pimg { animation: popin .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes popin { from { transform: scale(.3); opacity: 0; } }

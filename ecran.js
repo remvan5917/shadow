@@ -464,6 +464,11 @@ const ECRAN = (() => {
   }
   function bindSettings() {
     const vx = $('#s-voix'), info = () => { const el = $('#s-voix-info'); if (!el) return; if (VOIXMAISON.usable()) { el.textContent = "Voix utilisée : la voix de la maison (Piper, sur l'ordinateur). Si l'ordinateur ne répond pas, Shadow prend la voix du téléphone."; return; } el.textContent = voice.v ? `Voix utilisée : ${voice.v.name}${robotVoice() ? (voice.male ? ' (voix d\'homme, rendue plus grave)' : ' (rendue beaucoup plus grave)') : ''}${(S.settings.voix || 'maison') === 'maison' ? " — la voix de la maison demande le « cerveau de la maison »." : ''}` : "Aucune voix française trouvée sur l'appareil."; };
+    const pg = $('#s-poke-gen'), pd = $('#s-poke-daily');
+    if (pg) { pg.value = String(S.settings.pokeGen || 1); pg.addEventListener('change', () => { S.settings.pokeGen = pg.value === 'tous' ? 'tous' : +pg.value; save(); }); }
+    const pi = $('#s-poke-img');
+    if (pi) { pi.checked = S.settings.pokeImages !== false; pi.addEventListener('change', () => { S.settings.pokeImages = pi.checked; save(); }); }
+    if (pd) { pd.checked = S.settings.pokeDaily !== false; pd.addEventListener('change', () => { S.settings.pokeDaily = pd.checked; save(); }); }
     const em = $('#s-ears-maison');
     if (em) { em.checked = !!S.settings.earsMaisonFirst; em.addEventListener('change', () => { S.settings.earsMaisonFirst = em.checked; save(); }); }
     const ef = $('#s-effet');

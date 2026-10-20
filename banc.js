@@ -113,6 +113,11 @@
       { updatedAt: T + 5, memory: { facts: [{ id: T + 3, at: T + 3, text: 'c' }] }, people: [{ id: T + 9, name: 'leo', desc: [pr(1)] }], tomb: { 'memory.facts': { [T + 1]: T + 50 } } });
     return m.memory.facts.map(f => f.text).join('') === 'bc' && m.people.length === 1 && m.people[0].desc.length === 2;
   });
+  await essai('Pokémon : reconnaît les noms (même mal écrits) et ouvre la bonne fiche', () => {
+    const ok1 = POKEMON.findIn('parle-moi de Pikatchou').id === 25 && POKEMON.findIn('c est quoi dracofeu').id === 6 && !POKEMON.findIn("j'ai mangé une pomme", { strict: true });
+    const ok2 = !!POKEMON.route('parle moi de bulbizarre', N('parle moi de bulbizarre')) && !POKEMON.route('salut shadow ça va', N('salut shadow ça va'));
+    return ok1 && ok2 && /Électrik/.test(POKEMON.decrire(POKEMON.BY[25]));
+  });
   await essai('rapport de systèmes', async () => { dits.length = 0; await CONSCIENCE.rapport(); return /Rapport/.test(dits.join(' ')); });
 
   // ---------- on remet tout en place ----------

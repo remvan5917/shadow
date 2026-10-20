@@ -52,6 +52,14 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 
 Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 
+## Le monde des Pokémon
+Tout à la voix, avec les 1025 Pokémon (noms français, types, évolutions, tailles, poids, statistiques : faits de PokéAPI, dans `pokedata.js`) :
+- **« Parle-moi de Pikachu »** : la fiche du Pokédex à l'écran (image, numéro, types en couleur, taille, poids, statistiques, évolutions, forces et faiblesses). Il comprend aussi les noms mal entendus (« Pikatchou », « dracofeu »).
+- **« Combat Pokémon »** : on choisit son Pokémon, puis à chaque tour le type de l'attaque (les types comptent vraiment : Feu bat Plante…), une potion par combat ; un petit calcul des PV restants donne un coup critique.
+- **« On part à la chasse aux Pokémon »** : un Pokémon sauvage apparaît ; pour lancer la Ball, il faut répondre à un petit calcul ; il rejoint alors le Pokédex de l'enfant (partagé entre les appareils). Un Pokémon sauvage peut aussi apparaître une fois par jour au réveil (réglage).
+- **« Qui est ce Pokémon ? »** : son ombre et des indices. **« Quiz Pokémon »**, **« mon Pokédex »**, et 3 médailles de dresseur.
+Les images sont affichées depuis le dépôt public de PokéAPI au moment voulu (elles ne sont pas dans Shadow, elles appartiennent à Nintendo) : à garder pour la famille ; on peut les couper dans ⚙️ → *Pokémon*.
+
 ## Sa conscience (le cerveau v2)
 Comme un robot de film, Shadow sait où il en est, et s'en sert pour répondre juste :
 - **Il sait ce qui se passe autour de lui** : l'heure et le jour, qui est devant lui et depuis combien de temps, s'il a l'air content, l'activité qu'on vient de faire, ce qui arrive bientôt, sa batterie.
@@ -92,7 +100,7 @@ Installation faite sur l'ordinateur :
 Le relais démarre à l'ouverture de la session ; si l'ordinateur est éteint ou en veille, Groq prend le relais.
 
 ## Son visage
-Il est dessiné d'après le dessin d'Aden (tête-écran, yeux carrés, nez en triangle, moustaches de chat, sourire à dents pointues avec la lèvre bleue, crête bleue, vis), mais en vrai robot : cadre en métal, écran en verre avec lignes de balayage, yeux en écrans LED pixelisés dans des boîtiers, dents chromées, lèvre et crête en tubes néon, grilles de haut-parleur sur les côtés.
+Il est dessiné d'après le dessin de l'enfant (tête-écran, yeux carrés, nez en triangle, moustaches de chat, sourire à dents pointues avec la lèvre bleue, crête bleue, vis), mais en vrai robot : cadre en métal, écran en verre avec lignes de balayage, yeux en écrans LED pixelisés dans des boîtiers, dents chromées, lèvre et crête en tubes néon, grilles de haut-parleur sur les côtés.
 Comme les robots de pointe : sa tête tourne un peu en 3D vers ce qu'il regarde (le reflet de la vitre glisse en sens inverse) et oscille doucement quand il attend ; à chaque réveil il **s'allume** (l'écran clignote, une ligne de lumière descend, les yeux s'ouvrent, la crête se dessine, petit carillon) ; quand il parle, des **barres de voix** bleues s'animent au fond de la bouche ; quand il réfléchit, une barre de lumière balaie ses yeux. Un halo de lumière derrière sa tête prend la couleur de son émotion. Quand on lui parle, il hoche un peu la tête et sa crête s'allume avec la voix ; ses yeux font de petits micro-mouvements, comme un être vivant. Son nom est gravé sur le métal (« SHADOW · S-01 ») et, quand il dort, des étoiles scintillent sur son écran. Si le téléphone est trop lent (moins de 22 images par seconde), il allège tout seul ses effets ; le rapport d'auto-test indique cette vitesse. En bas de l'écran, un petit affichage discret : sa batterie à gauche ; à droite le micro (bleu clair quand il écoute) et son cerveau (bleu = maison, violet = Groq, orange = mini-cerveau sans réseau).
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
 

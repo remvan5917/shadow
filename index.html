@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '50';
+      window.SHADOW_VERSION = '51';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -192,7 +192,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v50</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v51</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -372,6 +372,15 @@
         <p class="small muted">Seulement la ville, jamais l'adresse. Pour la météo, Shadow envoie les coordonnées de la ville (arrondies) à Open-Meteo, un service gratuit sans compte. Ensuite l'enfant demande « quel temps fait-il ? ».</p>
       </fieldset>
       <fieldset>
+        <legend>⚡ Pokémon</legend>
+        <label>Les Pokémon des jeux
+          <select id="s-poke-gen"><option value="1">1re génération (les 151 premiers)</option><option value="2">Jusqu'à la 2e (251)</option><option value="4">Jusqu'à la 4e (493)</option><option value="tous">Tous (1025)</option></select>
+        </label>
+        <label class="check"><input id="s-poke-daily" type="checkbox"> Un Pokémon sauvage apparaît une fois par jour (au réveil de Shadow)</label>
+        <label class="check"><input id="s-poke-img" type="checkbox"> Montrer les images des Pokémon (affichées depuis PokéAPI ; elles appartiennent à Nintendo : à garder pour la famille)</label>
+        <p class="small muted">À la voix : « parle-moi de Pikachu », « combat Pokémon », « on part à la chasse aux Pokémon », « qui est ce Pokémon ? », « quiz Pokémon », « mon Pokédex ». Les fiches montrent des faits (types, taille, évolutions) et l'image du Pokémon.</p>
+      </fieldset>
+      <fieldset>
         <legend>🌙 Heure du coucher</legend>
         <div class="row"><input id="s-coucher" type="time"><button type="button" id="s-coucher-off" class="ghost">Aucune</button></div>
         <p class="small muted">Si l'enfant parle encore à Shadow après cette heure, Shadow le lui dit gentiment, une fois par soir, et propose l'histoire du soir.</p>
@@ -462,6 +471,8 @@
   <script src="ecran.js"></script>
   <script src="conscience.js"></script>
   <script src="projets.js"></script>
+  <script src="pokedata.js"></script>
+  <script src="pokemon.js"></script>
   <script src="sync.js"></script>
   <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>

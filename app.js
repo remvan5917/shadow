@@ -651,7 +651,7 @@ function wake(who) {
   dlg.sayNext = async () => {
     await memoryGreeting(who); await updateNews();
     // il reparle d'abord de ce que l'enfant lui avait annoncé (« alors, la piscine ? »), sinon les nouvelles du jour
-    if (!(await CONSCIENCE.followUp()) && !(await PROJETS.morning())) await dailyNews();
+    if (!(await CONSCIENCE.followUp()) && !(await PROJETS.morning()) && !(await POKEMON.sauvageDuJour())) await dailyNews();
     CONSCIENCE.batteryCheck();
   };
   OREILLES.cancel();
@@ -734,6 +734,8 @@ async function handle(text) {
   if (early) return early();
   const pj = PROJETS.route(text, n); // « je veux apprendre la table de 7 cette semaine », « où j'en suis ? »
   if (pj) return pj();
+  const pk = POKEMON.route(text, n); // « parle-moi de Pikachu », « combat Pokémon », « on part à la chasse aux Pokémon »
+  if (pk) return pk();
   // « comment s'est passée ta journée ? » : si la réponse n'est pas une demande de jeu, c'est l'humeur du jour
   const moodWas = dlg.moodPending;
   dlg.moodPending = false;
@@ -866,7 +868,7 @@ async function chatReply(text, hidden = false) {
     const now = new Date();
     const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu ne vas pas sur Internet et tu n'as pas les actualités ; tu as seulement ton encyclopédie pour enfants (avec [[cherche:sujet]]).${ECRAN.meteoFact() || " Tu n'as pas la météo sous les yeux : n'en parle pas au hasard (on peut te demander « quel temps fait-il »)."} ${CORPS.branche ? `Ton corps est branché : tu peux bouger avec [[avance]], [[recule]], [[gauche]], [[droite]] ou [[danse]]${CORPS.battery !== null ? ` (batterie du corps : ${CORPS.battery} %)` : ''}.` : "Ton corps n'est pas encore fabriqué."} ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
     const think = CERVEAU.isHard(text); // question difficile : le cerveau qui réfléchit
-    const sys = CERVEAU.personality() + MEMOIRE.context(text, currentWho()) + facts + CONSCIENCE.etat()
+    const sys = CERVEAU.personality() + MEMOIRE.context(text, currentWho()) + facts + CONSCIENCE.etat() + POKEMON.factFor(text)
       + (think ? "\n\n(Question difficile : raisonne bien avant de répondre, puis réponds en 2 ou 3 phrases simples avec un exemple de tous les jours. Si c'est un exercice d'école, donne un indice plutôt que la réponse.)" : '') + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
@@ -1045,6 +1047,12 @@ async function runAction(a, arg) {
   if (a === 'rapport') return CONSCIENCE.rapport();
   if (a === 'minuteur') return ECRAN.minuteur(arg || '');
   if (a === 'cherche' && arg) return ECRAN.savoir(arg, arg, true);
+  if (a === 'pokemon' && arg) { const p = POKEMON.findIn(arg); if (p) return POKEMON.pokedex(p); }
+  if (a === 'pokecombat') return activity(() => POKEMON.combat(arg || ''));
+  if (a === 'pokechasse') return activity(POKEMON.chasse);
+  if (a === 'pokedevine') return activity(POKEMON.devinette);
+  if (a === 'pokequiz') return activity(POKEMON.quiz);
+  if (a === 'pokedex') return POKEMON.monPokedex();
   if (map[a]) return activity(map[a]);
 }
 
@@ -1796,7 +1804,7 @@ function renderCarnet(m) {
   const it = (S.intentions || []).filter(x => !x.done).sort((a, b) => a.at - b.at);
   $('#s-intents').innerHTML = it.length ? it.map(x => row(`${esc(new Date(x.at).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))} : ${esc(x.text)}`, 'unintent', x.id)).join('') : none('Aucun rappel promis.');
   const pj = (S.projets || []).filter(p => !p.ended).slice(-6).reverse();
-  $('#s-projets').innerHTML = pj.length ? pj.map(p => row(`${p.done ? '🎯 réussi : ' : ''}${esc({ table: `table de ${p.param}`, complement: `compléments à ${p.param}`, heure: "lire l'heure", dictee: 'dictée', anglais: 'anglais', lecture: 'lecture' }[p.type] || p.type)} · ${p.sessions.filter(s => s.ok).length}/2 réussites · jusqu'au ${esc(dateFR(new Date(`${p.fin}T12:00:00`).getTime()))}`, 'unprojet', p.id, p.done ? '✕' : 'Arrêter')).join('') : none('Aucun projet. Aden peut dire : « je veux apprendre la table de 7 cette semaine ».');
+  $('#s-projets').innerHTML = pj.length ? pj.map(p => row(`${p.done ? '🎯 réussi : ' : ''}${esc({ table: `table de ${p.param}`, complement: `compléments à ${p.param}`, heure: "lire l'heure", dictee: 'dictée', anglais: 'anglais', lecture: 'lecture' }[p.type] || p.type)} · ${p.sessions.filter(s => s.ok).length}/2 réussites · jusqu'au ${esc(dateFR(new Date(`${p.fin}T12:00:00`).getTime()))}`, 'unprojet', p.id, p.done ? '✕' : 'Arrêter')).join('') : none('Aucun projet. L’enfant peut dire : « je veux apprendre la table de 7 cette semaine ».');
 }
 // Sauvegarde de tout Shadow dans un fichier (sans la clé Groq), pour la garder ou la passer sur un autre appareil
 function exportShadow() {
