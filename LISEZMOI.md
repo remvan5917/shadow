@@ -79,7 +79,13 @@ La version gratuite de Groq limite ce que le cerveau peut traiter par minute et 
 Dans ⚙️ → *Le cerveau*, une ligne affiche l'énergie utilisée aujourd'hui.
 
 ## Cerveau de la maison (IA locale, sans limite)
-Le cerveau peut tourner sur l'ordinateur de la maison avec **Ollama**, sans limite et sans rien envoyer sur Internet. Groq prend le relais tout seul quand l'ordinateur ne répond pas (éteint, ou téléphone loin de la maison). Sur l'ordinateur de la maison, le modèle s'appelle `shadow-cerveau` (Qwen3 4B Instruct réglé pour une carte graphique de 4 Go) : Shadow commence à répondre en 1 à 3 secondes. Comme Shadow est une page sécurisée (https), le téléphone doit joindre l'ordinateur par une adresse https : le plus simple est **Tailscale** (gratuit, privé : seuls vos appareils y ont accès). Les étapes sont dans la conversation avec Claude ; dans ⚙️ → *Le cerveau*, choisir « Cerveau de la maison » et mettre l'adresse donnée par Tailscale suivie de `/v1`.
+Le cerveau peut tourner sur l'ordinateur de la maison avec **Ollama**, sans limite et sans rien envoyer sur Internet. Groq prend le relais tout seul quand l'ordinateur ne répond pas (éteint, ou téléphone loin de la maison). Sur l'ordinateur de la maison, le modèle s'appelle `shadow-cerveau` (Qwen3 4B Instruct réglé pour une carte graphique de 4 Go) : Shadow commence à répondre en 1 à 3 secondes. Comme Shadow est une page sécurisée (https), le téléphone doit joindre l'ordinateur par une adresse https : le plus simple est **Tailscale** (gratuit, privé : seuls vos appareils y ont accès). Installation faite sur l'ordinateur :
+1. Tailscale installé et connecté (`sudo tailscale up`), appli Tailscale sur le téléphone avec le même compte.
+2. Ollama autorise la page de Shadow : `OLLAMA_ORIGINS=https://remvan5917.github.io` (fichier `/etc/systemd/system/ollama.service.d/shadow.conf`).
+3. Ollama refuse les noms d'hôte inconnus (protection) : un petit relais (`~/.local/share/shadow/ollama-pont.py`, service utilisateur `shadow-pont`) écoute sur 127.0.0.1:11435 et présente les demandes sous le nom « localhost ».
+4. `sudo tailscale serve --bg 11435` : l'adresse https privée en `.ts.net` mène au relais.
+5. Dans ⚙️ → *Le cerveau* : « Cerveau de la maison », adresse `https://<nom-de-l-ordi>.<réseau>.ts.net/v1`, modèle `shadow-cerveau`.
+Le relais démarre à l'ouverture de la session ; si l'ordinateur est éteint ou en veille, Groq prend le relais.
 
 ## Son visage
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
