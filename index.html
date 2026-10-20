@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '56';
+      window.SHADOW_VERSION = '57';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -193,7 +193,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v56</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v57</small></button>
       <div id="papa-badge" hidden><span>MODE PAPA</span><button type="button" id="papa-exit">Quitter</button></div>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>

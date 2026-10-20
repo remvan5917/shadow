@@ -143,7 +143,14 @@ const robotVoice = () => ['robot', 'maison'].includes(S.settings.voix || 'maison
 const VOIXMAISON = {
   downUntil: 0,
   cache: new Map(),
-  root() { const s = S.settings; return s.brain === 'local' && s.localUrl ? s.localUrl.replace(/\/+$/, '').replace(/\/v1$/, '') : ''; },
+  root() {
+    const s = S.settings, u = (s.localUrl || '').replace(/\/+$/, '').replace(/\/v1$/, '');
+    if (s.brain === 'local' && u) return u;
+    // mode papa : la voix de Pierre même quand le cerveau est en ligne (l'adresse de l'ordinateur de la maison ;
+    // l'adresse par défaut est Ollama lui-même, qui ne fabrique pas de voix : on prend le relais de Shadow, juste à côté)
+    if (typeof PAPA !== 'undefined' && PAPA.on && u) return u.replace(/^(https?:\/\/(?:localhost|127\.0\.0\.1)):11434$/, '$1:11435');
+    return '';
+  },
   // en mode papa : la voix de Pierre ou de Jessica (fabriquée par l'ordinateur), sinon celle de Tom
   papa() { return typeof PAPA !== 'undefined' && PAPA.on && (S.settings.voixPapa || 'pierre') !== 'tom' ? (S.settings.voixPapa || 'pierre') : ''; },
   usable() {
@@ -1401,6 +1408,8 @@ function onPeople(faces) {
     wake(known && known.name);
     return;
   }
+  // mode papa : pas de réflexes d'enfant (« tu as l'air triste », « coucou », « qui es-tu ? »)
+  if (typeof PAPA !== 'undefined' && PAPA.on) { faces.forEach(f => { if (f.name) { seen.last[f.name] = now; noteVisit(f.name); } }); seen.sadCount = 0; return; }
   const calm = ['standby', 'talk'].includes(dlg.state) && !dlg.busy && !voice.speaking && !OREILLES.hearing();
   for (const f of faces) {
     if (!f.name) continue;
