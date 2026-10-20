@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '41';
+      window.SHADOW_VERSION = '42';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -48,25 +48,68 @@
       <div id="face-wrap">
         <svg id="face" class="face idle" viewBox="0 0 320 232" role="img" aria-label="Le visage de Shadow">
           <defs>
-            <clipPath id="eye-in"><rect x="52" y="48" width="56" height="52" rx="3"/></clipPath>
+            <clipPath id="eye-in"><rect x="54" y="50" width="52" height="48" rx="3"/></clipPath>
             <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
               <feGaussianBlur stdDeviation="3.5" result="b"/>
               <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
+            <!-- les matières : métal, verre, chrome -->
+            <linearGradient id="g-shell" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#56668e"/><stop offset=".06" stop-color="#2e3a5c"/>
+              <stop offset=".5" stop-color="#1a2342"/><stop offset="1" stop-color="#0d1328"/>
+            </linearGradient>
+            <linearGradient id="g-rim" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#d6e0f7"/><stop offset=".25" stop-color="#7d8db5"/><stop offset="1" stop-color="#26304d"/>
+            </linearGradient>
+            <radialGradient id="g-glass" cx="50%" cy="38%" r="70%">
+              <stop offset="0" stop-color="#14245a"/><stop offset=".55" stop-color="#0a1433"/><stop offset="1" stop-color="#040919"/>
+            </radialGradient>
+            <linearGradient id="g-bezel" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#9aa8cc"/><stop offset=".45" stop-color="#4a5779"/><stop offset="1" stop-color="#1c2440"/>
+            </linearGradient>
+            <radialGradient id="g-screw" cx="38%" cy="32%" r="70%">
+              <stop offset="0" stop-color="#f2f5fc"/><stop offset=".5" stop-color="#8e9ab9"/><stop offset="1" stop-color="#363f5c"/>
+            </radialGradient>
+            <radialGradient id="g-lens" cx="42%" cy="38%" r="65%">
+              <stop offset="0" stop-color="#3a3f9e"/><stop offset=".35" stop-color="#151a4a"/><stop offset="1" stop-color="#03040c"/>
+            </radialGradient>
+            <linearGradient id="g-tooth" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#d3dcf0"/><stop offset="1" stop-color="#8c99bd"/>
+            </linearGradient>
+            <linearGradient id="g-mouth" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#01030a"/><stop offset="1" stop-color="#0c1736"/>
+            </linearGradient>
+            <linearGradient id="g-shine" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ffffff" stop-opacity=".09"/><stop offset=".6" stop-color="#ffffff" stop-opacity="0"/>
+            </linearGradient>
+            <!-- les lignes de balayage de l'écran, et les pixels des yeux -->
+            <pattern id="p-scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.2" fill="#ffffff" fill-opacity=".035"/></pattern>
+            <pattern id="p-pix" width="3" height="3" patternUnits="userSpaceOnUse"><path d="M0 0H3V3" fill="none" stroke="#000" stroke-opacity=".38" stroke-width=".8"/></pattern>
           </defs>
           <g class="bob">
-            <!-- la crête bleue (le gribouillis du dessin) : verte quand c'est juste, orange quand il y a un piège -->
+            <!-- la crête bleue (le gribouillis du dessin) : un tube néon sur son support -->
+            <rect class="crest-base" x="118" y="21" width="84" height="9" rx="4"/>
             <path class="crest" filter="url(#glow)" d="M116 28 L124 13 L132 28 L140 11 L148 28 L156 10 L164 28 L172 11 L180 28 L188 12 L196 28 L203 17"/>
+            <path class="crest-core" d="M116 28 L124 13 L132 28 L140 11 L148 28 L156 10 L164 28 L172 11 L180 28 L188 12 L196 28 L203 17"/>
             <g class="head">
-              <rect class="shell" x="12" y="26" width="296" height="196" rx="16"/>
-              <circle class="screw" cx="29" cy="43" r="4.5"/>
-              <circle class="screw" cx="291" cy="43" r="4.5"/>
-              <circle class="screw" cx="29" cy="205" r="4.5"/>
-              <circle class="screw" cx="291" cy="205" r="4.5"/>
-              <path class="visor" d="M12 114 H308"/>
-              <!-- les yeux : la pupille carrée, et ses autres formes (yeux qui rient, cœurs) + les paupières -->
+              <!-- les oreilles : grilles de haut-parleur -->
+              <rect class="ear" x="3" y="92" width="14" height="64" rx="5"/><rect class="ear" x="303" y="92" width="14" height="64" rx="5"/>
+              <path class="ear-vent" d="M7 102H13M7 110H13M7 118H13M7 126H13M7 134H13M7 142H13M307 102H313M307 110H313M307 118H313M307 126H313M307 134H313M307 142H313"/>
+              <!-- la tête : cadre en métal, écran en verre -->
+              <rect class="shell" x="12" y="26" width="296" height="196" rx="18"/>
+              <rect class="shell-rim" x="13.5" y="27.5" width="293" height="193" rx="16.5"/>
+              <rect class="screen" x="34" y="36" width="252" height="176" rx="12"/>
+              <rect class="scan" x="34" y="36" width="252" height="176" rx="12" fill="url(#p-scan)"/>
+              <circle class="screw" cx="23" cy="37" r="5"/><path class="screw-slot" d="M20 37H26M23 34V40"/>
+              <circle class="screw" cx="297" cy="37" r="5"/><path class="screw-slot" d="M294 37H300M297 34V40"/>
+              <circle class="screw" cx="23" cy="211" r="5"/><path class="screw-slot" d="M20 211H26M23 208V214"/>
+              <circle class="screw" cx="297" cy="211" r="5"/><path class="screw-slot" d="M294 211H300M297 208V214"/>
+              <path class="visor" d="M34 114 H286"/><path class="visor-hi" d="M34 115.6 H286"/>
+              <!-- les yeux : écrans LED dans leur boîtier ; la pupille carrée, ses autres formes, les paupières -->
               <g class="eye eye-l">
-                <rect class="eye-frame" x="50" y="46" width="60" height="56" rx="5"/>
+                <rect class="eye-frame" x="47" y="43" width="66" height="62" rx="8"/>
+                <rect class="eye-frame-in" x="50.5" y="46.5" width="59" height="55" rx="5.5"/>
+                <rect class="eye-glass" x="54" y="50" width="52" height="48" rx="3"/>
                 <g clip-path="url(#eye-in)"><g class="look"><g class="blink">
                   <rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/>
                   <path class="e-joy" d="M66 82 Q80 60 94 82" filter="url(#glow)"/>
@@ -74,9 +117,13 @@
                   <rect class="lid lid-top" x="58" y="34" width="44" height="22"/>
                   <rect class="lid lid-bot" x="58" y="92" width="44" height="22" rx="12"/>
                 </g></g></g>
+                <rect class="pix" x="54" y="50" width="52" height="48" fill="url(#p-pix)"/>
+                <path class="glint" d="M56 52 H74 L62 64 H56 Z"/>
               </g>
               <g class="eye eye-r" transform="translate(160 0)">
-                <rect class="eye-frame" x="50" y="46" width="60" height="56" rx="5"/>
+                <rect class="eye-frame" x="47" y="43" width="66" height="62" rx="8"/>
+                <rect class="eye-frame-in" x="50.5" y="46.5" width="59" height="55" rx="5.5"/>
+                <rect class="eye-glass" x="54" y="50" width="52" height="48" rx="3"/>
                 <g clip-path="url(#eye-in)"><g class="look"><g class="blink">
                   <rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/>
                   <path class="e-joy" d="M66 82 Q80 60 94 82" filter="url(#glow)"/>
@@ -84,9 +131,10 @@
                   <rect class="lid lid-top" x="58" y="34" width="44" height="22"/>
                   <rect class="lid lid-bot" x="58" y="92" width="44" height="22" rx="12"/>
                 </g></g></g>
+                <rect class="pix" x="54" y="50" width="52" height="48" fill="url(#p-pix)"/>
+                <path class="glint" d="M56 52 H74 L62 64 H56 Z"/>
               </g>
               <g class="cheeks"><ellipse cx="66" cy="124" rx="17" ry="7"/><ellipse cx="254" cy="124" rx="17" ry="7"/></g>
-              <g class="lens"><circle cx="160" cy="72" r="11"/><circle cx="160" cy="72" r="4"/></g>
               <path class="nose" d="M152 142 L160 126 L168 142 Z"/>
               <g class="whiskers">
                 <path d="M138 134 L104 122"/><path d="M138 139 L101 139"/><path d="M138 144 L104 156"/>
@@ -96,11 +144,15 @@
                 <g class="m-grin">
                   <path class="m-in" d="M92 166 H228 Q222 210 160 212 Q98 210 92 166 Z"/>
                   <path class="teeth" d="M96 166 L104 186 L112 167 L120 192 L128 168 L136 196 L144 168 L152 198 L160 168 L168 198 L176 168 L184 196 L192 168 L200 192 L208 167 L216 186 L224 166 Z"/>
+                  <path class="lip-glow" d="M90 166 H230"/>
                   <path class="lip" d="M90 166 H230"/>
+                  <path class="lip-core" d="M92 165.4 H228"/>
                 </g>
                 <g class="m-o"><ellipse cx="160" cy="184" rx="16" ry="19"/></g>
                 <path class="m-sad" d="M124 198 Q160 172 196 198"/>
               </g>
+              <!-- un reflet sur le verre -->
+              <path class="shine" d="M60 36 H112 L64 212 H34 V118 Z"/>
             </g>
           </g>
         </svg>
@@ -108,7 +160,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v41</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v42</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>

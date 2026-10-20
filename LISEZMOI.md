@@ -88,6 +88,7 @@ Le cerveau peut tourner sur l'ordinateur de la maison avec **Ollama**, sans limi
 Le relais démarre à l'ouverture de la session ; si l'ordinateur est éteint ou en veille, Groq prend le relais.
 
 ## Son visage
+Il est dessiné d'après le dessin d'Aden (tête-écran, yeux carrés, nez en triangle, moustaches de chat, sourire à dents pointues avec la lèvre bleue, crête bleue, vis), mais en vrai robot : cadre en métal, écran en verre avec lignes de balayage, yeux en écrans LED pixelisés dans des boîtiers, dents chromées, lèvre et crête en tubes néon, grilles de haut-parleur sur les côtés.
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
 
 ## Mode vidéo (pour filmer en discutant avec lui)

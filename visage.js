@@ -90,7 +90,7 @@ const VISAGE = (() => {
   /* ---------- son visage suit ce qu'il dit ---------- */
   const REACT = [
     [/\b(ha ha|hi hi|ho ho|haha|hihi|rigolo|rigole|drole|chatouille|mort de rire)\b/, 'laugh', 'note'],
-    [/\b(je t aime|calin|calins|bisou|bisous|mon ami|mon copain|meilleur copain|meilleur ami|je t adore|coeur)\b/, 'love', 'coeur'],
+    [/\b(je t aime|calin|calins|bisou|bisous|meilleur copain|meilleur ami|meilleure amie|je t adore)\b/, 'love', 'coeur'],
     [/\b(wouah|waouh|ouah|whaou|oh la la|incroyable|extraordinaire|pas possible|ca alors|impressionnant)\b/, 'surprise', 'eclair'],
     [/\b(bravo|champion|championne|genial|magnifique|parfait|felicitations|medaille|tu as gagne|tu as trouve|trop fort|trop forte)\b/, 'proud', 'etoile'],
     [/\b(je ne suis pas sur|je ne sais pas|je n ai pas compris|pas bien compris|bizarre|hum|tu peux repeter|mysterieux|mystere)\b/, 'confused', 'question'],
