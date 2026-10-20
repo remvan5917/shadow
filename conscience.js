@@ -199,7 +199,9 @@ const CONSCIENCE = (() => {
     if (!m) return false;
     const at = m[4] ? Date.now() + parseInt(m[4], 10) * 60000 : new Date(`${m[1]}T${String(m[2]).padStart(2, '0')}:${m[3]}:00`).getTime();
     if (!at || at < Date.now() - 60000 || at > Date.now() + 60 * 86400000) return false;
-    const t = PRIVE.mask(m[5].trim());
+    // « ranger ma chambre » → « ranger ta chambre » (c'est Shadow qui le dira)
+    const you = m[5].trim().replace(/\s+/g, ' ').replace(/\b(ma|mon|mes|me|m')\b/gi, w => ({ ma: 'ta', mon: 'ton', mes: 'tes', me: 'te', "m'": "t'" })[w.toLowerCase()] || w);
+    const t = PRIVE.mask(you);
     if (t.hidden) return false;
     I().push({ id: Date.now(), at, text: t.text, who: currentWho(), done: false });
     S.intentions = I().filter(x => !x.done || Date.now() - x.at < 86400000).slice(-20);

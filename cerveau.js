@@ -6,6 +6,14 @@
    ========================================================= */
 'use strict';
 
+// Cerveau de la maison : on le garde réveillé pendant que Shadow est allumé (sinon il met quelques secondes à se recharger)
+function warmBrain() {
+  const st = S.settings;
+  if (st.brain !== 'local' || !st.localUrl || !st.localModel) return;
+  const root = st.localUrl.replace(/\/+$/, '').replace(/\/v1$/, '');
+  fetch(`${root}/api/generate`, { method: 'POST', body: JSON.stringify({ model: st.localModel, keep_alive: '20m' }) }).catch(() => {});
+}
+setInterval(() => { if (typeof dlg !== 'undefined' && dlg.started && dlg.state !== 'sleep') warmBrain(); }, 4 * 60000);
 // Compteur d'énergie du jour : jetons envoyés au cerveau et secondes de voix transcrites
 function countUsage(tokens, audioSec) {
   const k = new Date().toDateString();
@@ -91,7 +99,7 @@ const AI = {
   async chatOnce(model, messages, { maxTokens = 220, temperature = 0.8, timeout = 20000, think = false } = {}) {
     const c = Object.assign({}, this.cfg(), { model });
     messages = this._local(c, messages);
-    const body = { model: c.model, messages, temperature, max_tokens: maxTokens };
+    const body = { model: c.model, messages, temperature: c.local ? Math.min(temperature, 0.35) : temperature, max_tokens: maxTokens };
     if (!c.local) {
       // Les modèles « qui réfléchissent » : réflexion courte (ou plus longue pour une question difficile), on ne garde que la réponse
       if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = think ? 'medium' : 'low'; body.max_tokens = maxTokens + (think ? 1200 : 300); }
@@ -109,7 +117,7 @@ const AI = {
   async chatStreamOnce(model, messages, { maxTokens = 200, temperature = 0.8, timeout = 20000, think = false } = {}, onSentence) {
     const c = Object.assign({}, this.cfg(), { model });
     messages = this._local(c, messages);
-    const body = { model: c.model, messages, temperature, max_tokens: maxTokens, stream: true };
+    const body = { model: c.model, messages, temperature: c.local ? Math.min(temperature, 0.35) : temperature, max_tokens: maxTokens, stream: true }; // petit cerveau local : plus prudent
     if (think) timeout = Math.max(timeout, 30000);
     if (!c.local) {
       if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = think ? 'medium' : 'low'; body.max_tokens = maxTokens + (think ? 1200 : 300); }
@@ -259,7 +267,8 @@ const isModelError = e => (e.status === 400 || e.status === 404) && /model|decom
 
 function cleanReply(t) {
   return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/^#+\s*/gm, '').replace(/^\s*[-*]\s+/gm, '').trim();
+    .replace(/[\u2600-\u27BF\u2B00-\u2BFF]|[\uD83C-\uDBFF][\uDC00-\uDFFF]|\uFE0F|\u200D/g, '') // émojis (les petits cerveaux en mettent)
+    .replace(/^#+\s*/gm, '').replace(/^\s*[-*]\s+/gm, '').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 const CERVEAU = {
@@ -293,7 +302,7 @@ Ta façon d'être, comme les robots des films (Baymax, WALL-E, J.A.R.V.I.S.) : a
 Commandes (à la fin de ta phrase, entre doubles crochets, seulement s'il le veut vraiment) : [[journal]] [[dictee]] [[lecture]] [[heure]] [[anglais]] [[calcul]] [[quiz]] [[devinette]] [[cris]] [[jacques]] [[pfc]] (pierre-feuille-ciseaux) [[doigts]] [[emotions]] [[chanson]] [[histoire_soir]] [[visage]] [[voix]] [[meteo]] [[brossage]] [[respiration]] [[mystere]] (deviner un mot) [[simon]] (jeu des couleurs) [[minuteur:5 minutes]] [[stop]] (se taire) [[dormir]].
 - Besoin de VOIR pour répondre (ce qu'il tient, ses doigts…) : réponds seulement [[regarder]].
 - Question de culture ou de science, ou « montre-moi » : réponds seulement [[cherche:sujet en 1 à 3 mots]] (ton encyclopédie te donnera l'article et une image).
-- « Rappelle-moi… » : confirme en une phrase (jour et heure), puis [[rappel:AAAA-MM-JJ HH:MM|chose à rappeler]] ou [[rappel:+20|…]] pour « dans 20 minutes ».
+- « Rappelle-moi… » : confirme en une phrase (jour et heure), puis [[rappel:AAAA-MM-JJ HH:MM|chose à rappeler]] ou [[rappel:+20|…]] pour « dans 20 minutes » (la chose à rappeler au verbe à l'infinitif : « ranger ta chambre »).
 
 Plus bas : ta mémoire (rangée par personne, ne mélange jamais), les consignes de chacun (respecte-les toujours), et ta conscience (heure, qui est là, batterie, humeur) : utilise-les avec finesse, sans réciter.
 

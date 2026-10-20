@@ -537,6 +537,7 @@ function wake(who) {
     return;
   }
   sessionStart = Date.now(); pauseDone = false;
+  warmBrain(); // le cerveau de la maison se prépare pendant qu'il dit bonjour
   dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
   fx.wake(); face.set('happy');
   dlg.sayNext = async () => {
@@ -796,6 +797,9 @@ async function chatReply(text, hidden = false) {
       return;
     }
     // [[rappel:2026-10-21 08:00|prendre ton cahier]] : il le fera plus tard, tout seul
+    // un petit cerveau peut ajouter une commande par erreur : on ne la suit que si l'enfant l'a vraiment demandée
+    if (action === 'rappel' && !/\b(rappel|rappelle|rappeler|previens|fais moi penser|n oublie pas|dis moi (de|quand|dans|a)|reveille)\b/.test(N(text))) action = '';
+    if (action === 'cherche' && clean.length > 60) action = ''; // il a déjà répondu : pas besoin de chercher en plus
     if (!bad && action === 'rappel') {
       if (!CONSCIENCE.addIntention(actionArg)) await say("Hum, je n'ai pas bien compris quand je dois te le rappeler. Redis-le-moi avec le jour et l'heure ?");
       else if (!spoken) await say("C'est noté, je te le rappellerai.");
@@ -1920,6 +1924,7 @@ function bind() {
 function firstStart() {
   if (dlg.started) return;
   dlg.started = true;
+  warmBrain();
   $('#hint').hidden = true;
   OREILLES.prime();        // réveille l'audio du micro maintenant
   voice.unlock();          // débloque la voix (obligatoire sur iPhone/iPad)
