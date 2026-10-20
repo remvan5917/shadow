@@ -463,6 +463,13 @@ const ECRAN = (() => {
     if (st) st.textContent = S.settings.ville ? `Ville : ${S.settings.ville.name}${S.settings.ville.pays ? ` (${S.settings.ville.pays})` : ''}` : 'Pas de ville : Shadow ne donne pas la météo.';
   }
   function bindSettings() {
+    const vx = $('#s-voix'), info = () => { const el = $('#s-voix-info'); if (el) el.textContent = voice.v ? `Voix utilisée : ${voice.v.name}${robotVoice() ? (voice.male ? ' (voix d\'homme, rendue plus grave)' : ' (rendue beaucoup plus grave)') : ''}` : "Aucune voix française trouvée sur l'appareil."; };
+    if (vx) {
+      vx.value = S.settings.voix || 'robot';
+      vx.addEventListener('change', () => { S.settings.voix = vx.value; save(); voice.choose && voice.choose(); info(); });
+      $('#s-voix-test').addEventListener('click', () => { voice.unlock(); voice.choose && voice.choose(); info(); voice.say('Bip. Bonjour, je suis Shadow. Mes circuits sont prêts.'); });
+      setTimeout(info, 1600);
+    }
     const prop = $('#s-propose');
     if (prop) { prop.checked = !!S.settings.propose; prop.addEventListener('change', () => { S.settings.propose = prop.checked; save(); }); }
     const vid = $('#s-video');

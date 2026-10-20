@@ -40,6 +40,7 @@ function sayEn(word) {
     const v = vs.find(x => /^en[-_]GB/i.test(x.lang)) || vs.find(x => /^en/i.test(x.lang));
     if (v) u.voice = v;
     u.rate = 0.85;
+    if (robotVoice()) u.pitch = 0.75;
     let done = false;
     const end = () => { if (done) return; done = true; face.talk(false); OREILLES.mute(false); res(); };
     u.onstart = () => face.talk(true);
@@ -55,7 +56,7 @@ function sayPitch(text, pitch, rate) {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR';
     if (voice.v) u.voice = voice.v;
-    u.pitch = pitch; u.rate = rate || 1;
+    u.pitch = robotVoice() ? Math.max(0.1, pitch * 0.7) : pitch; u.rate = rate || 1; // les voix de personnages suivent la voix de robot
     let done = false;
     const end = () => { if (done) return; done = true; face.talk(false); OREILLES.mute(false); res(); };
     u.onstart = () => face.talk(true);

@@ -117,6 +117,7 @@ const LETTER_NAMES = {
 };
 const spellOut = w => [...String(w).toLowerCase()].map(c => LETTER_NAMES[c] || c).join(', ');
 
+const robotVoice = () => (S.settings.voix || 'robot') === 'robot';
 const voice = {
   v: null,
   speaking: false,
@@ -127,7 +128,11 @@ const voice = {
       let vs = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
       // sans réseau : seulement les voix installées sur le téléphone (les autres se taisent)
       if (navigator.onLine === false && vs.some(v => v.localService)) vs = vs.filter(v => v.localService);
-      this.v = vs.find(v => /fr[-_]FR/i.test(v.lang) && /google|amélie|amelie|thomas|denise|henri|natural|online/i.test(v.name))
+      // voix de robot : une voix d'homme si le téléphone en a une (Google : x-frb / x-frd)
+      const male = v => /x-fr[bd]\b|thomas|henri|paul|mathieu|nicolas|guillaume|antoine|daniel|male|homme|masculin/i.test(`${v.name} ${v.voiceURI}`) && !/female|femme/i.test(v.name);
+      const fav = robotVoice() && vs.find(v => /fr[-_]FR/i.test(v.lang) && male(v));
+      this.male = !!fav;
+      this.v = fav || vs.find(v => /fr[-_]FR/i.test(v.lang) && /google|amélie|amelie|thomas|denise|henri|natural|online/i.test(v.name))
         || vs.find(v => /fr[-_]FR/i.test(v.lang)) || vs[0] || null;
     };
     this.choose = choose;
@@ -151,8 +156,11 @@ const voice = {
       const u = new SpeechSynthesisUtterance(t);
       u.lang = 'fr-FR';
       if (this.v) u.voice = this.v;
-      u.rate = S.settings.slow ? 0.85 : 1.02;
-      u.pitch = 1.1;
+      // voix de robot : plus grave et plus posée (encore plus grave si c'est une voix de femme)
+      const robot = robotVoice();
+      u.rate = (S.settings.slow ? 0.85 : 1.02) * (robot ? 0.92 : 1);
+      u.pitch = robot ? (this.male ? 0.8 : 0.55) : 1.1;
+      if (robot && Date.now() - (this.endedAt || 0) > 2500) fx.comm(); // un petit signal électronique quand il prend la parole
       let done = false;
       const end = () => {
         if (done) return;
@@ -227,6 +235,25 @@ const fx = {
     } catch (e) { /* pas de son */ }
   },
   ok() { this.tone([[660, 0.12], [880, 0.12], [1320, 0.22]]); },
+  // le petit signal d'un robot de film qui ouvre son canal pour parler (très discret)
+  comm() {
+    if (!S.settings.sound) return;
+    try {
+      this.ctx = this.ctx || new (window.AudioContext || window.webkitAudioContext)();
+      const c = this.ctx;
+      if (c.state === 'suspended') c.resume();
+      const t = c.currentTime;
+      [[1760, 0, 0.035], [2349, 0.045, 0.05]].forEach(([f, at, d]) => {
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t + at);
+        g.gain.exponentialRampToValueAtTime(0.025, t + at + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + at + d);
+        o.connect(g).connect(c.destination);
+        o.start(t + at); o.stop(t + at + d + 0.02);
+      });
+    } catch (e) { /* pas de son */ }
+  },
   oops() { this.tone([[440, 0.16], [330, 0.26]]); },
   wake() { this.tone([[330, 0.1], [495, 0.1], [660, 0.1], [990, 0.2]]); },
   confetti(n = 30) {
