@@ -4,7 +4,13 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '44';
+      window.SHADOW_VERSION = '45';
+      // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
+      if (/[?&]banc\b/.test(location.search)) {
+        window.__BANC = true; window.__intervals = [];
+        var si = window.setInterval;
+        window.setInterval = function (fn, ms) { if (typeof fn === 'function') window.__intervals.push({ fn: fn, ms: ms }); return si.apply(window, arguments); };
+      }
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -186,7 +192,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v44</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v45</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -308,9 +314,19 @@
         <p class="small muted">Dites « Shadow, apprends ma voix ». Shadow garde une empreinte de voix (des nombres calculés sur l'appareil), jamais d'enregistrement. Reconnaissance simple : très sûre pour enfant / adulte, correcte entre les membres d'une famille. Nécessite les oreilles Whisper (clé Groq).</p>
       </fieldset>
       <fieldset>
-        <legend>🧠 La mémoire de Shadow</legend>
+        <legend>📒 Le carnet de papa (la mémoire de Shadow)</legend>
         <p id="s-mem-count" class="small muted"></p>
+        <h4 class="carnet-h">Souvenirs, par personne</h4>
         <div id="s-mem" class="people mem"></div>
+        <div class="row"><input id="s-mem-who" type="text" maxlength="20" placeholder="Qui ? (ex : Papa)" autocomplete="off" style="max-width:9em"><input id="s-mem-new" type="text" maxlength="160" placeholder="Un souvenir à lui apprendre (ex : Papa adore le café)" autocomplete="off"><button type="button" id="s-mem-add" class="ghost">Ajouter</button></div>
+        <h4 class="carnet-h">Consignes de chacun</h4>
+        <div id="s-rules" class="people mem"></div>
+        <h4 class="carnet-h">Événements à suivre</h4>
+        <div id="s-events-mem" class="people mem"></div>
+        <h4 class="carnet-h">Rappels promis</h4>
+        <div id="s-intents" class="people mem"></div>
+        <h4 class="carnet-h">Projets</h4>
+        <div id="s-projets" class="people mem"></div>
         <p class="small muted">Shadow retient tout seul ce qui compte (goûts, animaux, amis, projets), un résumé des activités et les mots difficiles du journal. Jamais d'adresse, d'école, de téléphone, de santé ni de secrets. Tout reste sur cet appareil.</p>
         <div class="row">
           <button type="button" id="s-export" class="ghost">💾 Sauvegarder Shadow (fichier)</button>
@@ -437,5 +453,6 @@
   <script src="ecran.js"></script>
   <script src="conscience.js"></script>
   <script src="projets.js"></script>
+  <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>
 </html>

@@ -104,6 +104,12 @@ Avec le WiFi, Shadow télécharge tout seul ses yeux (≈ 40 Mo, gardés d'une m
 - ses oreilles passent sur la reconnaissance vocale du téléphone (si le français hors connexion est installé, voir ⚙️) ; sinon il dit qu'il n'entend plus, et on le **touche** pour qu'il propose un jeu qui n'a pas besoin d'écouter ;
 - quand le réseau revient, il le dit et reprend tout seul.
 
+## Le carnet de papa (⚙️)
+Dans les réglages, le carnet montre tout ce que Shadow a retenu, et chaque ligne peut être supprimée : les souvenirs rangés par personne (on peut aussi en ajouter un : « Papa adore le café »), les consignes de chacun, les événements à suivre, les rappels promis et les projets (bouton « Arrêter »).
+
+## Le banc d'essai (avant chaque mise à jour)
+Ouvrir `…/shadow/?banc` lance environ 30 vérifications en quelques secondes : toutes les vérifications périodiques (coucher, rappels, batterie, humeur…), le visage, la compréhension des phrases, les commandes du cerveau (simulé), la mémoire, le carnet, les activités. Il utilise une mémoire à part : les vraies données ne sont jamais touchées.
+
 ## Pour papa (⚙️)
 - **Bilan des 7 derniers jours** : temps de jeu, activités et réussite, phrases du journal, mots difficiles, humeur du jour.
 - **Rappels** à heure fixe (tous les jours, jours d'école, week-end) : il le dit, même s'il dormait.

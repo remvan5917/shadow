@@ -6,7 +6,7 @@
    ========================================================= */
 'use strict';
 
-const STORE_KEY = 'shadow-v1';
+const STORE_KEY = window.__BANC ? 'shadow-banc' : 'shadow-v1'; // le banc d'essai ne touche jamais aux vraies données
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1157,7 +1157,7 @@ let visionBusy = false;
    Avant une étape lourde (les yeux), on laisse un petit mot dans la mémoire.
    Si l'appli s'arrête brutalement, le mot est encore là au lancement suivant :
    Shadow sait alors ce qui a planté et ne recommence pas tout seul. */
-const BOOT_KEY = 'shadow-boot';
+const BOOT_KEY = window.__BANC ? 'shadow-banc-boot' : 'shadow-boot';
 const guard = step => { try { localStorage.setItem(BOOT_KEY, step); } catch (e) { /* rien */ } };
 const guardOk = () => { try { localStorage.removeItem(BOOT_KEY); } catch (e) { /* rien */ } };
 // Vieux navigateur (ex. Chrome 70) : on allège Shadow
@@ -1673,10 +1673,27 @@ function renderPinState() {
 }
 function renderMemory() {
   const m = MEMOIRE.data();
+  renderCarnet(m);
   $('#s-mem-count').textContent = `${m.facts.length} souvenir${m.facts.length > 1 ? 's' : ''} · ${m.summaries.length} résumé${m.summaries.length > 1 ? 's' : ''} d'activités · ${m.hard.length} mot${m.hard.length > 1 ? 's' : ''} difficile${m.hard.length > 1 ? 's' : ''}`;
+  // les souvenirs rangés par personne (comme Shadow les range dans sa tête)
+  const groups = {};
+  m.facts.slice().reverse().forEach(f => { const k = f.who || S.prenom || "l'enfant"; (groups[k] = groups[k] || []).push(f); });
   $('#s-mem').innerHTML = m.facts.length
-    ? m.facts.slice().reverse().map(f => `<div class="person"><span>${esc(f.text)}</span><button type="button" class="ghost sm danger" data-unfact="${f.id}" aria-label="Oublier ce souvenir">✕</button></div>`).join('')
+    ? Object.keys(groups).map(k => `<p class="small carnet-who">${esc(k)}</p>${groups[k].map(f => `<div class="person"><span>${esc(f.text)}</span><button type="button" class="ghost sm danger" data-unfact="${f.id}" aria-label="Oublier ce souvenir">✕</button></div>`).join('')}`).join('')
     : '<p class="small muted">Pas encore de souvenirs. Shadow en garde au fil des discussions.</p>';
+}
+// le reste du carnet : consignes, événements, rappels, projets (chaque ligne peut être supprimée)
+function renderCarnet(m) {
+  const row = (txt, attr, id, btn = '✕') => `<div class="person"><span>${txt}</span><button type="button" class="ghost sm danger" data-${attr}="${esc(String(id))}">${btn}</button></div>`;
+  const none = t => `<p class="small muted">${t}</p>`;
+  const rules = m.rules || [];
+  $('#s-rules').innerHTML = rules.length ? rules.map((r, i) => row(`${r.who ? `<b>${esc(r.who)}</b> : ` : ''}${esc(r.text)}`, 'unrule', i)).join('') : none('Aucune consigne pour l\'instant (ex : « appelle-moi Capitaine »).');
+  const ev = (m.events || []).filter(e => !e.followed);
+  $('#s-events-mem').innerHTML = ev.length ? ev.map(e => row(`${esc(dateFR(new Date(`${e.date}T12:00:00`).getTime()))} : ${esc(e.quoi)}`, 'unevent', e.id)).join('') : none('Rien à suivre.');
+  const it = (S.intentions || []).filter(x => !x.done).sort((a, b) => a.at - b.at);
+  $('#s-intents').innerHTML = it.length ? it.map(x => row(`${esc(new Date(x.at).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))} : ${esc(x.text)}`, 'unintent', x.id)).join('') : none('Aucun rappel promis.');
+  const pj = (S.projets || []).filter(p => !p.ended).slice(-6).reverse();
+  $('#s-projets').innerHTML = pj.length ? pj.map(p => row(`${p.done ? '🎯 réussi : ' : ''}${esc({ table: `table de ${p.param}`, complement: `compléments à ${p.param}`, heure: "lire l'heure", dictee: 'dictée', anglais: 'anglais', lecture: 'lecture' }[p.type] || p.type)} · ${p.sessions.filter(s => s.ok).length}/2 réussites · jusqu'au ${esc(dateFR(new Date(`${p.fin}T12:00:00`).getTime()))}`, 'unprojet', p.id, p.done ? '✕' : 'Arrêter')).join('') : none('Aucun projet. Aden peut dire : « je veux apprendre la table de 7 cette semaine ».');
 }
 // Sauvegarde de tout Shadow dans un fichier (sans la clé Groq), pour la garder ou la passer sur un autre appareil
 function exportShadow() {
@@ -1901,6 +1918,22 @@ function bind() {
     if (!b) return;
     const m = MEMOIRE.data();
     m.facts = m.facts.filter(f => String(f.id) !== b.dataset.unfact); save(); renderMemory();
+  });
+  // le carnet : supprimer une consigne, un événement, un rappel, arrêter un projet ; ajouter un souvenir
+  $('#dlg-settings').addEventListener('click', e => {
+    const b = e.target.closest('[data-unrule],[data-unevent],[data-unintent],[data-unprojet]');
+    if (!b) return;
+    const m = MEMOIRE.data();
+    if (b.dataset.unrule !== undefined) m.rules.splice(+b.dataset.unrule, 1);
+    if (b.dataset.unevent) m.events = m.events.filter(x => String(x.id) !== b.dataset.unevent);
+    if (b.dataset.unintent) S.intentions = S.intentions.filter(x => String(x.id) !== b.dataset.unintent);
+    if (b.dataset.unprojet) { const p = (S.projets || []).find(x => String(x.id) === b.dataset.unprojet); if (p) p.ended = true; }
+    save(); renderMemory();
+  });
+  $('#s-mem-add').addEventListener('click', () => {
+    const t = $('#s-mem-new').value.trim(), w = $('#s-mem-who').value.trim() || S.prenom || '';
+    if (!t) return;
+    if (MEMOIRE.add(t, w, 'papa')) { $('#s-mem-new').value = ''; renderMemory(); toast('Souvenir ajouté'); } else toast('Déjà connu, ou trop privé pour être gardé');
   });
   $('#s-mem-clear').addEventListener('click', () => {
     if (confirm('Shadow va oublier tous ses souvenirs (le journal et les visages restent). Continuer ?')) { S.memory = { facts: [], summaries: [], hard: [] }; S.memPos = S.chat.length; save(); renderMemory(); toast('Mémoire effacée'); }

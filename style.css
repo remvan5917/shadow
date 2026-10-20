@@ -814,3 +814,7 @@ body.lite #face-wrap { animation: none; }
 body.lite .face .scan, body.lite .face .pix, body.lite #aura { display: none; }
 body.lite .face.hearing .head, body.lite .face.sleep .stars circle { animation: none; }
 @media (prefers-reduced-motion: reduce) { .face.hearing .head, .face.sleep .stars circle { animation: none; } }
+
+/* le carnet de papa */
+.carnet-h { margin: 14px 0 6px; font-size: 14px; color: var(--eye); letter-spacing: .04em; }
+.carnet-who { margin: 8px 0 2px; color: var(--muted); font-weight: 700; }
