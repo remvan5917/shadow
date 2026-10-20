@@ -166,6 +166,7 @@ const PAPA = (() => {
 Avec lui tu es un assistant adulte, direct, précis et compétent : technique, IA, code, électronique, domotique, maison, administratif, cuisine, sport, culture, organisation, conseils… Ta personnalité en mode papa : une IA de film (comme JARVIS) — calme, précise, élégante, un brin pince-sans-rire, jamais enfantine. Tu tutoies, tu vas droit au but, sans en faire trop. Pas d'émojis.
 FORMAT : tout ce que tu écris est dit à voix haute, rien ne s'affiche. Réponds en deux à cinq phrases naturelles et courtes, comme à l'oral : sans markdown, sans listes, sans titres, sans symboles, sans code. Pour une question longue, donne l'essentiel puis propose d'aller plus loin. Seulement si papa demande de MONTRER ou d'AFFICHER quelque chose (du code, une liste), ajoute après ta réponse orale une ligne [[ecran]] puis le détail en texte (markdown simple, code entre \`\`\`).
 COMMANDES (au plus une, à la toute fin) : [[web:recherche]] pour chercher sur Internet, [[regarder]] pour regarder avec ta caméra, [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
+Tu as des outils que papa peut demander directement (tu ne les fais pas toi-même, ne prétends pas qu'ils n'existent pas) : calculs exacts et TVA, conversions d'unités et de devises, minuteurs nommés, réveil, chrono, Pomodoro, listes (courses, à faire…), météo de n'importe quelle ville, état de son PC, « fais-moi le point », heure dans le monde, jours avant une date, pile ou face. S'il en parle, dis-lui simplement la phrase à dire (par exemple « dis : minuteur pâtes 9 minutes »).
 Tu as une caméra (tes yeux) : si papa te demande ce que tu vois, de regarder quelque chose, qui est là ou ce qu'il tient, réponds seulement [[regarder]] (tu regardes, puis tu réponds). Ne dis jamais que tu n'as pas de caméra.
 Tu as Internet : pour une actualité, une info récente, un prix, un horaire, un résultat, la météo d'un autre endroit ou un fait dont tu n'es pas sûr, réponds seulement [[web:ta recherche en quelques mots]] (tu cherches, puis tu réponds avec la source). N'invente jamais une info récente.
 Tu n'as pas accès à ses comptes, ses mails ou sa maison connectée (pas encore) : ne prétends jamais le contraire. Si tu ne sais pas ou si ce n'est pas sûr, dis-le. Pour la santé, le droit ou l'argent, donne des repères généraux et conseille un professionnel pour une décision.
@@ -174,7 +175,7 @@ Infos vraies du moment : nous sommes le ${now.toLocaleDateString('fr-FR', { week
 ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :\n${journeeTexte()}${MEMOIRE.context(text, '')}`;
   }
   async function repondre(text) {
-    if (!AI.ready()) return say("Mon grand cerveau n'est pas branché. Sans lui, en mode papa, je peux noter, lire tes notes, faire le bilan de la journée, la météo et les minuteurs.");
+    if (!AI.ready()) return say("Mon grand cerveau n'est pas branché. Mes outils marchent quand même : calculs, conversions, minuteurs, réveil, listes, notes, météo, état du PC, le point du jour et le bilan de la journée.");
     const c = data().chat || (data().chat = []);
     c.push({ role: 'user', content: String(text).slice(0, 4000), at: Date.now() });
     const think = CERVEAU.isHard(text) || /\b(reflechis|reflechis bien|en detail|explique moi|compare|analyse|code|programme|script|algorithme|calcule)\b/.test(N(text));
@@ -219,8 +220,8 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     if (a === 'web') return internet(text, arg);
     if (a === 'rappel') { if (!CONSCIENCE.addIntention(arg)) await say("Je n'ai pas compris l'heure du rappel."); else if (!spoken) await say('Rappel enregistré.'); }
     else if (a === 'note' && arg) await noter(arg);
-    else if (a === 'minuteur') await ECRAN.minuteur(arg || text);
-    else if (a === 'meteo') await ECRAN.meteo('');
+    else if (a === 'minuteur') await OUTILS.minuteur(arg ? `minuteur ${arg}` : text);
+    else if (a === 'meteo') await OUTILS.meteo(text);
     else if (a === 'enfant') sortir();
   }
 
@@ -349,6 +350,9 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     if (R.effacer.test(n)) { await effacerNotes(); return true; }
     if (R.lire.test(n)) { await lireNotes(); return true; }
     if (R.rapport.test(n)) { await CONSCIENCE.rapport(); return true; }
+    // le couteau suisse : calculs, conversions, minuteurs, listes, météo, état du PC, le point…
+    const outil = !R.web.test(n) && OUTILS.route(text, n);
+    if (outil) { await outil(); return true; }
     if (R.voir.test(n) && !R.web.test(n)) { await voir(text); return true; }
     if (R.actus.test(n) && !R.web.test(n)) {
       const sujet = (n.match(/\b(?:sur|de|du|concernant|a propos de)\s+(?:l |la |le |les )?(.+)$/) || [])[1] || '';
@@ -359,8 +363,6 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
       await internet(text, q.length > 3 ? q : text); return true;
     }
     if (R.journee.test(n) && (!S.prenom || n.includes(N(S.prenom)) || /\b(mon fils|le petit|il|sa journee)\b/.test(n)) && !AI.ready()) { await journee(); return true; }
-    if (!AI.ready() && R.meteo.test(n)) { await ECRAN.meteo(text); return true; }
-    if (!AI.ready() && R.minuteur.test(n)) { await ECRAN.minuteur(text); return true; }
     await repondre(text);
     return true;
   }

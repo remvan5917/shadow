@@ -35,6 +35,7 @@ const SYNC = (() => {
     jeuxAppris: { key: x => x.id, time: x => x.at || x.id, both: (a, b) => ((b.at || 0) > (a.at || 0) ? b : a) }, // les jeux que la famille lui a appris
     devAppris: { key: x => x.id, time: x => x.id }, // les devinettes que la famille lui a apprises
     'papa.notes': { key: x => x.id, time: x => x.id }, // les notes de papa (mode papa)
+    'papa.listes': { key: x => x.id, time: x => x.id }, // ses listes (courses, à faire…)
   };
   const SETS = ['badges'];
   const MAXMAP = ['stats', 'playLog', 'pokeCaught', 'pokeLvl', 'pokeStats', 'ensemble.victoires']; // compteurs (et Pokémon attrapés) : on garde le plus grand

@@ -185,6 +185,23 @@
     if (!(ecranOk && separe && !PAPA.on && !document.body.classList.contains('papa'))) throw new Error(`écran ${ecranOk}, séparé ${separe}, encore ouvert ${PAPA.on}`);
     return true;
   });
+  await essai('couteau suisse du mode papa : calculs, conversions, durées, listes', async () => {
+    const c = t => OUTILS.calcul(t);
+    const conv = await OUTILS.conversion('10 miles en kilomètres');
+    const ok = [
+      [c('combien font 17,5 % de 2340'), /409,5/], [c('racine de 144'), /12/], [c('2 puissance 10'), /1\s?024/], [c('combien font 12 fois 7,5 plus 3'), /93/],
+      [c('100 euros HT en TTC'), /120/], [conv, /16,09/], [String(OUTILS._duree(N('1 heure 30'))), /^5400$/], [String(OUTILS._duree(N('une demi heure'))), /^1800$/],
+      [String(c('il fait beau aujourd hui')), /^null$/],
+    ].filter(([v, re]) => !re.test(String(v)));
+    if (ok.length) throw new Error(ok.map(x => x[0]).join(' / '));
+    const papaAvant = PAPA.on; if (!papaAvant) await PAPA.entrer();
+    S.papa.listes = []; dits.length = 0;
+    await handle('ajoute du lait et des œufs aux courses');
+    const l = S.papa.listes.map(x => x.text).join(',');
+    if (!papaAvant) await PAPA.sortir('delai');
+    if (l !== 'lait,œufs') throw new Error(`liste : ${l}`);
+    return true;
+  });
   hear = hb; AI.chat = chatB; VISAGE.rire = rireB; AI.ready = readyB; window.activity = actB;
 
   // ---------- on remet tout en place ----------

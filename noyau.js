@@ -200,6 +200,7 @@ const NOYAU = (() => {
     const bt = typeof brainTimes !== 'undefined' && brainTimes.length ? brainTimes.slice(-5) : [];
     $h('hud-latence').textContent = bt.length ? `${(bt.reduce((a, b) => a + b, 0) / bt.length / 1000).toFixed(1)} s` : '—';
     $h('hud-micro').textContent = OREILLES.listening && OREILLES.listening() ? 'ACTIF' : 'VEILLE';
+    const hm = $h('hud-minuteur'); if (hm) hm.textContent = typeof OUTILS !== 'undefined' ? OUTILS.prochain() : '—';
     const met = (ECRAN.meteoFact && ECRAN.meteoFact()) || '';
     const deg = met.match(/-?\d+\s?°/);
     $h('hud-meteo').textContent = deg ? deg[0].replace(/\s/, '') : '—';
