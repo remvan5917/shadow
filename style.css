@@ -933,13 +933,6 @@ body.papa #bubble, body.papa #chips { display: none !important; }
 #papa-hud[data-etat="think"] #hud-etat { animation: hudClign 1s steps(2) infinite; }
 #papa-hud[data-etat="oops"] #hud-etat { color: #ff7a45; }
 @keyframes hudClign { 50% { opacity: .35; } }
-#hud-console { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: min(92vw, 760px); display: flex; flex-direction: column; gap: 4px; font-size: clamp(12px, 2.3vmin, 15px); line-height: 1.45; }
-#hud-console p { margin: 0; opacity: .38; transition: opacity .3s; }
-#hud-console p:last-child, #hud-console p:nth-last-child(2) { opacity: .95; }
-#hud-console p.q { color: rgba(255, 226, 181, .7); }
-#hud-console p.a { color: #fff1dc; }
-#hud-console p.sys { color: #ffb547; font-size: .85em; letter-spacing: .14em; }
-#hud-console p.tape::after { content: '▍'; margin-left: 2px; color: #ffb547; animation: hudClign .7s steps(2) infinite; }
 .hud-cadre { position: absolute; inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); pointer-events: none; }
 .hud-cadre path { fill: none; stroke: rgba(255, 181, 71, .5); stroke-width: .35; vector-effect: non-scaling-stroke; stroke-width: 1.4; }
 #papa-hud.boot .hud-coin, #papa-hud.boot .hud-panneau, #papa-hud.boot #hud-etat { animation: hudBoot 1.6s ease-out both; }
@@ -948,14 +941,13 @@ body.papa #bubble, body.papa #chips { display: none !important; }
 .board.papa-board { z-index: 8; }
 #papa-badge { white-space: nowrap; }
 @media (max-width: 560px) {
-  #papa-badge { top: auto; bottom: calc(env(safe-area-inset-bottom) + 158px); padding: 4px 4px 4px 10px; font-size: 9px; gap: 8px; opacity: .85; }
+  #papa-badge { top: auto; bottom: calc(env(safe-area-inset-bottom) + 18px); padding: 4px 4px 4px 10px; font-size: 9px; gap: 8px; opacity: .85; }
   #papa-badge button { padding: 4px 10px; font-size: 11px; }
   .hud-coin { top: 14px; font-size: 8px; } .hud-coin b { font-size: 11px; } .hud-tr b { font-size: 18px; }
   .hud-tl { left: 16px; } .hud-tr { right: 16px; }
   #noyau { top: 36%; width: min(92vw, 52vh); height: min(92vw, 52vh); }
   #hud-etat { top: calc(36% + min(46vw, 26vh) + 4px); font-size: 10px; }
-  .hud-panneau { top: auto; transform: none; bottom: calc(env(safe-area-inset-bottom) + 196px); gap: 7px; font-size: 8px; }
+  .hud-panneau { top: auto; transform: none; bottom: calc(env(safe-area-inset-bottom) + 70px); gap: 7px; font-size: 8px; }
   .hud-panneau em { font-size: 10px; }
   .hud-l { left: 16px; } .hud-r { right: 16px; }
-  #hud-console { bottom: calc(env(safe-area-inset-bottom) + 14px); width: calc(100vw - 32px); max-height: 132px; overflow: hidden; justify-content: flex-end; font-size: 12px; }
-}
+  }

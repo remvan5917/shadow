@@ -96,8 +96,11 @@ const PAPA = (() => {
     h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
     return h.replace(/\u0000(\d+)\u0000/g, (m, i) => `<div class="pcode"><button type="button" class="ghost sm" data-copy="${i}">Copier</button><pre><code>${blocs[+i]}</code></pre></div>`);
   }
-  let derniersBlocs = [];
+  let derniersBlocs = [], efface = 0;
+  // le détail s'en va tout seul (45 s), ou dès que papa parle de nouveau
+  const cacheEcran = () => { clearTimeout(efface); const b = document.getElementById('board'); if (b && !b.hidden && b.classList.contains('papa-board')) hideBoard(); };
   function ecran(titre, texte) {
+    clearTimeout(efface); efface = setTimeout(cacheEcran, 45000);
     derniersBlocs = [];
     String(texte).replace(/```[a-z0-9+-]*\n?([\s\S]*?)```/gi, (m, code) => { derniersBlocs.push(code.replace(/\n$/, '')); return m; });
     showBoard(`<div class="papa-txt">${titre ? `<h3>${esc(titre)}</h3>` : ''}${md(texte)}</div>`, 'papa-board');
@@ -231,7 +234,7 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
   async function handle(text, n) {
     if (!st.on) return false;
     st.last = Date.now();
-    NOYAU.entendu(text);
+    cacheEcran();
     // la voix de l'enfant : seulement si sa VOIX (pas la caméra) est reconnue avec certitude sur cette phrase,
     // deux phrases de suite, et pas juste après l'ouverture (c'est papa qui vient de taper le code)
     const frais = dlg.speakerAt && Date.now() - dlg.speakerAt < 5000 && dlg.speakerVoix && dlg.speakerSure;

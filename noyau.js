@@ -5,7 +5,7 @@
      une couronne de fréquences qui suit le VRAI son de sa voix (analyseur) — et ta voix quand il écoute.
    - Il réfléchit : tout s'accélère, des satellites tournent autour du cœur. Il dort : tout ralentit et s'éteint.
    - Autour, l'affichage de bord : heure, séance, cerveau (maison / nuage), temps de réponse, voix,
-     météo, notes, temps d'écran de l'enfant ; et en bas la console (ce que tu dis, ce qu'il répond).
+     météo, notes, temps d'écran de l'enfant. Pas de sous-titres.
    - Une séquence d'allumage (et son son), une extinction.
    Tout est dessiné dans le téléphone (canvas), à 60 images par seconde (30 sur un téléphone lent).
    ========================================================= */
@@ -213,31 +213,9 @@ const NOYAU = (() => {
   }
   setInterval(bord, 1000);
 
-  /* ---------- la console : ce que tu dis, ce qu'il répond (tapé au rythme de la voix) ---------- */
-  const cons = $h('hud-console');
-  let frappe = null;
-  function ligne(cls, texte, tape) {
-    if (!cons) return;
-    const der = cons.lastElementChild;
-    if (der && (der._plein || der.textContent) === String(texte)) return; // la même phrase deux fois : une seule ligne
-    const p = document.createElement('p'); p.className = cls;
-    cons.appendChild(p);
-    while (cons.children.length > 4) cons.removeChild(cons.firstChild);
-    const tx = String(texte);
-    if (!tape || lite()) { p.textContent = tx; return; }
-    let i = 0;
-    if (frappe) clearInterval(frappe);
-    // la phrase d'avant s'écrit d'un coup (on ne laisse jamais une phrase à moitié)
-    cons.querySelectorAll('p.tape').forEach(q => { if (q !== p) { q.textContent = q._plein || q.textContent; q.classList.remove('tape'); } });
-    p._plein = tx;
-    p.classList.add('tape');
-    frappe = setInterval(() => { i = Math.min(tx.length, i + 2); p.textContent = tx.slice(0, i); if (i >= tx.length) { clearInterval(frappe); frappe = null; p.classList.remove('tape'); } }, 28);
-  }
-  function entendu(t) { if (!hud.hidden && t) ligne('q', `› ${t}`); }
-  function dit(t) { if (!hud.hidden && t) ligne('a', voice.clean ? voice.clean(t) : t, true); }
-  // tout ce qu'il dit en mode papa s'écrit dans la console (les bulles d'enfant sont cachées)
-  const parler = voice.say.bind(voice);
-  voice.say = function (t) { if (typeof PAPA !== 'undefined' && PAPA.on) dit(anonymize(String(t))); return parler(t); };
+  // pas de sous-titres en mode papa (papa n'en veut pas) : rien ne s'écrit, il parle
+  function entendu() {}
+  function dit() {}
 
   /* ---------- les sons d'allumage et d'extinction ---------- */
   function son(kind) {
@@ -274,17 +252,10 @@ const NOYAU = (() => {
     hud.hidden = false; hud.classList.remove('off'); hud.classList.add('boot');
     debut = Date.now();
     taille(); bord();
-    if (cons) cons.innerHTML = '';
     boot = performance.now();
     if (!raf) raf = requestAnimationFrame(image);
     son('allume');
-    const pret = AI.ready(), loc = pret && AI.cfg && AI.cfg().local;
-    const etapes = [
-      'AUTHENTIFICATION PAPA ........ OK',
-      `NOYAU COGNITIF ........ ${!pret ? 'HORS LIGNE' : loc ? 'EN LIGNE · MAISON' : 'EN LIGNE · NUAGE'}`,
-      `SYNTHÈSE VOCALE ........ ${(VOIXMAISON.usable() ? (VOIXMAISON.papa() || 'tom') : 'téléphone').toUpperCase()}`,
-    ];
-    for (const e of etapes) { ligne('sys', e); await new Promise(r => setTimeout(r, lite() ? 120 : 380)); }
+    await new Promise(r => setTimeout(r, lite() ? 400 : 1100)); // le temps de l'allumage
     setTimeout(() => hud.classList.remove('boot'), 900);
   }
   function eteint() {
