@@ -174,6 +174,47 @@ const VISAGE = (() => {
     }
   }, 4000);
 
+  /* ---------- les yeux ne sont jamais tout à fait immobiles (micro-mouvements) ---------- */
+  (function micro() {
+    setTimeout(() => {
+      if (face.el && ['idle', 'listen', 'happy'].includes(face.state) && !face.el.classList.contains('blinking')) {
+        const jx = (Math.random() - 0.5) * 1.6, jy = (Math.random() - 0.5) * 1.2;
+        const bx = face._lx || 0, by = face._ly || 0;
+        document.querySelectorAll('#face .look').forEach(g => { g.style.transform = `translate(${(bx + jx).toFixed(2)}px, ${(by + jy).toFixed(2)}px)`; });
+      }
+      micro();
+    }, 700 + Math.random() * 1300);
+  })();
+
+  /* ---------- sa crête s'allume avec la voix de l'enfant (pendant qu'il écoute) ---------- */
+  let lvTimer = null;
+  setInterval(() => {
+    const on = face.el && face.el.classList.contains('hearing') && !document.body.classList.contains('lite');
+    if (on && !lvTimer) {
+      lvTimer = setInterval(() => {
+        const m = OREILLES.meter ? OREILLES.meter() : null;
+        if (!m || !face.el) return;
+        const lv = Math.max(0, Math.min(1, (m.level - m.noise) / Math.max(0.02, m.noise * 6 + 0.02)));
+        face.el.style.setProperty('--lv', lv.toFixed(2));
+      }, 80);
+    } else if (!on && lvTimer) { clearInterval(lvTimer); lvTimer = null; if (face.el) face.el.style.setProperty('--lv', '0'); }
+  }, 300);
+
+  /* ---------- téléphone trop lent ? on allège le visage tout seul ---------- */
+  function probe() {
+    if (!window.requestAnimationFrame) return;
+    let n = 0, t0 = 0;
+    const step = t => {
+      if (!t0) t0 = t;
+      if (++n < 90) return requestAnimationFrame(step);
+      const fps = 1000 * n / (t - t0);
+      if (fps < 22) document.body.classList.add('lite');
+      VISAGE.fps = Math.round(fps);
+    };
+    requestAnimationFrame(step);
+  }
+  setTimeout(probe, 6000);
+
   /* ---------- les chatouilles ---------- */
   let taps = [], lastTickle = 0;
   function tapped() {

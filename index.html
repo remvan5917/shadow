@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '43';
+      window.SHADOW_VERSION = '44';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -46,6 +46,7 @@
     <div id="stage">
       <!-- Le visage de Shadow, d'après le dessin de son inventeur. C'est tout ce qu'il y a à l'écran. -->
       <div id="face-wrap">
+        <div id="aura" aria-hidden="true"></div>
         <svg id="face" class="face idle" viewBox="0 0 320 232" role="img" aria-label="Le visage de Shadow">
           <defs>
             <clipPath id="eye-in"><rect x="54" y="50" width="52" height="48" rx="3"/></clipPath>
@@ -164,6 +165,10 @@
                 <g class="m-o"><ellipse cx="160" cy="184" rx="16" ry="19"/></g>
                 <path class="m-sad" d="M124 198 Q160 172 196 198"/>
               </g>
+              <!-- quand il dort : un ciel étoilé sur son écran -->
+              <g class="stars"><circle cx="126" cy="80" r="1.5" style="animation-delay:2.6s"/><circle cx="62" cy="179" r="0.8" style="animation-delay:1.5s"/><circle cx="58" cy="171" r="1" style="animation-delay:0.1s"/><circle cx="155" cy="149" r="0.8" style="animation-delay:1.0s"/><circle cx="185" cy="150" r="0.8" style="animation-delay:3.3s"/><circle cx="75" cy="99" r="0.8" style="animation-delay:2.3s"/><circle cx="145" cy="54" r="1" style="animation-delay:0.2s"/><circle cx="263" cy="76" r="1.2" style="animation-delay:1.7s"/><circle cx="182" cy="72" r="1.2" style="animation-delay:2.2s"/><circle cx="218" cy="88" r="0.8" style="animation-delay:2.3s"/><circle cx="207" cy="90" r="1.2" style="animation-delay:0.4s"/><circle cx="226" cy="58" r="0.8" style="animation-delay:2.5s"/><circle cx="171" cy="178" r="1.5" style="animation-delay:3.1s"/><circle cx="163" cy="191" r="1.5" style="animation-delay:1.4s"/><circle cx="107" cy="88" r="1" style="animation-delay:0.3s"/><circle cx="120" cy="176" r="1.5" style="animation-delay:3.5s"/><circle cx="230" cy="156" r="1.2" style="animation-delay:2.4s"/><circle cx="62" cy="72" r="1.5" style="animation-delay:0.7s"/></g>
+              <!-- son nom gravé sur le métal -->
+              <g class="plate"><rect class="plate-bg" x="128" y="213.6" width="64" height="6.8" rx="2"/><text class="plate-txt" x="160" y="218.9" text-anchor="middle">SHADOW · S-01</text></g>
               <!-- l'affichage d'état (discret) : batterie, cerveau, micro -->
               <g class="hud">
                 <rect class="hud-bat" x="44" y="199" width="15" height="7" rx="1.5"/><rect class="hud-bat-tip" x="59.6" y="201" width="1.6" height="3"/>
@@ -181,7 +186,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v43</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v44</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>

@@ -78,17 +78,20 @@ const face = {
     this.state = st;
     this.el.classList.remove.apply(this.el.classList, this.MOODS);
     this.el.classList.add(st);
+    if (this.el.parentNode) this.el.parentNode.setAttribute('data-mood', st); // le halo prend la couleur de l'émotion
     if (st !== this._lastBody) { this._lastBody = st; CORPS.mood(st); } // les lumières du corps suivent l'émotion
     this.look(0, 0);
   },
   talk(on) { this.el.classList.toggle('talk', on); },
   look(dx, dy) {
+    this._lx = dx; this._ly = dy; // le regard « de base » (les micro-mouvements s'y ajoutent)
     $$('#face .look').forEach(g => { g.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : ''; });
     // la tête suit un peu le regard (en 3D), et le reflet sur la vitre glisse dans l'autre sens
     if (this.el) {
       this.el.style.setProperty('--ry', `${(dx * 0.45).toFixed(2)}deg`);
       this.el.style.setProperty('--rx', `${(-dy * 0.5).toFixed(2)}deg`);
       this.el.style.setProperty('--sx', `${(-dx * 0.9).toFixed(1)}px`);
+      this.el.style.setProperty('--gx', `${(-dx * 0.25).toFixed(2)}px`);
     }
   },
   // petit moment d'émotion, puis retour à l'expression d'avant
@@ -1549,7 +1552,7 @@ function reportText() {
     `Rapport Shadow v${window.SHADOW_VERSION} — ${new Date().toLocaleString('fr-FR')}`,
     `Navigateur : ${navigator.userAgent}`,
     `Mode vieux téléphone : ${LEGACY} · réseau : ${navigator.onLine === false ? 'hors ligne' : 'en ligne'} · oreilles : ${OREILLES.engine()} · yeux : ${VISION.isOn() ? `ouverts (${VISION.cost()} ms/image)` : 'fermés'}`,
-    `Temps moyens : oreilles ${avg(OREILLES.timings()) || '?'} ms · cerveau (1re phrase) ${avg(brainTimes) || '?'} ms`,
+    `Temps moyens : oreilles ${avg(OREILLES.timings()) || '?'} ms · cerveau (1re phrase) ${avg(brainTimes) || '?'} ms · cerveau utilisé : ${AI.ready() ? (AI.cfg().local ? 'maison' : 'Groq') : 'mini'} · visage : ${VISAGE.fps || '?'} images/s${document.body.classList.contains('lite') ? ' (allégé)' : ''}`,
     `Dernière erreur du cerveau : ${S.lastBrainError ? `${S.lastBrainError.msg} (${new Date(S.lastBrainError.at).toLocaleString('fr-FR')})` : 'aucune'}${crash ? ` · plantage détecté : ${crash}` : ''}`,
     `Auto-test : ${Object.keys(diag).length ? Object.entries(diag).map(([k, v]) => `${k} = ${v}`).join(' | ') : 'pas lancé'}`,
     `Réglages : ${JSON.stringify(s)}`,

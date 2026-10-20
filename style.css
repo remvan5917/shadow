@@ -776,3 +776,41 @@ body.robot .bubble.alert { background: rgba(4, 14, 30, .96); color: #8ff0ff; }
   #face-wrap { animation: none; }
   .face.boot .sweep, .face.boot .screen, .face.boot .blink, .face.boot .crest, .face.boot .crest-core { animation: none; }
 }
+
+/* =========================================================
+   v44 — encore plus vivant
+   ========================================================= */
+/* le halo de lumière derrière sa tête, de la couleur de son émotion */
+#face-wrap { isolation: isolate; }
+#aura { position: absolute; left: -18%; right: -18%; top: -22%; bottom: -22%; z-index: -2; pointer-events: none;
+  color: #4c8dff; background: radial-gradient(closest-side, currentColor, rgba(0, 0, 0, 0)); opacity: .32; transition: color .8s, opacity .8s; }
+#face-wrap[data-mood="happy"] #aura, #face-wrap[data-mood="laugh"] #aura { color: #3ddc84; }
+#face-wrap[data-mood="oops"] #aura { color: #ff9f1c; }
+#face-wrap[data-mood="think"] #aura, #face-wrap[data-mood="confused"] #aura { color: #b18cff; }
+#face-wrap[data-mood="listen"] #aura { color: #5fe1ff; }
+#face-wrap[data-mood="sad"] #aura { color: #7d8bd9; opacity: .15; }
+#face-wrap[data-mood="love"] #aura, #face-wrap[data-mood="shy"] #aura { color: #ff6fa8; }
+#face-wrap[data-mood="proud"] #aura { color: #ffd84d; opacity: .28; }
+#face-wrap[data-mood="surprise"] #aura { color: #bff6ff; opacity: .3; }
+#face-wrap[data-mood="calm"] #aura { color: #4fd1c5; opacity: .16; }
+#face-wrap[data-mood="sleep"] #aura, #face-wrap[data-mood="sleepy"] #aura { color: #2a3a7a; opacity: .12; }
+/* il écoute vraiment : petits hochements de tête, et sa crête s'allume avec la voix de l'enfant */
+.face .head { transform-box: fill-box; transform-origin: 50% 100%; }
+.face.hearing .head { animation: nod 1.4s ease-in-out infinite; }
+@keyframes nod { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(1.6px) scaleY(.992); } }
+.face.hearing .crest { animation: none; stroke-width: calc(4.5px + var(--lv, 0) * 5px); opacity: calc(.55 + var(--lv, 0) * .45); transition: stroke-width .08s, opacity .08s; }
+.face.listen .pupil { transform: scale(1.05); } /* les pupilles s'ouvrent un peu quand il écoute */
+/* le reflet des yeux bouge avec la tête */
+.face .glint { transform: translateX(var(--gx, 0px)); transition: transform .7s cubic-bezier(.2, .8, .2, 1); }
+/* son nom gravé */
+.face .plate-bg { fill: #0b1226; stroke: #6f7fa8; stroke-width: .5; stroke-opacity: .6; }
+.face .plate-txt { font: 700 4.4px Andika, sans-serif; letter-spacing: .9px; fill: #9fb0d9; opacity: .8; }
+/* le ciel étoilé quand il dort */
+.face .stars circle { fill: #cfe0ff; opacity: 0; }
+.face.sleep .stars circle { animation: twinkle 4s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .08; } 50% { opacity: .75; } }
+/* téléphone lent : on coupe les effets les plus lourds */
+body.lite #face-wrap { animation: none; }
+body.lite .face .scan, body.lite .face .pix, body.lite #aura { display: none; }
+body.lite .face.hearing .head, body.lite .face.sleep .stars circle { animation: none; }
+@media (prefers-reduced-motion: reduce) { .face.hearing .head, .face.sleep .stars circle { animation: none; } }
