@@ -25,7 +25,8 @@ const VISAGE = (() => {
     if (/[fv]/.test(c)) return 'F';
     return 'E';
   }
-  let tl = null, tick = null;
+  let tl = null, tick = null, bars = [];
+  setTimeout(() => { bars = [...document.querySelectorAll('#face .vbar')]; }, 0);
   // il calcule à l'avance quand chaque lettre sera dite (avec de petites pauses aux virgules et aux points)
   function speak(text, rate) {
     quiet();
@@ -50,7 +51,13 @@ const VISAGE = (() => {
       while (i < tl.at.length - 1 && tl.at[i + 1] <= now) i++;
       const v = now > ms + 200 ? 'X' : shape(tl.t, i);
       if (v !== last) { last = v; face.el.setAttribute('data-vis', v); }
-    }, 45);
+      // les barres de la voix : hautes sur les voyelles ouvertes, basses sur les « m », plates dans les silences
+      const open = { A: 1, O: 0.85, E: 0.65, I: 0.55, F: 0.4, M: 0.2, X: 0.08 }[v] || 0.5;
+      for (let k = 0; k < bars.length; k++) {
+        const mid = 1 - Math.abs(k - (bars.length - 1) / 2) / bars.length; // plus haut au centre
+        bars[k].style.transform = `scaleY(${Math.max(0.08, open * mid * (0.55 + Math.random() * 0.6)).toFixed(2)})`;
+      }
+    }, 70);
   }
   // le navigateur dit « je commence le mot n° charIndex » : on se recale dessus
   function sync(charIndex) {
@@ -59,6 +66,7 @@ const VISAGE = (() => {
   }
   function quiet() {
     clearInterval(tick); tick = null; tl = null;
+    bars.forEach(b => { b.style.transform = ''; });
     if (face.el) { face.el.classList.remove('vis'); face.el.removeAttribute('data-vis'); }
   }
 
@@ -137,6 +145,35 @@ const VISAGE = (() => {
     else if (g === 'look' && !VISION.state.main) { face.look(-9, -2); setTimeout(() => face.look(9, -2), 700); setTimeout(() => face.look(0, 0), 1400); }
   }, 3000);
 
+  /* ---------- l'allumage : écran, ligne de lumière, yeux, crête, petit carillon ---------- */
+  let booting = 0;
+  function boot() {
+    if (!face.el || Date.now() - booting < 4000) return;
+    booting = Date.now();
+    face.el.classList.remove('boot');
+    void face.el.getBoundingClientRect(); // relance l'animation
+    face.el.classList.add('boot');
+    setTimeout(() => { if (face.el) face.el.classList.remove('boot'); }, 2000);
+    setTimeout(() => fx.tone([[523, 0.09], [784, 0.09], [1047, 0.12], [1568, 0.28]]), 350);
+  }
+
+  /* ---------- l'affichage d'état : batterie, cerveau (maison / nuage / mini), micro ---------- */
+  setInterval(() => {
+    if (!face.el) return;
+    const fill = face.el.querySelector('.hud-bat-fill'), brain = face.el.querySelector('.hud-brain');
+    const b = typeof CONSCIENCE !== 'undefined' ? CONSCIENCE.battery() : null;
+    if (fill) {
+      const lvl = b && b.level !== null ? b.level : null;
+      fill.style.transform = `scaleX(${lvl === null ? 1 : Math.max(0.05, lvl / 100)})`;
+      fill.classList.toggle('low', lvl !== null && lvl <= 20);
+      face.el.querySelector('.hud-bat').style.opacity = lvl === null ? '.35' : '1';
+    }
+    if (brain) {
+      const c = AI.ready() ? (AI.cfg().local ? 'maison' : 'nuage') : 'mini';
+      brain.setAttribute('class', `hud-brain ${c}`);
+    }
+  }, 4000);
+
   /* ---------- les chatouilles ---------- */
   let taps = [], lastTickle = 0;
   function tapped() {
@@ -156,5 +193,5 @@ const VISAGE = (() => {
     return true;
   }
 
-  return { speak, sync, quiet, puff, react, tapped };
+  return { speak, sync, quiet, puff, react, tapped, boot };
 })();

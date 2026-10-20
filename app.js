@@ -82,7 +82,15 @@ const face = {
     this.look(0, 0);
   },
   talk(on) { this.el.classList.toggle('talk', on); },
-  look(dx, dy) { $$('#face .look').forEach(g => { g.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : ''; }); },
+  look(dx, dy) {
+    $$('#face .look').forEach(g => { g.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : ''; });
+    // la tête suit un peu le regard (en 3D), et le reflet sur la vitre glisse dans l'autre sens
+    if (this.el) {
+      this.el.style.setProperty('--ry', `${(dx * 0.45).toFixed(2)}deg`);
+      this.el.style.setProperty('--rx', `${(-dy * 0.5).toFixed(2)}deg`);
+      this.el.style.setProperty('--sx', `${(-dx * 0.9).toFixed(1)}px`);
+    }
+  },
   // petit moment d'émotion, puis retour à l'expression d'avant
   flash(st, ms = 1800) {
     const back = this.state === st ? 'idle' : this.state;
@@ -532,6 +540,7 @@ function toStandby() {
 }
 function wake(who) {
   if (dlg.state !== 'sleep') return;
+  VISAGE.boot(); // il s'allume, comme un vrai robot
   if (limitReached()) { // temps de jeu du jour fini : il reste endormi
     if (Date.now() - (dlg.limitSaidAt || 0) > 120000) { dlg.limitSaidAt = Date.now(); say(`On a bien joué aujourd'hui, ${name()} ! On se retrouve demain.`).then(() => face.set('sleep')); }
     return;

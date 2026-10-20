@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '42';
+      window.SHADOW_VERSION = '43';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -82,6 +82,16 @@
             <linearGradient id="g-shine" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stop-color="#ffffff" stop-opacity=".09"/><stop offset=".6" stop-color="#ffffff" stop-opacity="0"/>
             </linearGradient>
+            <radialGradient id="g-core" cx="50%" cy="45%" r="55%">
+              <stop offset="0" stop-color="#ffffff" stop-opacity=".85"/><stop offset=".45" stop-color="#ffffff" stop-opacity=".25"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="g-sweep" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#8ff0ff" stop-opacity="0"/><stop offset=".7" stop-color="#8ff0ff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity=".9"/>
+            </linearGradient>
+            <linearGradient id="g-scanbar" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".7"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+            </linearGradient>
+            <clipPath id="mouth-in"><path d="M92 166 H228 Q222 210 160 212 Q98 210 92 166 Z"/></clipPath>
             <!-- les lignes de balayage de l'écran, et les pixels des yeux -->
             <pattern id="p-scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1.2" fill="#ffffff" fill-opacity=".035"/></pattern>
             <pattern id="p-pix" width="3" height="3" patternUnits="userSpaceOnUse"><path d="M0 0H3V3" fill="none" stroke="#000" stroke-opacity=".38" stroke-width=".8"/></pattern>
@@ -112,11 +122,12 @@
                 <rect class="eye-glass" x="54" y="50" width="52" height="48" rx="3"/>
                 <g clip-path="url(#eye-in)"><g class="look"><g class="blink">
                   <rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/>
+                  <rect class="pupil core" x="68" y="56" width="24" height="36" rx="3"/>
                   <path class="e-joy" d="M66 82 Q80 60 94 82" filter="url(#glow)"/>
                   <path class="e-heart" d="M80 90 C60 77 61 58 73 59 C77 59.5 79.5 62 80 65 C80.5 62 83 59.5 87 59 C99 58 100 77 80 90 Z" filter="url(#glow)"/>
                   <rect class="lid lid-top" x="58" y="34" width="44" height="22"/>
                   <rect class="lid lid-bot" x="58" y="92" width="44" height="22" rx="12"/>
-                </g></g></g>
+                </g></g><rect class="scanbar" x="54" y="50" width="12" height="48"/></g>
                 <rect class="pix" x="54" y="50" width="52" height="48" fill="url(#p-pix)"/>
                 <path class="glint" d="M56 52 H74 L62 64 H56 Z"/>
               </g>
@@ -126,11 +137,12 @@
                 <rect class="eye-glass" x="54" y="50" width="52" height="48" rx="3"/>
                 <g clip-path="url(#eye-in)"><g class="look"><g class="blink">
                   <rect class="pupil" x="68" y="56" width="24" height="36" rx="3" filter="url(#glow)"/>
+                  <rect class="pupil core" x="68" y="56" width="24" height="36" rx="3"/>
                   <path class="e-joy" d="M66 82 Q80 60 94 82" filter="url(#glow)"/>
                   <path class="e-heart" d="M80 90 C60 77 61 58 73 59 C77 59.5 79.5 62 80 65 C80.5 62 83 59.5 87 59 C99 58 100 77 80 90 Z" filter="url(#glow)"/>
                   <rect class="lid lid-top" x="58" y="34" width="44" height="22"/>
                   <rect class="lid lid-bot" x="58" y="92" width="44" height="22" rx="12"/>
-                </g></g></g>
+                </g></g><rect class="scanbar" x="54" y="50" width="12" height="48"/></g>
                 <rect class="pix" x="54" y="50" width="52" height="48" fill="url(#p-pix)"/>
                 <path class="glint" d="M56 52 H74 L62 64 H56 Z"/>
               </g>
@@ -143,6 +155,7 @@
               <g class="mouth">
                 <g class="m-grin">
                   <path class="m-in" d="M92 166 H228 Q222 210 160 212 Q98 210 92 166 Z"/>
+                  <g class="vbars" clip-path="url(#mouth-in)"><rect class="vbar" x="100" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="111" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="122" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="133" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="144" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="155" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="166" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="177" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="188" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="199" y="176" width="6" height="34" rx="2"/><rect class="vbar" x="210" y="176" width="6" height="34" rx="2"/></g>
                   <path class="teeth" d="M96 166 L104 186 L112 167 L120 192 L128 168 L136 196 L144 168 L152 198 L160 168 L168 198 L176 168 L184 196 L192 168 L200 192 L208 167 L216 186 L224 166 Z"/>
                   <path class="lip-glow" d="M90 166 H230"/>
                   <path class="lip" d="M90 166 H230"/>
@@ -151,6 +164,14 @@
                 <g class="m-o"><ellipse cx="160" cy="184" rx="16" ry="19"/></g>
                 <path class="m-sad" d="M124 198 Q160 172 196 198"/>
               </g>
+              <!-- l'affichage d'état (discret) : batterie, cerveau, micro -->
+              <g class="hud">
+                <rect class="hud-bat" x="44" y="199" width="15" height="7" rx="1.5"/><rect class="hud-bat-tip" x="59.6" y="201" width="1.6" height="3"/>
+                <rect class="hud-bat-fill" x="45.3" y="200.3" width="12.4" height="4.4" rx=".8"/>
+                <circle class="hud-mic" cx="265" cy="202.5" r="2.4"/><circle class="hud-brain" cx="274" cy="202.5" r="2.4"/>
+              </g>
+              <!-- la ligne de lumière de l'allumage -->
+              <rect class="sweep" x="34" y="30" width="252" height="14"/>
               <!-- un reflet sur le verre -->
               <path class="shine" d="M60 36 H112 L64 212 H34 V118 Z"/>
             </g>
@@ -160,7 +181,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v42</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v43</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>

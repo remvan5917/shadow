@@ -729,3 +729,50 @@ body.robot .bubble.alert { background: rgba(4, 14, 30, .96); color: #8ff0ff; }
 .face .crest-core { fill: none; stroke: #ffffff; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
 .face.sleep .crest-core { opacity: .15; }
 .face.sleep .screen { fill: #050a1c; }
+
+/* =========================================================
+   v43 — présence de robot de pointe
+   ========================================================= */
+/* la tête en 3D : elle se tourne un peu vers ce qu'il regarde, et oscille doucement quand il attend */
+#face-wrap { perspective: 900px; }
+#face { transform: rotateY(var(--ry, 0deg)) rotateX(var(--rx, 0deg)); transition: transform .7s cubic-bezier(.2, .8, .2, 1); will-change: transform; }
+#face-wrap { animation: sway 12s ease-in-out infinite; } /* écrit à l'ancienne (Chrome 101 du Xperia) */
+@keyframes sway { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-2px) rotate(.6deg); } }
+.face .shine { transform: translateX(var(--sx, 0px)); transition: transform .7s cubic-bezier(.2, .8, .2, 1); }
+/* les yeux : un cœur de LED blanc et chaud */
+.face .pupil.core { fill: url(#g-core); filter: none; opacity: .9; }
+.face.sleep .pupil.core { opacity: .2; }
+/* il réfléchit : une barre de lumière balaie ses yeux */
+.face .scanbar { fill: url(#g-scanbar); opacity: 0; transform-box: fill-box; }
+.face.think .scanbar { opacity: .5; animation: scanbar 1.15s ease-in-out infinite alternate; }
+@keyframes scanbar { from { transform: translateX(-6px); } to { transform: translateX(46px); } }
+/* sa voix se voit : des barres bleues au fond de la bouche */
+.face .vbar { fill: var(--blue); opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(.12); transition: transform .09s linear, opacity .2s; }
+.face.talk .vbar { opacity: .8; }
+/* l'affichage d'état, très discret */
+.face .hud { opacity: .55; pointer-events: none; }
+.face .hud-bat { fill: none; stroke: #9fb0d9; stroke-width: 1; }
+.face .hud-bat-tip { fill: #9fb0d9; }
+.face .hud-bat-fill { fill: var(--ok); transform-box: fill-box; transform-origin: 0 50%; transition: transform 1s; }
+.face .hud-bat-fill.low { fill: var(--warn); }
+.face .hud-mic, .face .hud-brain { fill: #2b3a66; transition: fill .3s; }
+.face.hearing .hud-mic, .face.listen .hud-mic { fill: #8ff0ff; }
+.face .hud-brain.maison { fill: #59c8ff; }
+.face .hud-brain.nuage { fill: #b18cff; }
+.face .hud-brain.mini { fill: #ff9f1c; }
+/* l'allumage : l'écran s'allume, une ligne de lumière descend, les yeux s'ouvrent, la crête se dessine */
+.face .sweep { fill: url(#g-sweep); opacity: 0; pointer-events: none; transform-box: fill-box; }
+.face.boot .sweep { animation: sweep 1s .1s ease-in both; }
+@keyframes sweep { 0% { opacity: 0; transform: translateY(0); } 15% { opacity: 1; } 85% { opacity: .9; } 100% { opacity: 0; transform: translateY(180px); } }
+.face.boot .screen { animation: bootScreen .9s steps(1, end) both; }
+@keyframes bootScreen { 0% { opacity: .15; } 20% { opacity: .7; } 30% { opacity: .25; } 45% { opacity: 1; } 100% { opacity: 1; } }
+.face.boot .blink { animation: bootEyes .8s .55s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes bootEyes { from { transform: scaleY(.04); } to { transform: scaleY(1); } }
+.face.boot .crest, .face.boot .crest-core { stroke-dasharray: 260; animation: crestDraw .9s .35s ease-out both; }
+@keyframes crestDraw { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
+.face.boot .lip, .face.boot .lip-glow, .face.boot .lip-core, .face.boot .hud { animation: bootFade .5s .9s ease-out both; }
+@keyframes bootFade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #face-wrap { animation: none; }
+  .face.boot .sweep, .face.boot .screen, .face.boot .blink, .face.boot .crest, .face.boot .crest-core { animation: none; }
+}
