@@ -12,12 +12,16 @@ const VISION = (() => {
   const LIB = `https://cdn.jsdelivr.net/npm/@vladmandic/face-api@${VER}/dist/face-api.js`;
   const MODELS = `https://cdn.jsdelivr.net/npm/@vladmandic/face-api@${VER}/model`;
   const MATCH = 0.5; // distance max pour dire « c'est la même personne »
+  const MARGIN = 0.05; // et la 2e personne la plus proche doit être nettement plus loin (sinon : on ne sait pas)
+  const HIRES = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent); // ordinateur : image plus nette (visages de plus loin)
   // Reconnaissance des objets (MediaPipe, sur l'appareil aussi)
   const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1';
   const OD_MODEL = 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite';
   let od = null, odLoading = null;
 
   let api = null, video = null, stream = null, on = false, loading = null, timer = null, frame = 0, opts = null, capturing = false;
+  let ssd = null, ssdSlow = 0; // détecteur précis, abandonné s'il est trop lent sur cet appareil
+  const aopts = () => (ssd && ssdSlow < 3 ? ssd : opts);
   // Image éclaircie quand la pièce est sombre (les visages sont alors bien mieux trouvés)
   const probe = document.createElement('canvas'), work = document.createElement('canvas');
   probe.width = 32; probe.height = 24;
@@ -96,11 +100,15 @@ const VISION = (() => {
     await api.tf.ready();
     await Promise.all([
       api.nets.tinyFaceDetector.loadFromUri(MODELS),
-      api.nets.faceLandmark68TinyNet.loadFromUri(MODELS),
+      api.nets.faceLandmark68Net.loadFromUri(MODELS), // les repères complets : le visage est mieux aligné, l'empreinte plus fiable
       api.nets.faceRecognitionNet.loadFromUri(MODELS),
       api.nets.faceExpressionNet.loadFromUri(MODELS),
     ]);
     opts = new api.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.38 });
+    // le détecteur précis (trouve les visages plus loin ou un peu tournés) : seulement si l'appareil est assez rapide
+    if (!(typeof LEGACY !== 'undefined' && LEGACY)) {
+      try { await api.nets.ssdMobilenetv1.loadFromUri(MODELS); ssd = new api.SsdMobilenetv1Options({ minConfidence: 0.45, maxResults: 4 }); } catch (e) { ssd = null; }
+    }
   }
 
   let withObjects = true;
@@ -111,7 +119,7 @@ const VISION = (() => {
     loading = loading || load().catch(e => { loading = null; throw e; });
     await loading;
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false,
+      video: { facingMode: 'user', width: { ideal: HIRES ? 1280 : 640 }, height: { ideal: HIRES ? 720 : 480 } }, audio: false,
     });
     video.srcObject = stream;
     await video.play().catch(() => {});
@@ -162,23 +170,58 @@ const VISION = (() => {
   }
   async function analyse() {
     const src = source();
-    const res = await api.detectAllFaces(src, opts).withFaceLandmarks(true).withFaceDescriptors().withFaceExpressions();
+    const ta = performance.now();
+    const res = await api.detectAllFaces(src, aopts()).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
+    if (aopts() === ssd && performance.now() - ta > 900) ssdSlow++; // trop lent ici : on reprendra le détecteur rapide
     // personne de vu depuis un moment : on vérifie le sens de l'image ; sinon, une petite vérification de temps en temps
     if (!res.length) { if (++empty >= 4) await findRotation(); }
     else { empty = 0; if (performance.now() - lastRotTry > 45000) await findRotation(true); }
+    const W = src.videoWidth || src.width || 640;
     state.faces = res.map(r => {
-      const m = best(r.descriptor);
-      // Il continue d'apprendre les visages qu'il reconnaît bien (autre lumière, autre coiffure…)
-      if (m && m.dist < 0.42 && !capturing) learnMore(m.id, r.descriptor);
+      const m = match(r.descriptor);
+      // un visage trop petit (loin) ou flou donne une empreinte peu fiable : on ne décide pas avec
+      const good = r.detection.score >= 0.6 && r.detection.box.width >= W * 0.11;
+      const sure = !!(m && good && m.dist < MATCH && m.margin >= MARGIN);
       return {
-        box: r.detection.box,
-        name: m && m.dist < MATCH ? m.name : null,
+        box: r.detection.box, desc: r.descriptor, m, good,
+        name: sure ? m.name : null,
+        dist: m ? +m.dist.toFixed(3) : null,
         expr: topExpr(r.expressions),
         area: r.detection.box.width * r.detection.box.height,
       };
     }).sort((a, b) => b.area - a.area);
+    // le visage principal : on vote sur les dernières images (un seul mauvais cliché ne change plus le nom)
+    const main = state.faces[0];
+    const now = performance.now();
+    votes = votes.filter(v => now - v.at < 5000);
+    if (main) {
+      if (main.good) votes.push({ name: main.name || '?', at: now });
+      const count = {};
+      votes.slice(-4).forEach(v => { count[v.name] = (count[v.name] || 0) + 1; });
+      const top = Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+      if (top && top !== '?' && count[top] >= 2) stable = { name: top, at: now };
+      else if (top === '?' && count[top] >= 3) stable = null;
+      // il garde le nom tant qu'il suit le même visage (même si une image est floue)
+      main.name = stable && now - stable.at < 4000 ? stable.name : main.name;
+      // Il continue d'apprendre les visages qu'il reconnaît très bien (autre lumière, autre coiffure…), sans jamais mélanger
+      if (main.m && main.good && stable && main.m.name === stable.name && main.m.dist < 0.38 && main.m.margin >= 0.1 && !capturing) learnMore(main.m.id, main.desc);
+    } else stable = null;
+    state.faces.forEach(f => { delete f.desc; delete f.m; });
     setMain(state.faces[0] && state.faces[0].box, src);
     emit('people', state.faces);
+  }
+  let votes = [], stable = null;
+  // la distance à chaque personne = la moyenne de ses 3 « photos mentales » les plus proches (plus fiable qu'une seule)
+  function match(desc) {
+    const sc = [];
+    for (const p of S.people || []) {
+      if (!p.desc || !p.desc.length) continue;
+      const ds = p.desc.map(d => api.euclideanDistance(desc, d)).sort((a, b) => a - b).slice(0, 3);
+      sc.push({ name: p.name, id: p.id, dist: ds.reduce((a, b) => a + b, 0) / ds.length });
+    }
+    if (!sc.length) return null;
+    sc.sort((a, b) => a.dist - b.dist);
+    return Object.assign({}, sc[0], { margin: sc[1] ? sc[1].dist - sc[0].dist : 1 });
   }
   function learnMore(id, desc) {
     const p = (S.people || []).find(x => x.id === id);
@@ -186,18 +229,8 @@ const VISION = (() => {
     if (!p || now - (learnAt[id] || 0) < 120000) return; // au plus une nouvelle « photo mentale » toutes les 2 minutes
     learnAt[id] = now;
     p.desc.push(Array.from(desc, x => Math.round(x * 1e4) / 1e4));
-    if (p.desc.length > 24) p.desc.splice(5, 1); // on garde les 5 premières (celles de « faire connaissance »)
+    if (p.desc.length > 40) p.desc.splice(12, 1); // on garde les 12 premières (celles de « faire connaissance »)
     save();
-  }
-  function best(desc) {
-    let m = null;
-    for (const p of S.people || []) {
-      for (const d of p.desc) {
-        const dist = api.euclideanDistance(desc, d);
-        if (!m || dist < m.dist) m = { name: p.name, id: p.id, dist };
-      }
-    }
-    return m;
   }
   function topExpr(e) {
     let k = 'neutral', v = 0;
@@ -206,18 +239,25 @@ const VISION = (() => {
   }
 
   // Prend n « photos mentales » du seul visage devant la caméra
-  async function capture(n = 5, timeoutMs = 9000) {
+  // (seulement des images nettes, d'un visage assez grand : sinon l'empreinte serait mauvaise)
+  async function capture(n = 5, timeoutMs = 9000, { allowFew = false } = {}) {
     capturing = true;
     try {
       const out = [];
+      let small = 0;
       const t0 = Date.now();
       while (out.length < n && Date.now() - t0 < timeoutMs) {
-        const res = video.videoWidth ? await api.detectAllFaces(source(), opts).withFaceLandmarks(true).withFaceDescriptors() : [];
+        const src = source();
+        const res = video.videoWidth ? await api.detectAllFaces(src, aopts()).withFaceLandmarks().withFaceDescriptors() : [];
         if (res.length > 1) throw new Error('several');
-        if (res.length === 1) out.push(Array.from(res[0].descriptor, x => Math.round(x * 1e4) / 1e4));
-        await new Promise(r => setTimeout(r, 350));
+        const W = src.videoWidth || src.width || 640;
+        if (res.length === 1) {
+          if (res[0].detection.score >= 0.6 && res[0].detection.box.width >= W * 0.14) out.push(Array.from(res[0].descriptor, x => Math.round(x * 1e4) / 1e4));
+          else small++;
+        }
+        await new Promise(r => setTimeout(r, 300));
       }
-      if (out.length < n) throw new Error('none');
+      if (out.length < n && !allowFew) { const e = new Error(small > 2 ? 'small' : 'none'); e.got = out; throw e; }
       return out;
     } finally {
       capturing = false;
@@ -225,9 +265,14 @@ const VISION = (() => {
   }
   // À qui ressemblent ces empreintes ? (nom ou null)
   function identify(descs) {
-    let m = null;
-    for (const d of descs) { const b = best(d); if (b && (!m || b.dist < m.dist)) m = b; }
-    return m && m.dist < MATCH ? m.name : null;
+    const votes2 = {};
+    for (const d of descs) { const b = match(d); if (b && b.dist < MATCH && b.margin >= MARGIN) votes2[b.name] = (votes2[b.name] || 0) + 1; }
+    const top = Object.keys(votes2).sort((a, b) => votes2[b] - votes2[a])[0];
+    return top && votes2[top] >= Math.ceil(descs.length / 2) ? top : null; // au moins la moitié des images d'accord
+  }
+  // pour le diagnostic de papa : qui il voit, et à quel point il est sûr
+  function diag() {
+    return { faces: state.faces.map(f => ({ name: f.name, dist: f.dist, good: f.good })), precis: !!(ssd && ssdSlow < 3), hires: HIRES, people: (S.people || []).map(p => ({ name: p.name, n: p.desc.length })) };
   }
 
   /* ---------- les objets ---------- */
@@ -372,7 +417,7 @@ const VISION = (() => {
     preload,
     objects, snapshot, hands, pose, poseTest, colorAt, colorName,
     supported: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
-    start, stop, capture, identify, state,
+    start, stop, capture, identify, state, diag,
     isOn: () => on,
     cost: () => Math.round(cost),
     isLoading: () => !!loading && !api,

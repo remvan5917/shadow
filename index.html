@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '47';
+      window.SHADOW_VERSION = '48';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -192,7 +192,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v47</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v48</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -311,6 +311,8 @@
         <label class="check"><input id="s-see-cloud" type="checkbox"> Vision détaillée : quand on lui demande « qu'est-ce que tu vois ? », une photo est envoyée à Groq pour la décrire</label>
         <label>Modèle de vision Groq <input id="s-vision-model" type="text" autocomplete="off"></label>
         <div id="s-people" class="people"></div>
+        <p id="s-vision-live" class="small"></p>
+        <p class="small muted">Pour qu'il reconnaisse bien quelqu'un : la personne dit « on fait connaissance », seule devant lui, à un bras de distance, avec de la lumière. Plus elle le refait (autre jour, autre lumière), mieux il la reconnaît.</p>
       </fieldset>
       <fieldset>
         <legend>🎙️ Les voix</legend>

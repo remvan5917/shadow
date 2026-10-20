@@ -1454,16 +1454,22 @@ function cleanName(t) {
 async function meetFlow() {
   if (!(await needEyes())) return;
   face.set('happy');
-  await say('Super, on fait connaissance ! Mets-toi bien en face de moi, tout seul. Regarde-moi, puis tourne doucement la tête un peu à gauche et un peu à droite…');
-  face.set('think');
-  let desc;
-  try {
-    desc = await VISION.capture(8, 12000);
-  } catch (e) {
+  await say("Super, on fait connaissance ! Mets-toi tout seul devant moi, à peu près à un bras de distance, avec de la lumière sur ton visage.");
+  // plusieurs poses : de face, un peu à gauche, un peu à droite, avec un sourire (il te reconnaîtra mieux dans tous les cas)
+  const POSES = [['Regarde-moi bien dans les yeux…', 4], ['Tourne un tout petit peu la tête vers la gauche…', 3], ['Et maintenant un petit peu vers la droite…', 3], ['Et fais-moi un grand sourire !', 2]];
+  let desc = [], small = 0;
+  for (const [line, n] of POSES) {
+    face.set('think');
+    await say(line);
+    try { desc = desc.concat(await VISION.capture(n, 6000, { allowFew: true })); } catch (e) {
+      if (e.message === 'several') { face.set('oops'); await say("Il y a plusieurs visages ! Un seul à la fois, s'il te plaît. Redis-moi « on fait connaissance » quand tu es prêt."); return; }
+      if (e.message === 'small') small++;
+    }
+    fx.tone([[880, 0.05]]); // un petit bip : la photo mentale est prise
+  }
+  if (desc.length < 7) {
     face.set('oops');
-    await say(e.message === 'several'
-      ? "Il y a plusieurs visages ! Un seul à la fois, s'il te plaît. Redis-moi « on fait connaissance » quand tu es prêt."
-      : 'Je ne vois pas bien ton visage. Mets-toi bien en face, avec de la lumière, et redis-moi « on fait connaissance ».');
+    await say(small ? "Tu es un peu loin : approche-toi de moi, et redis-moi « on fait connaissance »." : "Je n'ai pas bien vu ton visage. Mets-toi en face de moi, avec de la lumière, et redis-moi « on fait connaissance ».");
     return;
   }
   face.set('happy'); fx.ok();
@@ -1476,7 +1482,7 @@ async function meetFlow() {
     if (n && (await askYesNo(`Tu t'appelles ${n} ? C'est bien ça ?`))) who = n;
   }
   const p = S.people.find(x => x.name.toLowerCase() === who.toLowerCase());
-  if (p) p.desc = [...p.desc, ...desc].slice(-24);
+  if (p) p.desc = [...desc, ...p.desc].slice(0, 40); // les nouvelles photos mentales passent devant (les plus fiables)
   else S.people.push({ id: Date.now(), name: who, desc });
   save();
   seen.last[who] = Date.now();
@@ -1812,9 +1818,18 @@ function importShadow(file) {
   };
   r.readAsText(file);
 }
+// diagnostic en direct (réglages ouverts) : qui il voit, et à quel point il est sûr
+setInterval(() => {
+  const el = $('#s-vision-live');
+  if (!el || !$('#dlg-settings').open) return;
+  if (!VISION.isOn()) { el.textContent = 'Yeux fermés.'; return; }
+  const d = VISION.diag();
+  const sure = x => (x === null ? '' : x < 0.4 ? ' (très sûr)' : x < 0.5 ? ' (sûr)' : ' (pas sûr)');
+  el.textContent = `En direct : ${d.faces.length ? d.faces.map(f => (f.name ? `${f.name}${sure(f.dist)}` : f.good ? 'visage inconnu' : 'visage trop loin ou flou')).join(', ') : 'personne'} · détecteur ${d.precis ? 'précis' : 'rapide'}${d.hires ? ', image HD' : ''}`;
+}, 1000);
 function renderPeople() {
   $('#s-people').innerHTML = S.people.length
-    ? S.people.map(p => `<div class="person"><span>👤 ${esc(p.name)}</span><button type="button" class="ghost sm danger" data-forget="${p.id}">Oublier</button></div>`).join('')
+    ? S.people.map(p => `<div class="person"><span>👤 ${esc(p.name)} <small class="muted">(${p.desc.length} photos mentales)</small></span><button type="button" class="ghost sm danger" data-forget="${p.id}">Oublier</button></div>`).join('')
     : '<p class="small muted">Shadow ne connaît encore personne. Dites-lui « on fait connaissance ».</p>';
 }
 function openSettings() {
