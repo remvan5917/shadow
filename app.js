@@ -1335,6 +1335,23 @@ async function quizFlow(th) {
   await say(`Tu as ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur 5 ! ${score === 5 ? 'Tu es un vrai savant !' : score >= 3 ? 'Bravo !' : 'On rejouera !'}`);
 }
 
+/* ---------- une version plus récente existe ? il se met à jour tout seul (une fois) ---------- */
+async function verifierMaj() {
+  try {
+    if (!navigator.onLine || window.__BANC) return;
+    const r = await fetch(`index.html?maj=${Date.now()}`, { cache: 'no-store' });
+    const m = (await r.text()).match(/SHADOW_VERSION = '(\d+)'/);
+    if (!m || +m[1] <= +window.SHADOW_VERSION) return;
+    let deja = ''; try { deja = sessionStorage.getItem('shadow-maj') || ''; } catch (e) { /* rien */ }
+    if (deja === m[1]) return; // déjà essayé : on ne tourne pas en rond
+    try { sessionStorage.setItem('shadow-maj', m[1]); } catch (e) { /* rien */ }
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.filter(k => k.startsWith('shadow-app')).map(k => caches.delete(k))); }
+    const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
+    await Promise.all(regs.map(g => g.update().catch(() => {})));
+    location.reload();
+  } catch (e) { /* pas de réseau : on réessaiera au prochain lancement */ }
+}
+
 /* =================== LA VISION =================== */
 const seen = { last: {}, present: false, presentSince: 0, unknownSince: 0, askedUnknown: 0, smileAt: 0, sadAt: 0, sadCount: 0 };
 let visionBusy = false;
@@ -2232,6 +2249,7 @@ function boot() {
   window.SHADOW_OK = true; // le filet de sécurité sait que tout a démarré
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* hors-ligne indisponible */ });
+    setTimeout(verifierMaj, 4000);
   }
 }
 boot();

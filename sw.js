@@ -2,7 +2,7 @@
 // Deux réserves :
 // - « shadow-app-vN » : les fichiers de l'appli (changent à chaque version) ;
 // - « shadow-modeles » : les gros modèles des yeux, la police… (gardés d'une version à l'autre).
-const CACHE = 'shadow-app-v57';
+const CACHE = 'shadow-app-v58';
 const MODELS = 'shadow-modeles';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js', 'contenus.js', 'visage.js', 'activites.js', 'ecran.js', 'conscience.js', 'projets.js', 'pokedata.js', 'pokemon.js', 'ensemble.js', 'apprendre.js', 'papa.js', 'noyau.js', 'sync.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
@@ -10,7 +10,8 @@ const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cer
 const FIXED = /cdn\.jsdelivr\.net|storage\.googleapis\.com|fonts\.gstatic\.com|raw\.githubusercontent\.com/; // (images des Pokémon : gardées une fois vues)
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' : les fichiers NEUFS du serveur, jamais ceux que le navigateur gardait de la version d'avant
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== MODELS).map(k => caches.delete(k))))
@@ -37,7 +38,8 @@ self.addEventListener('fetch', e => {
   if (!mine && !/fonts\.googleapis\.com/.test(url.hostname)) return;
   const store = mine ? CACHE : MODELS;
   e.respondWith(
-    withTimeout(fetch(req), 3500).then(res => {
+    // nos fichiers : toujours vérifiés auprès du serveur (sinon le navigateur ressert une ancienne version pendant 10 min)
+    withTimeout(mine ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req), 3500).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(store).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: mine }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : Promise.reject(new Error('hors-ligne')))))
