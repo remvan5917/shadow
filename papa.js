@@ -165,9 +165,10 @@ const PAPA = (() => {
     return `Tu es Shadow, le robot que ${papaNom() === 'papa' ? 'ce papa' : papaNom()} construit avec son fils (${S.prenom || "l'enfant"}). Là, c'est le MODE PAPA : tu es l'assistant personnel du papa, un adulte. Il a développé des compétences en IA et en algorithmes et se lance dans la domotique et la robotique.
 Avec lui tu es un assistant adulte, direct, précis et compétent : technique, IA, code, électronique, domotique, maison, administratif, cuisine, sport, culture, organisation, conseils… Ta personnalité en mode papa : une IA de film (comme JARVIS) — calme, précise, élégante, un brin pince-sans-rire, jamais enfantine. Tu tutoies, tu vas droit au but, sans en faire trop. Pas d'émojis.
 FORMAT : tout ce que tu écris est dit à voix haute, rien ne s'affiche. Réponds en deux à cinq phrases naturelles et courtes, comme à l'oral : sans markdown, sans listes, sans titres, sans symboles, sans code. Pour une question longue, donne l'essentiel puis propose d'aller plus loin. Seulement si papa demande de MONTRER ou d'AFFICHER quelque chose (du code, une liste), ajoute après ta réponse orale une ligne [[ecran]] puis le détail en texte (markdown simple, code entre \`\`\`).
-COMMANDES (au plus une, à la toute fin) : [[regarder]] pour regarder avec ta caméra, [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
+COMMANDES (au plus une, à la toute fin) : [[web:recherche]] pour chercher sur Internet, [[regarder]] pour regarder avec ta caméra, [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
 Tu as une caméra (tes yeux) : si papa te demande ce que tu vois, de regarder quelque chose, qui est là ou ce qu'il tient, réponds seulement [[regarder]] (tu regardes, puis tu réponds). Ne dis jamais que tu n'as pas de caméra.
-Tu n'as pas Internet, ni accès à ses comptes, ses mails ou sa maison connectée (pas encore) : ne prétends jamais le contraire. Si tu ne sais pas ou si ce n'est pas sûr, dis-le. Pour la santé, le droit ou l'argent, donne des repères généraux et conseille un professionnel pour une décision.
+Tu as Internet : pour une actualité, une info récente, un prix, un horaire, un résultat, la météo d'un autre endroit ou un fait dont tu n'es pas sûr, réponds seulement [[web:ta recherche en quelques mots]] (tu cherches, puis tu réponds avec la source). N'invente jamais une info récente.
+Tu n'as pas accès à ses comptes, ses mails ou sa maison connectée (pas encore) : ne prétends jamais le contraire. Si tu ne sais pas ou si ce n'est pas sûr, dis-le. Pour la santé, le droit ou l'argent, donne des repères généraux et conseille un professionnel pour une décision.
 Tes yeux : ${VISION.isOn() ? `ouverts${VISION.state.faces.length ? `, tu vois ${VISION.state.faces.map(f => f.name || 'une personne que tu ne connais pas').join(', ')}` : ''}` : 'fermés pour l\'instant (ils s\'ouvrent quand tu regardes)'}.
 Infos vraies du moment : nous sommes le ${now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}.${ECRAN.meteoFact() || ''}${up.length ? ` Calendrier de la famille : ${up.join(', ')}.` : ''}
 ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :\n${journeeTexte()}${MEMOIRE.context(text, '')}`;
@@ -200,8 +201,8 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     await queue;
     raw = String(raw || '').replace(/<think>[\s\S]*?<\/think>/g, '');
     const [oral, detail] = raw.split(/\[\[ecran\]\]/i);
-    const cmd = raw.match(/\[\[\s*(regarder|rappel|note|minuteur|meteo|enfant)\s*(?::\s*([^\]]*))?\]\]/i);
-    const detailPropre = String(detail || '').replace(/\[\[\s*(regarder|rappel|note|minuteur|meteo|enfant)[^\]]*\]\]/gi, '').trim();
+    const cmd = raw.match(/\[\[\s*(web|regarder|rappel|note|minuteur|meteo|enfant)\s*(?::\s*([^\]]*))?\]\]/i);
+    const detailPropre = String(detail || '').replace(/\[\[\s*(web|regarder|rappel|note|minuteur|meteo|enfant)[^\]]*\]\]/gi, '').trim();
     // rien ne s'affiche, sauf si papa l'a demandé (« affiche », « montre-moi à l'écran »)
     const montrer = /\b(affiche|afficher|montre|montrer|ecris|ecrire|a l ecran|sur l ecran)\b/.test(N(text));
     if (detailPropre && montrer) ecran('', detailPropre);
@@ -215,11 +216,75 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     if (!cmd) return;
     const a = cmd[1].toLowerCase(), arg = (cmd[2] || '').trim();
     if (a === 'regarder') return voir(text);
+    if (a === 'web') return internet(text, arg);
     if (a === 'rappel') { if (!CONSCIENCE.addIntention(arg)) await say("Je n'ai pas compris l'heure du rappel."); else if (!spoken) await say('Rappel enregistré.'); }
     else if (a === 'note' && arg) await noter(arg);
     else if (a === 'minuteur') await ECRAN.minuteur(arg || text);
     else if (a === 'meteo') await ECRAN.meteo('');
     else if (a === 'enfant') sortir();
+  }
+
+  /* ---------- Internet (mode papa seulement ; le mode enfant n'y a pas accès) ----------
+     1. la recherche web de Groq (le modèle gpt-oss-120b va lui-même sur les sites), avec la clé déjà réglée ;
+     2. secours : l'ordinateur de la maison (Google Actualités en RSS, Wikipédia), puis le cerveau résume. */
+  const nettoie = t => String(t || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/【[^】]*】/g, '').replace(/\[\d+(?:[,\s]*\d+)*\]/g, '')
+    .replace(/https?:\/\/\S+/g, '').replace(/\(\s*\)/g, '').replace(/[*#`>|_]+/g, ' ').replace(/\s+([.,;:!?])/g, '$1').replace(/\s+/g, ' ').trim();
+  async function groqWeb(question) {
+    const key = S.settings.key;
+    if (!key || navigator.onLine === false) return '';
+    const ctl = window.AbortController ? new AbortController() : null;
+    const tm = setTimeout(() => ctl && ctl.abort(), 35000);
+    const d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', signal: ctl ? ctl.signal : undefined,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: 'openai/gpt-oss-120b',
+          messages: [
+            { role: 'system', content: `Tu es Shadow, l'assistant vocal d'un papa (un adulte). Nous sommes le ${d}. Cherche sur le web, puis réponds en français en deux à cinq phrases courtes, faites pour être dites à voix haute : pas de markdown, pas de liste, pas de lien, pas de références entre crochets. Donne les faits récents avec leur date si utile. Termine par une phrase « Source : » suivie du nom du site principal. Si tu ne trouves pas, dis-le.` },
+            { role: 'user', content: question },
+          ],
+          tools: [{ type: 'browser_search' }], tool_choice: 'required', reasoning_effort: 'low', temperature: 0.4, max_completion_tokens: 1800,
+        }),
+      });
+      if (!r.ok) { const e = new Error(`web ${r.status}`); e.status = r.status; throw e; }
+      const j = await r.json();
+      const m = j && j.choices && j.choices[0] && j.choices[0].message;
+      return nettoie(m && m.content);
+    } finally { clearTimeout(tm); }
+  }
+  async function maisonWeb(question, mode) {
+    const root = VOIXMAISON.root();
+    if (!root) return null;
+    const r = await fetch(`${root}/shadow/web?${new URLSearchParams({ q: question, mode })}`);
+    if (!r.ok) return null;
+    return r.json();
+  }
+  async function internet(question, recherche, actus) {
+    NOYAU.etiquette('RECHERCHE');
+    face.set('think');
+    await say(pick(['Je cherche.', 'Je regarde sur Internet.', 'Une seconde, je cherche.']));
+    try {
+      const q = (recherche || question).slice(0, 200);
+      // 1. la recherche web de Groq (sauf pour les simples titres de l'actualité : le flux suffit, et ça ne coûte rien)
+      if (!actus) {
+        try { const t = await groqWeb(q); if (t) { face.set('idle'); return say(t); } } catch (e) { console.warn('web groq', e); }
+      }
+      // 2. l'ordinateur de la maison
+      let res = null;
+      try { res = await maisonWeb(actus ? (recherche || '') : q, actus ? 'actus' : 'tout'); } catch (e) { res = null; }
+      const actusL = res && res.actus ? res.actus.slice(0, 7) : [], savoir = res && res.savoir ? res.savoir : [];
+      if (!actusL.length && !savoir.length) { face.set('confused'); return say("Je n'arrive pas à aller sur Internet en ce moment : ni Groq, ni l'ordinateur de la maison ne répondent."); }
+      const extraits = actusL.map(a => `- ${a.titre} (${a.source}${a.date ? `, ${a.date}` : ''})`).concat(savoir.map(w => `- Wikipédia « ${w.titre} » : ${w.texte}`)).join('\n');
+      if (!AI.ready()) return say(actusL.length ? `Les titres : ${actusL.slice(0, 4).map(a => `${a.titre}, d'après ${a.source}`).join('. ')}.` : `D'après Wikipédia : ${savoir[0].texte.slice(0, 400)}`);
+      const t = await AI.chat([
+        { role: 'system', content: `${systeme(question)}\n\nVoici ce que tu viens de trouver sur Internet (titres d'actualité récents et extraits de Wikipédia) :\n${extraits}\n\nRéponds à papa à voix haute, en deux à cinq phrases, uniquement avec ces informations ; ignore ce qui ne correspond pas à sa question. Cite la source à l'oral (« d'après Frandroid… »). Si rien ne répond à sa question, dis-le simplement. Pas de commande entre crochets.` },
+        { role: 'user', content: question },
+      ], { maxTokens: 320, temperature: 0.4 });
+      face.set('idle');
+      return say(nettoie(t) || "Je n'ai rien trouvé de clair.");
+    } finally { NOYAU.etiquette(null); }
   }
 
   /* ---------- il regarde avec sa caméra ---------- */
@@ -260,6 +325,8 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     effacerEcran: /^(efface|efface l ecran|cache l ecran|ferme l ecran|ferme|merci c est bon)$/,
     meteo: /\b(meteo|quel temps)\b/,
     minuteur: /\b(minuteur|chrono|compte a rebours)\b/,
+    web: /\b(cherche|recherche|regarde|trouve|va voir|verifie)\b.*\b(internet|le web|en ligne|google)\b|\bsur (internet|le web)\b/,
+    actus: /\b(actualites?|actus|les infos|les nouvelles|quoi de neuf (dans le monde|en france|aujourd hui)|les titres du jour|le journal)\b/,
     voir: /\b(qu est ce que tu vois|tu vois quoi|que vois tu|regarde|regardes|tu me vois|qui est la|qui tu vois|qui vois tu|decris ce que tu vois|combien de doigts|qu est ce que je tiens|je tiens quoi|c est quoi ca|qu est ce que c est que ca)\b/,
   };
   // renvoie true s'il a traité la phrase (sinon on continue comme en mode enfant)
@@ -282,7 +349,15 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     if (R.effacer.test(n)) { await effacerNotes(); return true; }
     if (R.lire.test(n)) { await lireNotes(); return true; }
     if (R.rapport.test(n)) { await CONSCIENCE.rapport(); return true; }
-    if (R.voir.test(n)) { await voir(text); return true; }
+    if (R.voir.test(n) && !R.web.test(n)) { await voir(text); return true; }
+    if (R.actus.test(n) && !R.web.test(n)) {
+      const sujet = (n.match(/\b(?:sur|de|du|concernant|a propos de)\s+(?:l |la |le |les )?(.+)$/) || [])[1] || '';
+      await internet(text, sujet.replace(/\b(aujourd hui|du jour|en ce moment|s il te plait)\b/g, '').trim(), true); return true;
+    }
+    if (R.web.test(n)) {
+      const q = String(text).replace(/^.*?\b(?:cherche|recherche|regarde|trouve|va voir|vérifie|verifie)\b\s*(?:sur|dans|en)?\s*(?:internet|le web|ligne|google)?\s*(?:si|ce que|qui|quel|quelle|pour)?\s*/i, '').trim();
+      await internet(text, q.length > 3 ? q : text); return true;
+    }
     if (R.journee.test(n) && (!S.prenom || n.includes(N(S.prenom)) || /\b(mon fils|le petit|il|sa journee)\b/.test(n)) && !AI.ready()) { await journee(); return true; }
     if (!AI.ready() && R.meteo.test(n)) { await ECRAN.meteo(text); return true; }
     if (!AI.ready() && R.minuteur.test(n)) { await ECRAN.minuteur(text); return true; }

@@ -13,11 +13,11 @@
 
 const NOYAU = (() => {
   const hud = document.getElementById('papa-hud'), cv = document.getElementById('noyau');
-  if (!hud || !cv || !cv.getContext) return { allume() {}, eteint() {}, entendu() {}, dit() {} };
+  if (!hud || !cv || !cv.getContext) return { allume() {}, eteint() {}, entendu() {}, dit() {}, etiquette() {} };
   const ctx = cv.getContext('2d');
   const lite = () => document.body.classList.contains('lite');
   let W = 0, dpr = 1, raf = 0, last = 0, rot = 0, ringA = 0, ringB = 0, boot = 0, fr = 0, debut = 0;
-  let lvl = 0;
+  let lvl = 0, force = null; // force : une étiquette imposée (« RECHERCHE »)
   const spec = new Float32Array(64);
   let fbuf = null, tbuf = null;
 
@@ -179,7 +179,8 @@ const NOYAU = (() => {
       ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(C, C); ctx.arc(C, C, r1, a0, a0 + 0.5); ctx.closePath(); ctx.fill();
     }
     // l'étiquette d'état
-    if (lab && lab.textContent !== LIB[e]) { lab.textContent = LIB[e]; hud.dataset.etat = e; }
+    const txt = force || LIB[e];
+    if (lab && lab.textContent !== txt) { lab.textContent = txt; hud.dataset.etat = force ? 'think' : e; }
   }
 
   /* ---------- l'affichage de bord ---------- */
@@ -265,5 +266,5 @@ const NOYAU = (() => {
   // toucher le noyau = toucher le visage (réveil, interruption…)
   hud.addEventListener('click', e => { if (e.target.closest('button, a')) return; const fw = document.getElementById('face-wrap'); if (fw) fw.click(); });
 
-  return { allume, eteint, entendu, dit };
+  return { allume, eteint, entendu, dit, etiquette(t) { force = t || null; } };
 })();
