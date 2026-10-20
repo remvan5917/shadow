@@ -17,7 +17,7 @@
 'use strict';
 
 const PAPA = (() => {
-  const st = { on: false, last: 0 };
+  const st = { on: false, last: 0, depuis: 0, enfant: 0 };
   const DELAI_KEY = 'shadow-papa-delai';
   const delai = () => { try { const v = localStorage.getItem(DELAI_KEY); return v === null ? 15 : +v; } catch (e) { return 15; } };
   const data = () => (S.papa = S.papa || { chat: [], notes: [] });
@@ -51,7 +51,8 @@ const PAPA = (() => {
     return say('Code secret de papa, sur mon écran.');
   }
   async function entrer() {
-    st.on = true; st.last = Date.now();
+    st.on = true; st.last = Date.now(); st.depuis = Date.now(); st.enfant = 0;
+    dlg.speaker = ''; dlg.speakerAt = 0; // il oublie qui parlait avant (sinon il croirait que c'est encore l'enfant)
     document.body.classList.add('papa');
     $('#papa-badge').hidden = false;
     hideBoard();
@@ -231,8 +232,12 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     if (!st.on) return false;
     st.last = Date.now();
     NOYAU.entendu(text);
-    const who = typeof speakerNow === 'function' ? speakerNow() : '';
-    if (who && S.prenom && N(who) === N(S.prenom)) { await sortir('enfant'); return false; } // c'est la voix de l'enfant
+    // la voix de l'enfant : seulement si sa VOIX (pas la caméra) est reconnue avec certitude sur cette phrase,
+    // deux phrases de suite, et pas juste après l'ouverture (c'est papa qui vient de taper le code)
+    const frais = dlg.speakerAt && Date.now() - dlg.speakerAt < 5000 && dlg.speakerVoix && dlg.speakerSure;
+    if (frais && S.prenom && N(dlg.speaker) === N(S.prenom) && Date.now() - st.depuis > 30000) {
+      if (++st.enfant >= 2) { await sortir('enfant'); return false; }
+    } else st.enfant = 0;
     if (R.sortir.test(n)) { await sortir(); return true; }
     if (R.ouvrir.test(n)) { await say('On est déjà en mode papa.'); return true; }
     if (RE.stop.test(n)) return false; // « tais-toi », « stop » : comme d'habitude
@@ -275,6 +280,6 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
   });
 
   return {
-    get on() { return st.on; }, demander, entrer, sortir, handle, route, renderNotes, journeeTexte, _md: md,
+    get on() { return st.on; }, _vieillir() { st.depuis -= 60000; }, demander, entrer, sortir, handle, route, renderNotes, journeeTexte, _md: md,
   };
 })();

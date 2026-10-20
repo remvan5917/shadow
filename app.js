@@ -489,8 +489,9 @@ function whoSpoke() {
   const id = VOIX.identify(vp);
   const faces = VISION.state.faces;
   const seenName = faces.length === 1 && faces[0].name ? faces[0].name : '';
-  if (id) { dlg.speaker = id.name; dlg.speakerAt = Date.now(); }
-  else if (seenName && !VOIX.people().length) { dlg.speaker = seenName; dlg.speakerAt = Date.now(); }
+  if (id) { dlg.speaker = id.name; dlg.speakerAt = Date.now(); dlg.speakerVoix = true; dlg.speakerSure = !!id.sure; }
+  else if (seenName && !VOIX.people().length) { dlg.speaker = seenName; dlg.speakerAt = Date.now(); dlg.speakerVoix = false; dlg.speakerSure = false; }
+  else dlg.speakerVoix = false;
   // il affine la voix de la personne qu'il voit parler (au plus une fois par minute)
   if (seenName && Date.now() - voiceLearnAt > 60000 && (!id || id.name === seenName) && VOIX.learn(seenName, vp)) voiceLearnAt = Date.now();
 }

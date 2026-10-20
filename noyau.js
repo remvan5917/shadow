@@ -78,14 +78,19 @@ const NOYAU = (() => {
   }
 
   /* ---------- le dessin ---------- */
+  let rate = 0;
   function image(now) {
     raf = requestAnimationFrame(image);
     if (hud.hidden || document.hidden) return;
+    try { dessin(now); } catch (err) { if (!rate++) console.warn('noyau', err); } // un imprévu de dessin : on saute l'image, sans alerte
+  }
+  function dessin(now) {
     if (lite() && (fr++ & 1)) return; // téléphone lent : 30 images par seconde
     const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
     const e = etat(); niveau(e, now);
     const t = now / 1000, C = W / 2, R = W * 0.25;
-    const b = boot ? Math.min(1, (now - boot) / 1700) : 1, ease = 1 - Math.pow(1 - b, 3);
+    // (l'horloge de l'image peut être un peu avant le début de l'allumage : on reste entre 0 et 1)
+    const b = boot ? Math.max(0, Math.min(1, (now - boot) / 1700)) : 1, ease = 1 - Math.pow(1 - b, 3);
     const col = e === 'oops' ? '255,110,60' : '255,181,71', chaud = e === 'oops' ? '255,200,170' : '255,238,205';
     const vit = e === 'think' ? 1.5 : e === 'talk' ? 0.42 : e === 'sleep' ? 0.03 : e === 'hear' ? 0.28 : 0.16;
     rot += vit * dt; ringA += (e === 'think' ? 0.9 : 0.06) * dt; ringB -= (e === 'think' ? 1.4 : 0.11) * dt;
@@ -118,7 +123,7 @@ const NOYAU = (() => {
     }
 
     // le cœur
-    const cr = W * (0.045 + lvl * 0.04 + 0.006 * Math.sin(t * 2.2)) * (e === 'sleep' ? 0.6 : 1) * ease;
+    const cr = Math.max(0.5, W * (0.045 + lvl * 0.04 + 0.006 * Math.sin(t * 2.2)) * (e === 'sleep' ? 0.6 : 1) * ease);
     const gc = ctx.createRadialGradient(C, C, 0, C, C, cr * 3.2);
     gc.addColorStop(0, `rgba(255,250,240,${(0.95 * dim).toFixed(3)})`);
     gc.addColorStop(0.25, `rgba(${chaud},${(0.75 * dim).toFixed(3)})`);

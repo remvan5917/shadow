@@ -59,7 +59,7 @@ Dis « mode papa » (ou ⚙️ → *Mode papa*), puis tape ton code secret : il 
 - **Un assistant adulte** : direct et précis (tech, IA, code, domotique, maison, organisation…). Il dit l'essentiel à voix haute et affiche le détail à l'écran (étapes, listes, code avec un bouton « Copier »). Plus de jeux, ni de propositions.
 - **Tes notes** : « note que… », « lis mes notes », « efface mes notes » (aussi visibles dans ⚙️, et partagées entre tes appareils). Rappels, minuteurs, météo. **Le bilan de la journée de l'enfant** : activités, scores, humeur, temps d'écran.
 - Sa conversation avec toi est séparée de celle de l'enfant et n'entre pas dans la mémoire de l'enfant. Le mode papa ne compte pas dans le temps d'écran.
-- Il se referme : « mode enfant », le bouton « Quitter », tout de suite s'il reconnaît la voix de l'enfant, après un moment sans parler (5 min, 15 min, 1 h ou jamais, réglable sur chaque appareil), et à chaque rechargement.
+- Il se referme : « mode enfant », le bouton « Quitter », s'il reconnaît avec certitude la voix de l'enfant deux phrases de suite (pas dans les 30 secondes après l'ouverture), après un moment sans parler (5 min, 15 min, 1 h ou jamais, réglable sur chaque appareil), et à chaque rechargement.
 
 ## Jouer à plusieurs (toute la famille)
 « On joue à plusieurs », « quiz en famille », « on joue avec papa et maman au calcul » : Shadow devient le maître du jeu.

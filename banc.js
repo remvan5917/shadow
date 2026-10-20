@@ -168,8 +168,15 @@
     AI.chatStream = streamB;
     const ecranOk = !!document.querySelector('#board .papa-txt pre') && !dits.some(t => /```|ecran/.test(t));
     const separe = S.chat.length === chatAvant && S.papa.chat.length >= 2;
-    dlg.speaker = 'Testeur'; dlg.speakerAt = Date.now();
     reponse = 'Bonjour !'; hear = async () => { await wait(5); return null; };
+    // juste après l'ouverture, ou sur une seule phrase : il reste en mode papa
+    const enfantParle = () => { dlg.speaker = 'Testeur'; dlg.speakerAt = Date.now(); dlg.speakerVoix = true; dlg.speakerSure = true; };
+    enfantParle(); AI.chatStream = async (m, o, onS) => { onS('Ok.'); return 'Ok.'; };
+    await handle('quelle heure est-il'); const resteTot = PAPA.on;
+    PAPA._vieillir(); enfantParle(); await handle('et demain'); const resteUne = PAPA.on;
+    AI.chatStream = streamB;
+    if (!resteTot || !resteUne) throw new Error(`sorti trop vite (${resteTot}, ${resteUne})`);
+    enfantParle();
     await Promise.race([handle('bonjour'), wait(8000)]);
     dlg.speaker = '';
     await wait(700); // l'animation d'extinction du noyau
