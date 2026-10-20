@@ -2,8 +2,8 @@
    SHADOW — le mode papa (l'assistant de papa, dans le même robot)
    - On l'ouvre en disant « mode papa » (ou depuis ⚙️) : il faut taper le code secret de papa.
      Sans code secret choisi, le mode papa reste fermé (un calcul ne suffit pas : l'enfant sait compter !).
-   - Avec papa, Shadow change complètement : un autre visage, futuriste (visière noire, yeux-capsules ambre,
-     égaliseur qui suit sa voix et la tienne, anneau qui tourne quand il réfléchit), plus de jeux ni de propositions,
+   - Avec papa, Shadow change complètement : plus de visage d'enfant, mais le noyau (noyau.js : une IA de film),
+     une autre voix (Pierre ou Jessica, traitée « studio »), un point de situation à l'ouverture, plus de jeux ni de propositions,
      un assistant adulte, direct et précis (tech, IA, code, domotique, maison, tout le reste).
      Il dit l'essentiel à voix haute et affiche le détail à l'écran (code, listes, étapes),
      avec un bouton pour copier.
@@ -23,19 +23,23 @@ const PAPA = (() => {
   const data = () => (S.papa = S.papa || { chat: [], notes: [] });
   const papaNom = () => 'papa';
 
-  /* ---------- son visage futuriste : il suit les émotions, la voix et le regard du visage normal ---------- */
-  function miroir() {
-    const src = document.getElementById('face'), dst = document.getElementById('face-papa');
-    if (!src || !dst) return;
-    dst.setAttribute('class', `fp ${[...src.classList].filter(c => c !== 'face').join(' ')}`);
-    ['--lv', '--gx'].forEach(v => dst.style.setProperty(v, src.style.getPropertyValue(v) || (v === '--gx' ? '0px' : '0')));
-    const vis = src.getAttribute('data-vis');
-    if (vis) dst.setAttribute('data-vis', vis); else dst.removeAttribute('data-vis');
+  // le point de situation à l'ouverture (comme une IA de film : court, utile)
+  let briefMemo = { at: 0, txt: '' };
+  function briefing() {
+    if (Date.now() - briefMemo.at < 5000) return briefMemo.txt;
+    const h = new Date().getHours();
+    const parts = [`${h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir'}, papa.`];
+    const min = (S.playLog && S.playLog[dayKey()]) || 0;
+    if (min) parts.push(`${name()} a passé ${min} minute${min > 1 ? 's' : ''} avec moi aujourd'hui.`);
+    const n = notes().length;
+    if (n) parts.push(`Tu as ${n} note${n > 1 ? 's' : ''}.`);
+    const up = typeof upcoming === 'function' ? upcoming(2)[0] : null;
+    if (up) parts.push(`${up.e.text.charAt(0).toUpperCase()}${up.e.text.slice(1)} ${up.days === 0 ? "aujourd'hui" : up.days === 1 ? 'demain' : `dans ${up.days} jours`}.`);
+    if (!AI.ready()) parts.push('Attention : mon noyau cognitif est hors ligne.');
+    parts.push(pick(["Je t'écoute.", 'Que puis-je faire pour toi ?', 'À ta disposition.']));
+    briefMemo = { at: Date.now(), txt: parts.join(' ') };
+    return briefMemo.txt;
   }
-  (() => {
-    const src = document.getElementById('face');
-    if (src && window.MutationObserver) new MutationObserver(() => { if (st.on) miroir(); }).observe(src, { attributes: true, attributeFilter: ['class', 'style', 'data-vis'] });
-  })();
 
   /* ---------- entrer / sortir ---------- */
   function demander() {
@@ -49,23 +53,20 @@ const PAPA = (() => {
   async function entrer() {
     st.on = true; st.last = Date.now();
     document.body.classList.add('papa');
-    miroir();
-    const fp = document.getElementById('face-papa');
-    if (fp) { fp.classList.add('boot'); setTimeout(() => fp.classList.remove('boot'), 1500); }
     $('#papa-badge').hidden = false;
     hideBoard();
     dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
-    fx.tone([[523, 0.07], [784, 0.07], [1046, 0.12]]);
     face.set('idle');
-    await say(pick(['Mode papa activé. Je t\'écoute.', 'Mode papa. Qu\'est-ce que je peux faire pour toi ?', 'Salut papa. Je suis à toi, qu\'est-ce qu\'il te faut ?']));
+    VOIXMAISON.prefetch(briefing()); // la voix se prépare pendant l'allumage
+    await NOYAU.allume();
+    await say(briefing());
   }
   function sortir(pourquoi) {
     if (!st.on) return;
     st.on = false;
-    document.body.classList.remove('papa');
     $('#papa-badge').hidden = true;
     hideBoard();
-    fx.tone([[1046, 0.07], [784, 0.07], [523, 0.12]]);
+    NOYAU.eteint().then(() => document.body.classList.remove('papa'));
     face.set('happy');
     if (pourquoi === 'enfant') return say(`Coucou ${name()} ! Je repasse en mode enfant.`);
     if (pourquoi === 'delai') return; // en silence
@@ -160,7 +161,7 @@ const PAPA = (() => {
     const l = notes().slice(-15).map(x => `- ${x.text}`).join('\n');
     const up = upcoming(30).slice(0, 5).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`);
     return `Tu es Shadow, le robot que ${papaNom() === 'papa' ? 'ce papa' : papaNom()} construit avec son fils (${S.prenom || "l'enfant"}). Là, c'est le MODE PAPA : tu es l'assistant personnel du papa, un adulte. Il a développé des compétences en IA et en algorithmes et se lance dans la domotique et la robotique.
-Avec lui tu es un assistant adulte, direct, précis et compétent : technique, IA, code, électronique, domotique, maison, administratif, cuisine, sport, culture, organisation, conseils… Tu tutoies, tu vas droit au but, sans infantiliser ni en faire trop, avec ta petite personnalité de robot (sobre). Pas d'émojis.
+Avec lui tu es un assistant adulte, direct, précis et compétent : technique, IA, code, électronique, domotique, maison, administratif, cuisine, sport, culture, organisation, conseils… Ta personnalité en mode papa : une IA de film (comme JARVIS) — calme, précise, élégante, un brin pince-sans-rire, jamais enfantine. Tu tutoies, tu vas droit au but, sans en faire trop. Pas d'émojis.
 FORMAT : tout ce que tu écris AVANT la ligne [[ecran]] est dit à voix haute : une à quatre phrases naturelles, sans markdown, sans symboles, sans code. Si la réponse a besoin de détails (code, liste, étapes, chiffres, tableau), ajoute ensuite une ligne [[ecran]] puis le détail en texte, affiché à l'écran (markdown simple : listes, **gras**, code entre \`\`\`). Sinon, pas de [[ecran]].
 COMMANDES (au plus une, à la toute fin) : [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
 Tu n'as pas Internet, ni accès à ses comptes, ses mails ou sa maison connectée (pas encore) : ne prétends jamais le contraire. Si tu ne sais pas ou si ce n'est pas sûr, dis-le. Pour la santé, le droit ou l'argent, donne des repères généraux et conseille un professionnel pour une décision.
@@ -229,6 +230,7 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
   async function handle(text, n) {
     if (!st.on) return false;
     st.last = Date.now();
+    NOYAU.entendu(text);
     const who = typeof speakerNow === 'function' ? speakerNow() : '';
     if (who && S.prenom && N(who) === N(S.prenom)) { await sortir('enfant'); return false; } // c'est la voix de l'enfant
     if (R.sortir.test(n)) { await sortir(); return true; }
@@ -251,7 +253,8 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
 
   /* ---------- réglages ---------- */
   (() => {
-    const go = $('#s-papa-go'), sel = $('#s-papa-delai'), ex = $('#papa-exit');
+    const go = $('#s-papa-go'), sel = $('#s-papa-delai'), ex = $('#papa-exit'), vx = $('#s-papa-voix');
+    if (vx) { vx.value = S.settings.voixPapa || 'pierre'; vx.addEventListener('change', () => { S.settings.voixPapa = vx.value; save(); }); }
     if (ex) ex.addEventListener('click', () => sortir());
     if (go) go.addEventListener('click', () => { $('#dlg-settings').close(); if (!S.settings.pinHash) { toast("Choisis d'abord un code secret (plus bas)"); return; } entrer(); });
     if (sel) { sel.value = String(delai()); sel.addEventListener('change', () => { try { localStorage.setItem(DELAI_KEY, sel.value); } catch (e) { /* rien */ } }); }

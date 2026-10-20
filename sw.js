@@ -2,9 +2,9 @@
 // Deux réserves :
 // - « shadow-app-vN » : les fichiers de l'appli (changent à chaque version) ;
 // - « shadow-modeles » : les gros modèles des yeux, la police… (gardés d'une version à l'autre).
-const CACHE = 'shadow-app-v54';
+const CACHE = 'shadow-app-v55';
 const MODELS = 'shadow-modeles';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js', 'contenus.js', 'visage.js', 'activites.js', 'ecran.js', 'conscience.js', 'projets.js', 'pokedata.js', 'pokemon.js', 'ensemble.js', 'apprendre.js', 'papa.js', 'sync.js',
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js', 'contenus.js', 'visage.js', 'activites.js', 'ecran.js', 'conscience.js', 'projets.js', 'pokedata.js', 'pokemon.js', 'ensemble.js', 'apprendre.js', 'papa.js', 'noyau.js', 'sync.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 // fichiers qui ne changent jamais (version figée dans l'adresse) : la réserve d'abord, c'est plus rapide
 const FIXED = /cdn\.jsdelivr\.net|storage\.googleapis\.com|fonts\.gstatic\.com|raw\.githubusercontent\.com/; // (images des Pokémon : gardées une fois vues)

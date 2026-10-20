@@ -172,6 +172,7 @@
     reponse = 'Bonjour !'; hear = async () => { await wait(5); return null; };
     await Promise.race([handle('bonjour'), wait(8000)]);
     dlg.speaker = '';
+    await wait(700); // l'animation d'extinction du noyau
     if (!(ecranOk && separe && !PAPA.on && !document.body.classList.contains('papa'))) throw new Error(`écran ${ecranOk}, séparé ${separe}, encore ouvert ${PAPA.on}`);
     return true;
   });

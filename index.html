@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '54';
+      window.SHADOW_VERSION = '55';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -188,41 +188,12 @@
             </g>
           </g>
         </svg>
-        <!-- Le visage du mode papa : un autre Shadow, futuriste (visière, yeux-capsules, égaliseur) -->
-        <svg id="face-papa" class="fp idle" viewBox="0 0 320 232" aria-hidden="true">
-          <defs>
-            <linearGradient id="fp-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#161a22"/><stop offset=".55" stop-color="#0b0d12"/><stop offset="1" stop-color="#050608"/></linearGradient>
-            <linearGradient id="fp-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcf8a" stop-opacity=".8"/><stop offset=".5" stop-color="#ffb547" stop-opacity=".15"/><stop offset="1" stop-color="#ffb547" stop-opacity=".6"/></linearGradient>
-            <linearGradient id="fp-scan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb547" stop-opacity="0"/><stop offset=".5" stop-color="#ffb547" stop-opacity=".22"/><stop offset="1" stop-color="#ffb547" stop-opacity="0"/></linearGradient>
-            <filter id="fp-glow" x="-50%" y="-80%" width="200%" height="260%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <clipPath id="fp-clip"><rect x="16" y="18" width="288" height="196" rx="32"/></clipPath>
-          </defs>
-          <rect class="fp-shell" x="10" y="12" width="300" height="208" rx="38"/>
-          <rect class="fp-visor" x="16" y="18" width="288" height="196" rx="32"/>
-          <g clip-path="url(#fp-clip)">
-            <g class="fp-grid"><line x1="16" y1="30" x2="304" y2="30"/><line x1="16" y1="42" x2="304" y2="42"/><line x1="16" y1="54" x2="304" y2="54"/><line x1="16" y1="66" x2="304" y2="66"/><line x1="16" y1="78" x2="304" y2="78"/><line x1="16" y1="90" x2="304" y2="90"/><line x1="16" y1="102" x2="304" y2="102"/><line x1="16" y1="114" x2="304" y2="114"/><line x1="16" y1="126" x2="304" y2="126"/><line x1="16" y1="138" x2="304" y2="138"/><line x1="16" y1="150" x2="304" y2="150"/><line x1="16" y1="162" x2="304" y2="162"/><line x1="16" y1="174" x2="304" y2="174"/><line x1="16" y1="186" x2="304" y2="186"/><line x1="16" y1="198" x2="304" y2="198"/><line x1="16" y1="210" x2="304" y2="210"/></g>
-            <rect class="fp-scan" x="16" y="-40" width="288" height="40" fill="url(#fp-scan)"/>
-          </g>
-          <rect class="fp-rim" x="16" y="18" width="288" height="196" rx="32"/>
-          <g class="fp-hud">
-            <path d="M34 44 v-10 h10 M286 44 v-10 h-10 M34 188 v10 h10 M286 188 v10 h-10"/>
-            <text x="160" y="36" text-anchor="middle">S-01 · ASSISTANT</text>
-          </g>
-          <g class="fp-eyes">
-            <g class="fp-eye fp-l"><path class="fp-brow" d="M80 70 H136"/><rect class="fp-cap" x="78" y="84" width="60" height="16" rx="8"/><rect class="fp-iris" x="100" y="88" width="16" height="8" rx="4"/><path class="fp-joy" d="M80 100 Q108 76 136 100"/></g>
-            <g class="fp-eye fp-r"><path class="fp-brow" d="M184 70 H240"/><rect class="fp-cap" x="182" y="84" width="60" height="16" rx="8"/><rect class="fp-iris" x="204" y="88" width="16" height="8" rx="4"/><path class="fp-joy" d="M184 100 Q212 76 240 100"/></g>
-          </g>
-          <circle class="fp-ring" cx="160" cy="160" r="52"/>
-          <circle class="fp-ring2" cx="160" cy="160" r="44"/>
-          <g class="fp-mouth"><rect class="fp-bar" x="111" y="140" width="3.4" height="40" rx="1.7" style="--k:0.39;--d:0.000s"/><rect class="fp-bar" x="118" y="140" width="3.4" height="40" rx="1.7" style="--k:0.53;--d:0.140s"/><rect class="fp-bar" x="125" y="140" width="3.4" height="40" rx="1.7" style="--k:0.66;--d:0.280s"/><rect class="fp-bar" x="132" y="140" width="3.4" height="40" rx="1.7" style="--k:0.78;--d:0.035s"/><rect class="fp-bar" x="139" y="140" width="3.4" height="40" rx="1.7" style="--k:0.87;--d:0.175s"/><rect class="fp-bar" x="146" y="140" width="3.4" height="40" rx="1.7" style="--k:0.94;--d:0.315s"/><rect class="fp-bar" x="153" y="140" width="3.4" height="40" rx="1.7" style="--k:0.99;--d:0.070s"/><rect class="fp-bar" x="160" y="140" width="3.4" height="40" rx="1.7" style="--k:1.00;--d:0.210s"/><rect class="fp-bar" x="167" y="140" width="3.4" height="40" rx="1.7" style="--k:0.99;--d:0.350s"/><rect class="fp-bar" x="174" y="140" width="3.4" height="40" rx="1.7" style="--k:0.94;--d:0.105s"/><rect class="fp-bar" x="181" y="140" width="3.4" height="40" rx="1.7" style="--k:0.87;--d:0.245s"/><rect class="fp-bar" x="188" y="140" width="3.4" height="40" rx="1.7" style="--k:0.78;--d:0.000s"/><rect class="fp-bar" x="195" y="140" width="3.4" height="40" rx="1.7" style="--k:0.66;--d:0.140s"/><rect class="fp-bar" x="202" y="140" width="3.4" height="40" rx="1.7" style="--k:0.53;--d:0.280s"/><rect class="fp-bar" x="209" y="140" width="3.4" height="40" rx="1.7" style="--k:0.39;--d:0.035s"/></g>
-          <g class="fp-dots"><circle cx="148" cy="204" r="2.2"/><circle cx="160" cy="204" r="2.2"/><circle cx="172" cy="204" r="2.2"/></g>
-        </svg>
 
         <div id="face-fx" aria-hidden="true"></div>
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v54</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v55</small></button>
       <div id="papa-badge" hidden><span>MODE PAPA</span><button type="button" id="papa-exit">Quitter</button></div>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
@@ -230,6 +201,28 @@
       </div>
     </div>
   </main>
+  <!-- Le mode papa : le noyau (l'IA de film) et son affichage de bord -->
+  <div id="papa-hud" hidden>
+    <canvas id="noyau" aria-hidden="true"></canvas>
+    <div class="hud-coin hud-tl"><b>SHADOW</b><span>S-01 · NOYAU</span><span id="hud-session">SÉANCE 00:00</span></div>
+    <div class="hud-coin hud-tr"><b id="hud-heure">00:00:00</b><span id="hud-date"></span></div>
+    <div class="hud-panneau hud-l">
+      <p><i>CERVEAU</i><em id="hud-cerveau">—</em></p>
+      <p><i>RÉPONSE</i><em id="hud-latence">—</em></p>
+      <p><i>VOIX</i><em id="hud-voix">—</em></p>
+      <p><i>MICRO</i><em id="hud-micro">—</em></p>
+    </div>
+    <div class="hud-panneau hud-r">
+      <p><i>MÉTÉO</i><em id="hud-meteo">—</em></p>
+      <p><i>AGENDA</i><em id="hud-agenda">—</em></p>
+      <p><i>NOTES</i><em id="hud-notes">0</em></p>
+      <p><i id="hud-enfant-nom">ENFANT</i><em id="hud-enfant">0 MIN</em></p>
+    </div>
+    <div id="hud-etat">EN ATTENTE</div>
+    <div id="hud-console" aria-live="polite"></div>
+    <svg class="hud-cadre" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 V2 H9 M91 2 H98 V9 M98 91 V98 H91 M9 98 H2 V91"/></svg>
+  </div>
+
   <!-- les yeux (la caméra) : invisibles, Shadow regarde avec -->
   <video id="cam-video" playsinline muted autoplay hidden></video>
   <button id="btn-settings" class="corner" aria-label="Réglages de papa">⚙️</button>
@@ -406,6 +399,9 @@
         <legend>Mode papa</legend>
         <p class="small muted">Ton assistant à toi, dans le même robot : visage ambre, plus de jeux, réponses d'adulte (le détail et le code s'affichent à l'écran). Pour l'ouvrir : dis « mode papa » puis tape ton code secret, ou ce bouton. Il faut avoir choisi un code secret. Il se referme avec « mode enfant », le bouton « Quitter », s'il reconnaît la voix de l'enfant, ou après un moment sans parler.</p>
         <button type="button" id="s-papa-go" class="go">Passer en mode papa</button>
+        <label>Sa voix en mode papa
+          <select id="s-papa-voix"><option value="pierre">Pierre (homme, posé)</option><option value="jessica">Jessica (femme, posée)</option><option value="tom">Tom (la voix de Shadow, sans effet de robot)</option></select></label>
+        <p class="small muted">Pierre et Jessica sont fabriquées par l'ordinateur de la maison. Sans lui, c'est la voix du téléphone, plus posée.</p>
         <label>Se refermer tout seul après (sur cet appareil)
           <select id="s-papa-delai"><option value="5">5 minutes sans parler</option><option value="15">15 minutes</option><option value="60">1 heure</option><option value="0">Jamais (seulement « mode enfant »)</option></select></label>
         <p class="small carnet-h">Tes notes</p>
@@ -516,6 +512,7 @@
   <script src="ensemble.js"></script>
   <script src="apprendre.js"></script>
   <script src="papa.js"></script>
+  <script src="noyau.js"></script>
   <script src="sync.js"></script>
   <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>
