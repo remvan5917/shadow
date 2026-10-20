@@ -158,50 +158,6 @@
     const m = SYNC.merge(a, b);
     return m.jeuxAppris.length === 2 && m.jeuxAppris.find(x => x.id === 1).regles === 'v2';
   });
-  await essai('mode papa : code obligatoire, conversation séparée, détail à l\'écran, sorties', async () => {
-    dits.length = 0; S.settings.pinHash = ''; await handle('mode papa');
-    if (PAPA.on || !/code secret/.test(dits.join(' '))) throw new Error('ouvert sans code');
-    await PAPA.entrer();
-    const chatAvant = S.chat.length, streamB = AI.chatStream;
-    AI.chatStream = async (m, o, onS) => { const r = "C'est simple.\n[[ecran]]\n```sh\nls\n```"; onS("C'est simple."); onS('[[ecran]]'); return r; };
-    hideBoard(); await handle('comment je liste les fichiers en shell');
-    const rienAffiche = document.getElementById('board').hidden; // sans « affiche » : rien à l'écran
-    await handle('affiche la commande pour lister les fichiers');
-    AI.chatStream = streamB;
-    const ecranOk = rienAffiche && !!document.querySelector('#board .papa-txt pre') && !dits.some(t => /```|ecran/.test(t));
-    const separe = S.chat.length === chatAvant && S.papa.chat.length >= 2;
-    reponse = 'Bonjour !'; hear = async () => { await wait(5); return null; };
-    // juste après l'ouverture, ou sur une seule phrase : il reste en mode papa
-    const enfantParle = () => { dlg.speaker = 'Testeur'; dlg.speakerAt = Date.now(); dlg.speakerVoix = true; dlg.speakerSure = true; };
-    enfantParle(); AI.chatStream = async (m, o, onS) => { onS('Ok.'); return 'Ok.'; };
-    await handle('quelle heure est-il'); const resteTot = PAPA.on;
-    PAPA._vieillir(); enfantParle(); await handle('et demain'); const resteUne = PAPA.on;
-    AI.chatStream = streamB;
-    if (!resteTot || !resteUne) throw new Error(`sorti trop vite (${resteTot}, ${resteUne})`);
-    enfantParle();
-    await Promise.race([handle('bonjour'), wait(8000)]);
-    dlg.speaker = '';
-    await wait(700); // l'animation d'extinction du noyau
-    if (!(ecranOk && separe && !PAPA.on && !document.body.classList.contains('papa'))) throw new Error(`écran ${ecranOk}, séparé ${separe}, encore ouvert ${PAPA.on}`);
-    return true;
-  });
-  await essai('couteau suisse du mode papa : calculs, conversions, durées, listes', async () => {
-    const c = t => OUTILS.calcul(t);
-    const conv = await OUTILS.conversion('10 miles en kilomètres');
-    const ok = [
-      [c('combien font 17,5 % de 2340'), /409,5/], [c('racine de 144'), /12/], [c('2 puissance 10'), /1\s?024/], [c('combien font 12 fois 7,5 plus 3'), /93/],
-      [c('100 euros HT en TTC'), /120/], [conv, /16,09/], [String(OUTILS._duree(N('1 heure 30'))), /^5400$/], [String(OUTILS._duree(N('une demi heure'))), /^1800$/],
-      [String(c('il fait beau aujourd hui')), /^null$/],
-    ].filter(([v, re]) => !re.test(String(v)));
-    if (ok.length) throw new Error(ok.map(x => x[0]).join(' / '));
-    const papaAvant = PAPA.on; if (!papaAvant) await PAPA.entrer();
-    S.papa.listes = []; dits.length = 0;
-    await handle('ajoute du lait et des œufs aux courses');
-    const l = S.papa.listes.map(x => x.text).join(',');
-    if (!papaAvant) await PAPA.sortir('delai');
-    if (l !== 'lait,œufs') throw new Error(`liste : ${l}`);
-    return true;
-  });
   hear = hb; AI.chat = chatB; VISAGE.rire = rireB; AI.ready = readyB; window.activity = actB;
 
   // ---------- on remet tout en place ----------
