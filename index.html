@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '58';
+      window.SHADOW_VERSION = '59';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -45,7 +45,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=58">
+  <link rel="stylesheet" href="style.css?v=59">
 </head>
 <body class="robot">
   <main id="main">
@@ -193,7 +193,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v58</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v59</small></button>
       <div id="papa-badge" hidden><span>MODE PAPA</span><button type="button" id="papa-exit">Quitter</button></div>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
@@ -400,8 +400,8 @@
         <p class="small muted">Ton assistant à toi, dans le même robot : visage ambre, plus de jeux, réponses d'adulte (le détail et le code s'affichent à l'écran). Pour l'ouvrir : dis « mode papa » puis tape ton code secret, ou ce bouton. Il faut avoir choisi un code secret. Il se referme avec « mode enfant », le bouton « Quitter », s'il reconnaît la voix de l'enfant, ou après un moment sans parler.</p>
         <button type="button" id="s-papa-go" class="go">Passer en mode papa</button>
         <label>Sa voix en mode papa
-          <select id="s-papa-voix"><option value="pierre">Pierre (homme, posé)</option><option value="jessica">Jessica (femme, posée)</option><option value="tom">Tom (la voix de Shadow, sans effet de robot)</option></select></label>
-        <p class="small muted">Pierre et Jessica sont fabriquées par l'ordinateur de la maison. Sans lui, c'est la voix du téléphone, plus posée.</p>
+          <select id="s-papa-voix"><option value="sombre">Robot sombre (grave, métallique, une grande salle)</option><option value="demon">Démon de métal (le plus effrayant)</option><option value="glacial">Robot glacial (calme, façon HAL)</option><option value="pierre">Pierre (voix humaine, posée)</option><option value="jessica">Jessica (voix humaine, posée)</option><option value="tom">Tom (la voix de Shadow)</option></select></label>
+        <p class="small muted">Les voix sont fabriquées par l'ordinateur de la maison. Sans lui, c'est la voix du téléphone, plus posée.</p>
         <label>Se refermer tout seul après (sur cet appareil)
           <select id="s-papa-delai"><option value="5">5 minutes sans parler</option><option value="15">15 minutes</option><option value="60">1 heure</option><option value="0">Jamais (seulement « mode enfant »)</option></select></label>
         <p class="small carnet-h">Tes notes</p>
@@ -493,27 +493,27 @@
 
   <div id="fx" aria-hidden="true"></div>
 
-  <script src="orthographe.js?v=58"></script>
-  <script src="cerveau.js?v=58"></script>
-  <script src="jeux.js?v=58"></script>
-  <script src="voix.js?v=58"></script>
-  <script src="oreilles.js?v=58"></script>
-  <script src="vision.js?v=58"></script>
-  <script src="corps.js?v=58"></script>
-  <script src="contenus.js?v=58"></script>
-  <script src="visage.js?v=58"></script>
-  <script src="app.js?v=58"></script>
-  <script src="activites.js?v=58"></script>
-  <script src="ecran.js?v=58"></script>
-  <script src="conscience.js?v=58"></script>
-  <script src="projets.js?v=58"></script>
-  <script src="pokedata.js?v=58"></script>
-  <script src="pokemon.js?v=58"></script>
-  <script src="ensemble.js?v=58"></script>
-  <script src="apprendre.js?v=58"></script>
-  <script src="papa.js?v=58"></script>
-  <script src="noyau.js?v=58"></script>
-  <script src="sync.js?v=58"></script>
+  <script src="orthographe.js?v=59"></script>
+  <script src="cerveau.js?v=59"></script>
+  <script src="jeux.js?v=59"></script>
+  <script src="voix.js?v=59"></script>
+  <script src="oreilles.js?v=59"></script>
+  <script src="vision.js?v=59"></script>
+  <script src="corps.js?v=59"></script>
+  <script src="contenus.js?v=59"></script>
+  <script src="visage.js?v=59"></script>
+  <script src="app.js?v=59"></script>
+  <script src="activites.js?v=59"></script>
+  <script src="ecran.js?v=59"></script>
+  <script src="conscience.js?v=59"></script>
+  <script src="projets.js?v=59"></script>
+  <script src="pokedata.js?v=59"></script>
+  <script src="pokemon.js?v=59"></script>
+  <script src="ensemble.js?v=59"></script>
+  <script src="apprendre.js?v=59"></script>
+  <script src="papa.js?v=59"></script>
+  <script src="noyau.js?v=59"></script>
+  <script src="sync.js?v=59"></script>
   <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>
 </html>

@@ -259,7 +259,7 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
   /* ---------- réglages ---------- */
   (() => {
     const go = $('#s-papa-go'), sel = $('#s-papa-delai'), ex = $('#papa-exit'), vx = $('#s-papa-voix');
-    if (vx) { vx.value = S.settings.voixPapa || 'pierre'; vx.addEventListener('change', () => { S.settings.voixPapa = vx.value; save(); }); }
+    if (vx) { vx.value = S.settings.voixPapa || 'sombre'; vx.addEventListener('change', () => { S.settings.voixPapa = vx.value; save(); }); }
     if (ex) ex.addEventListener('click', () => sortir());
     if (go) go.addEventListener('click', () => { $('#dlg-settings').close(); if (!S.settings.pinHash) { toast("Choisis d'abord un code secret (plus bas)"); return; } entrer(); });
     if (sel) { sel.value = String(delai()); sel.addEventListener('change', () => { try { localStorage.setItem(DELAI_KEY, sel.value); } catch (e) { /* rien */ } }); }

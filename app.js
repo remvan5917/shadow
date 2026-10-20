@@ -152,7 +152,7 @@ const VOIXMAISON = {
     return '';
   },
   // en mode papa : la voix de Pierre ou de Jessica (fabriquée par l'ordinateur), sinon celle de Tom
-  papa() { return typeof PAPA !== 'undefined' && PAPA.on && (S.settings.voixPapa || 'pierre') !== 'tom' ? (S.settings.voixPapa || 'pierre') : ''; },
+  papa() { return typeof PAPA !== 'undefined' && PAPA.on ? (S.settings.voixPapa || 'sombre') : ''; },
   usable() {
     return ((S.settings.voix || 'maison') === 'maison' || (typeof PAPA !== 'undefined' && PAPA.on)) && !!this.root() && Date.now() > this.downUntil
       && navigator.onLine !== false && !!(window.AudioContext || window.webkitAudioContext) && !!window.fetch;
@@ -163,7 +163,7 @@ const VOIXMAISON = {
     if (this.cache.has(key)) return this.cache.get(key);
     const ctl = window.AbortController ? new AbortController() : null;
     const tm = setTimeout(() => ctl && ctl.abort(), 4500);
-    const p = fetch(`${this.root()}/shadow/voix`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pv ? { text: t, voix: pv } : { text: t }), signal: ctl ? ctl.signal : undefined })
+    const p = fetch(`${this.root()}/shadow/voix`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pv ? Object.assign({ text: t }, ROBOTS[pv] ? ROBOTS[pv].demande : { voix: pv === 'tom' ? '' : pv }) : { text: t }), signal: ctl ? ctl.signal : undefined })
       .then(r => { clearTimeout(tm); if (!r.ok) throw new Error(`voix ${r.status}`); return r.arrayBuffer(); })
       .then(buf => new Promise((res, rej) => fx.audio().decodeAudioData(buf, res, rej)));
     p.catch(() => { this.downUntil = Date.now() + 120000; this.cache.delete(key); }); // l'ordi ne répond pas : voix du téléphone pendant 2 min
@@ -178,7 +178,7 @@ const VOIXMAISON = {
   },
   // joue la voix avec l'effet de robot : résonance métallique + modulation électronique, un peu plus grave
   play(buffer) {
-    if (typeof PAPA !== 'undefined' && PAPA.on) return this.playPapa(buffer);
+    if (typeof PAPA !== 'undefined' && PAPA.on) { const r = ROBOTS[this.papa()]; return r ? this.playRobot(buffer, r) : this.playPapa(buffer); }
     const c = fx.audio();
     const lvl = S.settings.effet || 'leger';
     const src = c.createBufferSource();
@@ -205,6 +205,66 @@ const VOIXMAISON = {
     src.start();
     return { src, duration: buffer.duration / src.playbackRate.value, stop() { try { src.stop(); } catch (e) { /* déjà fini */ } extra.forEach(o => { try { o.stop(); } catch (e) { /* rien */ } }); } };
   },
+};
+// les voix de robot du mode papa (mêmes réglages que les essais écoutés par papa)
+// demande : ce que l'ordinateur fabrique (Piper parle plus vite) ; rate : le téléphone ralentit (plus grave, rythme normal)
+const ROBOTS = {
+  sombre: { demande: { voix: 'pierre', vitesse: 0.78 }, rate: 0.78, hp: 70, ring: [34, 0.32], sat: 1.8, comb: [7.5, 0.5, 0.35], pres: [1800, 1.2, 3], lp: 5200, bourdon: [46, 0.18], rev: [2.0, 2.6, 0.24] },
+  demon: { demande: { voix: 'tom', vitesse: 0.7 }, rate: 0.68, hp: 55, ring: [48, 0.55], sat: 3.2, comb: [4.2, 0.62, 0.45], pres: [1200, 1.0, 4], lp: 4200, bourdon: [38, 0.28], rev: [2.8, 2.2, 0.3], gain: 0.62 },
+  glacial: { demande: { voix: 'pierre', vitesse: 0.95 }, rate: 0.9, hp: 140, flang: [2.5, 1.8, 0.18, 0.55, 0.45], pres: [3000, 1.0, 3], lp: 7000, rev: [1.6, 3.0, 0.2] },
+};
+VOIXMAISON.irRobot = function (c, sec, puiss) {
+  const k = `${c.sampleRate}|${sec}|${puiss}`;
+  this._irs = this._irs || {};
+  if (this._irs[k]) return this._irs[k];
+  const len = Math.round(c.sampleRate * sec), b = c.createBuffer(2, len, c.sampleRate), pre = Math.round(c.sampleRate * 0.012);
+  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = i < pre ? 0 : (Math.random() * 2 - 1) * Math.pow(1 - i / len, puiss); }
+  return (this._irs[k] = b);
+};
+VOIXMAISON.playRobot = function (buffer, p) {
+  const c = fx.audio(), oscs = [];
+  const src = c.createBufferSource(); src.buffer = buffer; src.playbackRate.value = p.rate;
+  const f = (type, freq, q, gain) => { const n = c.createBiquadFilter(); n.type = type; n.frequency.value = freq; if (q) n.Q.value = q; if (gain !== undefined) n.gain.value = gain; return n; };
+  const G = v => { const g = c.createGain(); g.gain.value = v; return g; };
+  const hp = f('highpass', p.hp); src.connect(hp);
+  let cur = hp;
+  if (p.ring) { // modulation en anneau : la voix des Daleks
+    const sum = G(1), dry = G(1 - p.ring[1]), ring = G(0), osc = c.createOscillator(), og = G(p.ring[1] * 1.6);
+    osc.frequency.value = p.ring[0]; osc.connect(og); og.connect(ring.gain); osc.start(); oscs.push(osc);
+    cur.connect(dry); dry.connect(sum); cur.connect(ring); ring.connect(sum); cur = sum;
+  }
+  if (p.sat) { // saturation
+    const ws = c.createWaveShaper(), n = 1024, curve = new Float32Array(n), th = Math.tanh(p.sat);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; curve[i] = Math.tanh(x * p.sat) / th; }
+    ws.curve = curve; ws.oversample = '2x'; cur.connect(ws); cur = ws;
+  }
+  if (p.comb) { // résonance métallique
+    const sum = G(1), d = c.createDelay(0.1), fb = G(p.comb[1]), wet = G(p.comb[2]);
+    d.delayTime.value = p.comb[0] / 1000; cur.connect(sum); cur.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(sum); cur = sum;
+  }
+  if (p.flang) { // flanger : une machine qui tourne
+    const [base, prof, hz, fbv, wv] = p.flang, sum = G(1), d = c.createDelay(0.05), fb = G(fbv), wet = G(wv), lfo = c.createOscillator(), lg = G(prof / 1000);
+    d.delayTime.value = base / 1000; lfo.frequency.value = hz; lfo.connect(lg); lg.connect(d.delayTime); lfo.start(); oscs.push(lfo);
+    cur.connect(sum); cur.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(sum); cur = sum;
+  }
+  const pres = f('peaking', p.pres[0], p.pres[1], p.pres[2]); cur.connect(pres);
+  const lp = f('lowpass', p.lp); pres.connect(lp); cur = lp;
+  const mixe = G(1); cur.connect(mixe);
+  if (p.bourdon) { // le grondement sous la voix : il suit la force de la voix
+    const osc = c.createOscillator(), bg = G(0), env = c.createWaveShaper(), ec = new Float32Array(256);
+    for (let i = 0; i < 256; i++) ec[i] = Math.abs(i / 255 * 2 - 1) * p.bourdon[1] * 2.2;
+    env.curve = ec; const el = f('lowpass', 8);
+    osc.frequency.value = p.bourdon[0]; osc.connect(bg); cur.connect(env); env.connect(el); el.connect(bg.gain); bg.connect(mixe); osc.start(); oscs.push(osc);
+  }
+  const conv = c.createConvolver(); conv.buffer = this.irRobot(c, p.rev[0], p.rev[1]);
+  const wet = G(p.rev[2] * 1.6), out = G(p.gain || 0.82), comp = c.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
+  const lim = c.createDynamicsCompressor(); // le limiteur : puissant, mais le haut-parleur ne sature jamais
+  lim.threshold.value = -4; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.12;
+  mixe.connect(comp); mixe.connect(conv); conv.connect(wet); wet.connect(comp); comp.connect(out); out.connect(lim); lim.connect(c.destination);
+  const an = c.createAnalyser(); an.fftSize = 256; an.smoothingTimeConstant = 0.6; lim.connect(an); this.an = an;
+  src.start();
+  return { src, tail: p.rev[0], duration: buffer.duration / p.rate, stop() { try { src.stop(); } catch (e) { /* déjà fini */ } setTimeout(() => oscs.forEach(o => { try { o.stop(); } catch (e) { /* rien */ } }), p.rev[0] * 1000); } };
 };
 // la voix du mode papa : une « IA de film » — un peu plus grave, une présence de studio, une petite salle,
 // un très léger dédoublement ; et une oreille électronique (analyseur) pour que le noyau suive le vrai son
@@ -296,7 +356,9 @@ const voice = {
       const end = () => {
         if (done) return;
         done = true; this.speaking = false; this.endedAt = Date.now(); this._cur = null;
-        node.stop(); face.talk(false); VISAGE.quiet(); OREILLES.mute(false);
+        node.stop(); face.talk(false); VISAGE.quiet();
+        if (node.tail) setTimeout(() => { if (!this.speaking) OREILLES.mute(false); }, node.tail * 650); // l'écho de la salle
+        else OREILLES.mute(false);
         res();
       };
       node.src.onended = end;
@@ -313,7 +375,7 @@ const voice = {
       // voix de robot : plus grave et plus posée (encore plus grave si c'est une voix de femme)
       const robot = robotVoice(), papa = typeof PAPA !== 'undefined' && PAPA.on;
       u.rate = papa ? 1 : (S.settings.slow ? 0.85 : 1.02) * (robot ? 0.92 : 1);
-      u.pitch = papa ? (this.male ? 0.88 : 0.72) : robot ? (this.male ? 0.8 : 0.55) : 1.1; // mode papa : posée, sans effet de robot pour enfant
+      u.pitch = papa ? (ROBOTS[VOIXMAISON.papa()] ? 0.1 : this.male ? 0.88 : 0.72) : robot ? (this.male ? 0.8 : 0.55) : 1.1; // mode papa : posée, sans effet de robot pour enfant
       if (robot && !papa && Date.now() - (this.endedAt || 0) > 2500) fx.comm(); // un petit signal électronique quand il prend la parole
       let done = false;
       const end = () => {
