@@ -867,3 +867,19 @@ body.lite .face.hearing .head, body.lite .face.sleep .stars circle { animation: 
 .board .pchips span { display: inline-flex; align-items: center; }
 .board .pwild .pimg { animation: popin .5s cubic-bezier(.3, 1.6, .5, 1) both; }
 @keyframes popin { from { transform: scale(.3); opacity: 0; } }
+
+/* ---------- jeux à plusieurs : le tableau des scores ---------- */
+.board .ens { width: min(88vw, 460px); color: var(--text); text-align: center; }
+.board .ens h3 { margin: 0 0 2px; font: 700 clamp(22px, 5vmin, 32px) Andika, sans-serif; letter-spacing: .02em; }
+.board .ens small { display: block; opacity: .7; margin-bottom: 10px; font-size: clamp(13px, 2.6vmin, 16px); }
+.board .ens ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.board .ens li { --c: #59c8ff; display: grid; grid-template-columns: minmax(70px, 30%) 1fr 2.2em; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08);
+  transition: transform .25s, border-color .25s, box-shadow .25s; }
+.board .ens li b { text-align: left; font: 700 clamp(16px, 3.4vmin, 22px) Andika, sans-serif; color: var(--c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board .ens li i { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.board .ens li s { display: block; height: 100%; border-radius: 6px; background: var(--c); box-shadow: 0 0 10px var(--c); transition: width .5s ease-out; }
+.board .ens li em { font: 700 clamp(18px, 3.8vmin, 26px) Andika, sans-serif; font-style: normal; }
+.board .ens li.on { transform: scale(1.04); border-color: var(--c); box-shadow: 0 0 18px rgba(89, 200, 255, .25); }
+.board .ens-histoire p { text-align: left; max-height: 52vh; overflow: auto; line-height: 1.5; font-size: clamp(15px, 3vmin, 19px); }
+@supports not (width: min(1px, 2px)) { .board .ens { width: 88vw; } }

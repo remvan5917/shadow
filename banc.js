@@ -119,6 +119,46 @@
     return ok1 && ok2 && /Électrik/.test(POKEMON.decrire(POKEMON.BY[25]));
   });
   await essai('rapport de systèmes', async () => { dits.length = 0; await CONSCIENCE.rapport(); return /Rapport/.test(dits.join(' ')); });
+  // ---------- jeux à plusieurs, et ce qu'on lui apprend ----------
+  const hb = hear, chatB = AI.chat, rireB = VISAGE.rire, readyB = AI.ready;
+  VISAGE.rire = () => Promise.resolve(); AI.ready = () => true;
+  const actB = window.activity; window.activity = vrai.act; // les vrais jeux, pas la version vide
+  const calc = t => { const m = String(t).match(/(\d+) (plus|moins|fois) (\d+)/); if (!m) return null; const x = +m[1], y = +m[3]; return m[2] === 'plus' ? x + y : m[2] === 'moins' ? x - y : x * y; };
+  await essai('jeux à plusieurs : inscription, tours, vol de question et gagnant', async () => {
+    dits.length = 0; S.ensemble = null; let k = 0, q = '';
+    hear = async () => { await wait(5); const l = dits[dits.length - 1] || ''; if (/grand ou un enfant/.test(l)) return 'une enfant'; if (/À toi/.test(l)) { k++; q = l; return k === 2 ? '1000' : String(calc(l)); } if (/Qui d'autre/.test(l)) return `Maman ${calc(q)}`; return 'non'; };
+    await Promise.race([handle('on joue avec papa, maman et Léa au calcul'), wait(20000)]);
+    const t = dits.join(' | ');
+    if (!(/Léa/.test(t) && /Bien volé, Maman/.test(t) && /gagnant|Égalité/.test(t) && S.ensemble.parties === 1 && S.ensemble.joueurs.length === 4)) throw new Error(t.slice(0, 300));
+    return true;
+  });
+  await essai('apprendre un jeu, puis y jouer (maître du jeu)', async () => {
+    dits.length = 0; S.jeuxAppris = []; let mj = 0;
+    AI.chat = async m => { const sy = m[0].content; if (/INCONNU/.test(sy)) return 'INCONNU'; if (/Réécris les règles/.test(sy)) return 'Chacun dit un animal qui commence par la dernière lettre du précédent. Le premier à deux points gagne.'; if (/maître du jeu/.test(sy)) return ++mj === 1 ? 'À toi, Testeur, un animal en T ! [[ecoute]]' : '[[point:Testeur]] Bravo, Testeur a gagné ! [[fin:Testeur]]'; return ''; };
+    const r = ['La chaîne des animaux', 'on dit un animal qui commence par la dernière lettre', "c'est tout", 'deux points', 'oui', 'oui', 'seul', 'tigre', 'non']; let i = 0;
+    hear = async () => { await wait(5); return r[i++] || 'non'; };
+    await Promise.race([handle("je vais t'apprendre un jeu"), wait(20000)]);
+    const j = APPRENDRE.cherche(N('on joue à la chaîne des animaux'));
+    if (!(j && /premier à deux points/.test(j.regles) && /Testeur a gagné/.test(dits.join(' ')))) throw new Error(dits.join(' | ').slice(0, 300));
+    return true;
+  });
+  await essai('devinette apprise : il la retient et la pose ensuite', async () => {
+    dits.length = 0; S.devAppris = [];
+    AI.chat = async () => 'une baleine';
+    const r = ['Je suis jaune et je chauffe la Terre. Qui suis-je ?', 'non', "c'est le soleil"]; let i = 0;
+    hear = async () => { await wait(5); return r[i++] || 'non'; };
+    await Promise.race([handle("j'ai une devinette pour toi"), wait(10000)]);
+    const d = JEUX.DEVINETTES.find(x => /chauffe la Terre/.test(x.q));
+    if (!(d && JEUX.matches('le soleil', d.r))) throw new Error(dits.join(' | ').slice(0, 300));
+    return true;
+  });
+  await essai('mémoire partagée : les jeux appris voyagent', () => {
+    const a = { updatedAt: 1, jeuxAppris: [{ id: 1, nom: 'Ni oui ni non', regles: 'v1', at: 1 }] };
+    const b = { updatedAt: 2, jeuxAppris: [{ id: 1, nom: 'Ni oui ni non', regles: 'v2', at: 5 }, { id: 2, nom: 'Le petit bac', regles: 'x', at: 2 }] };
+    const m = SYNC.merge(a, b);
+    return m.jeuxAppris.length === 2 && m.jeuxAppris.find(x => x.id === 1).regles === 'v2';
+  });
+  hear = hb; AI.chat = chatB; VISAGE.rire = rireB; AI.ready = readyB; window.activity = actB;
 
   // ---------- on remet tout en place ----------
   Object.assign(AI, { ready: vrai.ready, chatStream: vrai.stream, chat: vrai.chat });

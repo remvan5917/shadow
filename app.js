@@ -760,6 +760,10 @@ async function handle(text) {
   if (early) return early();
   const pj = PROJETS.route(text, n); // « je veux apprendre la table de 7 cette semaine », « où j'en suis ? »
   if (pj) return pj();
+  const ap = APPRENDRE.route(text, n); // « je vais t'apprendre un jeu », « on joue au petit bac », « j'ai une devinette pour toi »
+  if (ap) return ap();
+  const en = ENSEMBLE.route(text, n); // « on joue à plusieurs », « quiz en famille », « on joue avec papa et maman »
+  if (en) return en();
   const pk = POKEMON.route(text, n); // « parle-moi de Pikachu », « combat Pokémon », « on part à la chasse aux Pokémon »
   if (pk) return pk();
   // « comment s'est passée ta journée ? » : si la réponse n'est pas une demande de jeu, c'est l'humeur du jour
@@ -769,7 +773,7 @@ async function handle(text) {
   if (RE.sleep.test(n)) return goSleep();
   if (RE.stop.test(n)) { CORPS.bouger('stop'); closeJournal(); hideBoard(); face.set('idle'); await say("D'accord, je me tais. Dis « Shadow » quand tu veux me parler."); dlg.state = 'standby'; return; }
   if (RE.repeat.test(n)) return say(lastSaid || "Je n'ai encore rien dit !");
-  if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Avec mon écran, je peux aussi chercher dans mon encyclopédie et te montrer des images, dire la météo, lancer un minuteur, t'accompagner pour le brossage des dents, respirer avec toi pour te calmer, jouer au robot mystère et au jeu des couleurs. Dis-moi ce que tu veux !");
+  if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Avec mon écran, je peux aussi chercher dans mon encyclopédie et te montrer des images, dire la météo, lancer un minuteur, t'accompagner pour le brossage des dents, respirer avec toi pour te calmer, jouer au robot mystère et au jeu des couleurs. Et on peut jouer à plusieurs, toute la famille : dis « on joue à plusieurs » ! Et vous pouvez m'apprendre de nouveaux jeux et des devinettes : dis « je vais t'apprendre un jeu » ! Dis-moi ce que tu veux !");
   if (RE.motJour.test(n)) return say(motDuJourText());
   if (RE.medailles.test(n)) return medaillesAnswer();
   if (RE.dicteeMots.test(n)) return activity(dicteeMotsFlow);
@@ -1079,6 +1083,9 @@ async function runAction(a, arg) {
   if (a === 'pokedevine') return activity(POKEMON.devinette);
   if (a === 'pokequiz') return activity(POKEMON.quiz);
   if (a === 'pokedex') return POKEMON.monPokedex();
+  if (a === 'plusieurs') return activity(() => ENSEMBLE.partie(arg || ''));
+  if (a === 'apprendre') return activity(() => APPRENDRE.apprendreJeu(arg ? `jeu du ${arg}` : ''));
+  if (a === 'jouer' && arg) { const j = APPRENDRE.cherche(N(arg)); if (j) return activity(() => APPRENDRE.jouer(j, '')); }
   if (map[a]) return activity(map[a]);
 }
 

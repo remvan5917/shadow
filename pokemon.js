@@ -282,35 +282,40 @@ const POKEMON = (() => {
   }
 
   /* ---------- le quiz Pokémon ---------- */
-  async function quiz() {
+  // une question du quiz (aussi utilisée pour les jeux à plusieurs) : { q, rep, ok(réponse), prompt }
+  function question() {
     const pl = pool().filter(p => p.flag === 0);
+    for (let essai = 0; essai < 20; essai++) {
+      const p = pick(pl), kind = pick(['type', 'type', 'evo', 'taille', 'bat']);
+      const prompt = `${TYPES.join(', ')}. Pikachu, Dracaufeu.`;
+      if (kind === 'evo' && KIDS[p.id]) {
+        const kids = KIDS[p.id].map(k => BY[k]);
+        return { q: `En quel Pokémon évolue ${p.nom} ?`, rep: kids.map(k => k.nom).join(' ou '), prompt, ok: a => { const g = findIn(a); return !!g && KIDS[p.id].includes(g.id); } };
+      }
+      if (kind === 'taille') {
+        const o = pick(pl.filter(x => Math.abs(x.h - p.h) >= 3));
+        const big = p.h > o.h ? p : o;
+        return { q: `Qui est le plus grand : ${p.nom} ou ${o.nom} ?`, rep: `${big.nom}, il mesure ${taille(big)}`, prompt, ok: a => { const g = findIn(a); return !!g && g.id === big.id; } };
+      }
+      if (kind === 'bat') {
+        const d = pick(TYPES.map((_, i) => i));
+        const win = TYPES.map((_, i) => i).filter(a => eff1(a, d) >= 2);
+        if (!win.length) continue;
+        return { q: `Quel type d'attaque est super efficace contre le type ${TYPES[d]} ?`, rep: win.map(x => TYPES[x]).join(', '), prompt, ok: a => win.some(x => N(a).includes(ORTHO.bare(TYPES[x]).toLowerCase())) };
+      }
+      if (kind === 'type') return { q: `De quel type est ${p.nom} ?`, rep: typesTxt(p), prompt, ok: a => p.t.some(x => N(a).includes(ORTHO.bare(TYPES[x]).toLowerCase())) };
+    }
+    return null;
+  }
+  async function quiz() {
     let score = 0;
     await say('Quiz Pokémon ! 5 questions. Prêt, dresseur ?');
     for (let i = 0; i < 5; i++) {
-      const p = pick(pl), kind = pick(['type', 'type', 'evo', 'taille', 'bat']);
-      let q, ok, rep;
-      if (kind === 'evo' && KIDS[p.id]) {
-        const kids = KIDS[p.id].map(k => BY[k]);
-        q = `En quel Pokémon évolue ${p.nom} ?`; rep = kids.map(k => k.nom).join(' ou ');
-        ok = a => { const g = findIn(a); return !!g && KIDS[p.id].includes(g.id); };
-      } else if (kind === 'taille') {
-        const o = pick(pl.filter(x => Math.abs(x.h - p.h) >= 3));
-        const big = p.h > o.h ? p : o;
-        q = `Qui est le plus grand : ${p.nom} ou ${o.nom} ?`; rep = `${big.nom}, il mesure ${taille(big)}`;
-        ok = a => { const g = findIn(a); return !!g && g.id === big.id; };
-      } else if (kind === 'bat') {
-        const d = pick(TYPES.map((_, i) => i));
-        const win = TYPES.map((_, i) => i).filter(a => eff1(a, d) >= 2);
-        if (!win.length) { i--; continue; }
-        q = `Quel type d'attaque est super efficace contre le type ${TYPES[d]} ?`; rep = win.map(x => TYPES[x]).join(', ');
-        ok = a => win.some(x => N(a).includes(ORTHO.bare(TYPES[x]).toLowerCase()));
-      } else {
-        q = `De quel type est ${p.nom} ?`; rep = typesTxt(p);
-        ok = a => p.t.some(x => N(a).includes(ORTHO.bare(TYPES[x]).toLowerCase()));
-      }
-      const a = await ask(`Question ${i + 1} : ${q}`, { prompt: `${TYPES.join(', ')}. Pikachu, Dracaufeu.`, wait: 20000 });
-      if (ok(a)) { score++; fx.ok(); face.flash('happy'); await say(pick(['Bravo !', 'Exact !', 'Super, dresseur !'])); }
-      else { face.flash('oops'); await say(`La réponse : ${rep}.`); }
+      const Q = question();
+      if (!Q) continue;
+      const a = await ask(`Question ${i + 1} : ${Q.q}`, { prompt: Q.prompt, wait: 20000 });
+      if (Q.ok(a)) { score++; fx.ok(); face.flash('happy'); await say(pick(['Bravo !', 'Exact !', 'Super, dresseur !'])); }
+      else { face.flash('oops'); await say(`La réponse : ${Q.rep}.`); }
     }
     logAct('pokequiz', '', score, 5);
     face.set('happy'); if (score >= 4) fx.confetti(40);
@@ -364,5 +369,5 @@ const POKEMON = (() => {
     { id: 'arene', nom: "Champion d'arène", ico: '🥇', test: () => (stats().wins || 0) >= 5 },
   );
 
-  return { route, factFor, pokedex, combat, chasse, devinette, quiz, monPokedex, sauvageDuJour, findIn, P, BY, decrire };
+  return { route, factFor, pokedex, combat, chasse, devinette, quiz, question, monPokedex, sauvageDuJour, findIn, P, BY, decrire };
 })();

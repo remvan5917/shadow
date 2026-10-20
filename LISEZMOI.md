@@ -52,6 +52,20 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 
 Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 
+## Jouer à plusieurs (toute la famille)
+« On joue à plusieurs », « quiz en famille », « on joue avec papa et maman au calcul » : Shadow devient le maître du jeu.
+- Il inscrit les joueurs (chacun dit son prénom, puis « c'est tout » ; il propose de reprendre les joueurs de la dernière fois) et sait qui est un grand ou un enfant (« papa », « maman »… sont des grands ; sinon il demande).
+- Les grands ont des questions plus dures (calculs de grand, quiz sans les choix) et un seul essai ; les enfants ont une astuce et un deuxième essai.
+- Chacun son tour (« À toi, maman ! »), avec le tableau des scores à l'écran. Une question ratée peut être volée : « Qui d'autre ? Ton prénom, puis ta réponse ! ».
+- À la fin : le gagnant, une question de départage en cas d'égalité, et il retient les victoires (« qui a gagné le plus de parties ? »).
+- Jeux : quiz, calcul, devinettes, quiz Pokémon, et l'histoire inventée à plusieurs (chacun ajoute la suite).
+
+## Lui apprendre des choses et de nouveaux jeux
+- **« Je vais t'apprendre un jeu »** : il demande le nom, écoute les règles (en plusieurs fois, jusqu'à « c'est tout »), demande comment on gagne, puis redit les règles avec ses mots pour vérifier (on peut corriger). S'il connaît déjà un peu le jeu, il propose ses règles. Ensuite : **« on joue à … »** (tout seul avec lui ou à plusieurs) : il anime la partie, compte les points et affiche les scores. Pour jouer aux jeux appris, il faut le grand cerveau.
+- **« J'ai une devinette pour toi »** : il essaie de deviner, puis il la retient et la pose ensuite à toute la famille (même sans Internet).
+- **« Je vais t'apprendre quelque chose »** : il le range dans sa mémoire.
+- **« Quels jeux je t'ai appris ? »**, **« oublie le jeu … »**. Tout ce qu'on lui apprend passe d'un appareil à l'autre (mémoire partagée).
+
 ## Son rire
 Shadow rit pour de vrai : un rire de robot fabriqué par le son du téléphone (aucun enregistrement), avec trois sortes de rires (« hi hi » aigu, « ha ha » franc, « ho ho » grave) qui descendent comme un vrai rire, le même timbre métallique que sa voix, et le visage qui rit avec. Il rit quand on le chatouille (trois tapes), quand son cerveau trouve quelque chose de drôle (il écrit « Ha ha ha ! »), quand l'enfant rit (« ha ha ha », « mdr »), ou quand on lui dit « Shadow, rigole ! ».
 

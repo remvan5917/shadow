@@ -32,9 +32,11 @@ const SYNC = (() => {
     intentions: { key: x => x.id, time: x => x.id, cap: 20, both: (a, b) => Object.assign({}, a, b, { done: !!(a.done || b.done) }) },
     'settings.reminders': { key: x => x.id, time: x => x.id },
     'settings.events': { key: x => x.id || `${x.date}|${norm(x.text)}`, time: x => x.id || 0 },
+    jeuxAppris: { key: x => x.id, time: x => x.at || x.id, both: (a, b) => ((b.at || 0) > (a.at || 0) ? b : a) }, // les jeux que la famille lui a appris
+    devAppris: { key: x => x.id, time: x => x.id }, // les devinettes que la famille lui a apprises
   };
   const SETS = ['badges'];
-  const MAXMAP = ['stats', 'playLog', 'pokeCaught', 'pokeLvl', 'pokeStats']; // compteurs (et Pokémon attrapés) : on garde le plus grand
+  const MAXMAP = ['stats', 'playLog', 'pokeCaught', 'pokeLvl', 'pokeStats', 'ensemble.victoires']; // compteurs (et Pokémon attrapés) : on garde le plus grand
   const DICTEE = 'dictee'; // { mot: { ok, fail } } : le plus grand de chaque
   const SCALARS = ['prenom', 'calcLevel', 'humeur', 'explorer', 'settings.coucher', 'settings.ville', 'settings.propose'];
 

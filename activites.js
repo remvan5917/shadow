@@ -630,7 +630,7 @@ async function doigtsFlow() {
 }
 
 /* =================== 21. LE BILAN POUR PAPA =================== */
-const ACT_NOMS = { dictee: 'Dictées', lecture: 'Lectures', heure: "L'heure", anglais: 'Anglais', jacques: 'Jacques a dit', emotions: 'Émotions', pfc: 'Pierre-feuille-ciseaux', cris: "Cris d'animaux", doigts: 'Doigts', quiz: 'Quiz', calc: 'Calcul', journal: 'Journal', chanson: 'Comptines', soir: 'Histoires du soir', devinette: 'Devinettes' };
+const ACT_NOMS = { dictee: 'Dictées', lecture: 'Lectures', heure: "L'heure", anglais: 'Anglais', jacques: 'Jacques a dit', emotions: 'Émotions', pfc: 'Pierre-feuille-ciseaux', cris: "Cris d'animaux", doigts: 'Doigts', quiz: 'Quiz', calc: 'Calcul', journal: 'Journal', chanson: 'Comptines', soir: 'Histoires du soir', devinette: 'Devinettes', ensemble: 'Jeux à plusieurs' };
 function renderBilan() {
   const since = Date.now() - 7 * 86400000;
   const log = (S.log || []).filter(x => x.at > since);
