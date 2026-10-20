@@ -64,7 +64,22 @@ Comme un robot de film, Shadow sait où il en est, et s'en sert pour répondre j
 - **Un cerveau à deux vitesses** : pour discuter, un cerveau rapide. Pour une question difficile (« pourquoi… », « comment ça marche… », un problème), il dit « je réfléchis » et passe la main à un cerveau plus puissant, qui raisonne avant de répondre. Pour un exercice d'école, il donne un indice plutôt que la réponse.
 - **Les projets sur plusieurs jours** : « je veux apprendre la table de 7 cette semaine » (ou « d'ici vendredi », « en 5 jours »). Il propose l'entraînement du jour une fois par jour, note chaque séance, et l'objectif est atteint quand l'entraînement est réussi deux jours différents. « Où j'en suis ? » affiche les jours. « Arrête mon projet » l'arrête. Projets possibles : tables, compléments, l'heure, dictée, lecture, anglais.
 - **La mémoire par personne** : il range chaque souvenir sous la personne qu'il concerne et ne les mélange pas (si papa dit « j'adore le café », c'est papa qui aime le café). Pour que ça marche bien, chacun lui apprend sa voix : « Shadow, apprends ma voix ».
+- **Son humeur à lui** : joyeux après une partie réussie ou un compliment, un peu fatigué le soir ou batterie basse, inquiet si l'enfant est triste. Ça colore un peu sa façon de parler.
+- **Il agit plus tard, tout seul** : « rappelle-moi demain à 8 h de prendre mon cahier », « dans 20 minutes, dis-moi de ranger ». Il se réveille si besoin. « Qu'est-ce que tu dois me rappeler ? » / « annule le rappel ».
+- **Les consignes de chacun** : « appelle-moi Capitaine », « tu t'es trompé, c'est… ». Il les retient pour chaque personne et les respecte.
+- **Le niveau de l'enfant** : d'après ses jeux (points forts, ce qu'il faut travailler), pour adapter son aide.
 Le niveau de batterie est lu dans le téléphone et n'est jamais envoyé ailleurs.
+
+## Économiser l'énergie du cerveau (limite gratuite de Groq)
+La version gratuite de Groq limite ce que le cerveau peut traiter par minute et par jour. Shadow économise :
+- sa personnalité est écrite en version courte, et il n'envoie que les 10 derniers messages ;
+- les petites tâches (encyclopédie, regarder, bonjour avec souvenirs) utilisent une mini-personnalité ; le bonjour avec souvenirs n'a lieu qu'une fois par jour ;
+- la mémoire est rangée par un autre modèle, pour garder l'énergie du principal ;
+- en veille, il envoie au plus 4 bouts de voix par minute à Groq pour entendre son nom, et 1 seul s'il ne voit personne (sûrement la télé).
+Dans ⚙️ → *Le cerveau*, une ligne affiche l'énergie utilisée aujourd'hui.
+
+## Cerveau de la maison (IA locale, sans limite)
+Le cerveau peut tourner sur l'ordinateur de la maison avec **Ollama**, sans limite et sans rien envoyer sur Internet. Groq prend le relais tout seul quand l'ordinateur ne répond pas (éteint, ou téléphone loin de la maison). Il faut un petit modèle qui tienne dans la carte graphique (ex : `qwen3:4b`). Comme Shadow est une page sécurisée (https), le téléphone doit joindre l'ordinateur par une adresse https : le plus simple est **Tailscale** (gratuit, privé : seuls vos appareils y ont accès). Les étapes sont dans la conversation avec Claude ; dans ⚙️ → *Le cerveau*, choisir « Cerveau de la maison » et mettre l'adresse donnée par Tailscale suivie de `/v1`.
 
 ## Son visage
 Il a plus de 15 expressions : content, triste, surpris, rieur (yeux « ^ ^ »), amoureux (yeux en cœur), timide (il rougit), fier (crête dorée), perplexe, fatigué, calme… Son visage suit ce qu'il dit, même quand c'est le grand cerveau qui parle. Quand il parle, sa bouche prend la forme des sons (a, o, i, m…). Quand il attend, il penche la tête, cligne de l'œil, fredonne (des petites notes sortent de sa tête) ou bâille s'il s'ennuie. Le soir, après 20 h 30, ses paupières sont plus lourdes.
@@ -132,13 +147,6 @@ Le visage prend la plus grande taille possible, que l'écran soit vertical ou ho
 - **Encyclopédie** : le sujet cherché (par exemple « volcan ») part chez Vikidia et Wikipédia, sans rien d'autre. Shadow affiche les images de Vikidia ; quand Vikidia n'a pas d'image, il prend celle de l'article Wikipédia du même sujet.
 - **Météo** : seulement les coordonnées de la ville réglée par papa, arrondies, envoyées à Open-Meteo (gratuit, sans compte).
 - **Vision détaillée** : désactivée par défaut. Si papa l'active, une photo part chez Groq quand on demande « qu'est-ce que tu vois ? ».
-
-## IA locale (Ollama), pour plus tard sur l'ordi ou le Raspberry Pi
-1. Installer Ollama, puis par exemple `ollama pull qwen3:4b`.
-2. Autoriser l'appli : lancer Ollama avec `OLLAMA_ORIGINS=*`.
-3. Réglages → Cerveau → IA locale, adresse `http://localhost:11434/v1`.
-
-Attention : depuis une tablette, `localhost` désigne la tablette, pas l'ordi. Ce mode marche quand l'appli tourne sur la machine qui héberge Ollama.
 
 ## Le corps (étape 4 : « Fabriquer le robot »)
 Le téléphone reste **la tête** de Shadow : il garde le visage, les yeux, les oreilles et le cerveau. Le corps est une petite carte **ESP32** qui reçoit ses ordres par **Bluetooth** et fait rouler les roues. Il n'y a pas besoin de WiFi.

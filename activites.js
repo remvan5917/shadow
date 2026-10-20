@@ -19,6 +19,7 @@ function logAct(type, detail, score, total) {
   if (!AI.online()) S.explorer = true; // il a joué sans réseau : médaille de l'explorateur
   save();
   checkBadges();
+  if (typeof CONSCIENCE !== 'undefined') CONSCIENCE.onAct(type, score, total); // son humeur à lui
 }
 
 /* ---------- le tableau : ce que Shadow montre sur son écran (texte à lire, horloge, sa main…) ---------- */
@@ -474,7 +475,7 @@ async function histoireSoirFlow() {
   let story = '';
   if (AI.ready()) {
     try {
-      story = await AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
+      story = await AI.chat([{ role: 'system', content: CERVEAU.persona() + MEMOIRE.context() },
         { role: 'user', content: `(${name()} va se coucher.) Raconte-lui une histoire du soir très douce et calme, de 7 à 9 phrases simples, où il peut y avoir un de ses goûts de ta mémoire. Rien qui fait peur. Termine par « Bonne nuit… ».` }], { maxTokens: 450, temperature: 0.8 });
       story = ETHIQUE.safe(story);
     } catch (e) { story = ''; }

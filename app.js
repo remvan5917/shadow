@@ -579,12 +579,14 @@ function goSleep(withWords = true) {
 // Bonjour « avec souvenirs » : le grand cerveau peut parler de ce qu'il a retenu
 async function memoryGreeting(who) {
   const n = who || name();
-  if (dlg.greeted === 0 || !AI.ready() || !MEMOIRE.data().facts.length && !MEMOIRE.data().summaries.length) return say(greeting(who));
+  const dd = daily(); // bonjour « avec souvenirs » : une fois par jour (ça coûte de l'énergie au cerveau)
+  if (dlg.greeted === 0 || dd.memGreet === dayKey() || !AI.ready() || !MEMOIRE.data().facts.length && !MEMOIRE.data().summaries.length) return say(greeting(who));
+  dd.memGreet = dayKey(); save();
   dlg.greeted++;
   face.set('happy');
   try {
     const r = await Promise.race([
-      AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
+      AI.chat([{ role: 'system', content: CERVEAU.persona() + MEMOIRE.context('', n) },
         { role: 'user', content: `(${n} vient d'arriver devant toi.) Dis-lui bonjour en 1 ou 2 phrases courtes, chaleureuses. Si c'est naturel, évoque UN souvenir précis de ta mémoire (un événement prévu, un goût…). Ne propose aucune activité.` }],
       { maxTokens: 120, temperature: 0.6 }),
       wait(5000).then(() => ''),
@@ -759,7 +761,7 @@ async function chatReply(text, hidden = false) {
       + (think ? "\n\n(Question difficile : raisonne bien avant de répondre, puis réponds en 2 ou 3 phrases simples avec un exemple de tous les jours. Si c'est un exercice d'école, donne un indice plutôt que la réponse.)" : '') + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
-    const msgs = [{ role: 'system', content: anonymize(sys) + (S.settings.video ? "\n\n(Mode vidéo : on te filme pour présenter le Projet SHADOW. Ne dis AUCUN prénom, dis « mon ami ». C'est sans doute papa qui te parle.)" : '') }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
+    const msgs = [{ role: 'system', content: anonymize(sys) + (S.settings.video ? "\n\n(Mode vidéo : on te filme pour présenter le Projet SHADOW. Ne dis AUCUN prénom, dis « mon ami ». C'est sans doute papa qui te parle.)" : '') }, ...S.chat.slice(-10).map(({ role, content }) => ({ role, content: String(content).slice(0, 400) }))]; // les 10 derniers messages suffisent
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
     if (think) { face.set('think'); VISAGE.puff('question', 2); }
     let queue = think ? say(pick(['Hmm, laisse-moi réfléchir…', 'Bonne question. Je réfléchis…', 'Je fais tourner mes circuits…'])) : Promise.resolve(), bad = false, spoken = 0;
@@ -791,6 +793,14 @@ async function chatReply(text, hidden = false) {
       if (clean) S.chat.push({ role: 'assistant', content: clean });
       save();
       if (!dlg.interrupt) await CONSCIENCE.lookAndAnswer(text, msgs);
+      return;
+    }
+    // [[rappel:2026-10-21 08:00|prendre ton cahier]] : il le fera plus tard, tout seul
+    if (!bad && action === 'rappel') {
+      if (!CONSCIENCE.addIntention(actionArg)) await say("Hum, je n'ai pas bien compris quand je dois te le rappeler. Redis-le-moi avec le jour et l'heure ?");
+      else if (!spoken) await say("C'est noté, je te le rappellerai.");
+      S.chat.push({ role: 'assistant', content: clean || "C'est noté, je te le rappellerai." });
+      save();
       return;
     }
     // [[cherche:volcan]] : il ne répond pas de mémoire, il va lire son encyclopédie
@@ -847,7 +857,7 @@ async function recall() {
   face.set('happy');
   if (AI.ready()) {
     try {
-      const r = await AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
+      const r = await AI.chat([{ role: 'system', content: CERVEAU.persona() + MEMOIRE.context('', currentWho()) },
         { role: 'user', content: `(${name()} te demande ce dont tu te souviens.) Raconte-lui 3 ou 4 choses de ta mémoire, joyeusement, en lui parlant (« tu adores… »). 3 phrases maximum.` }], { maxTokens: 200 });
       if (r) return say(ETHIQUE.safe(r));
     } catch (e) { /* on lit la mémoire telle quelle */ }
@@ -1573,9 +1583,16 @@ setInterval(() => {
 /* =================== RÉGLAGES (coin de papa) =================== */
 function brainVis() {
   const local = ($('input[name=s-brain]:checked') || {}).value === 'local';
-  $('#s-groq').hidden = local;
+  $('#s-groq').hidden = false; // la clé Groq sert aussi aux oreilles et de relais au cerveau de la maison
   $('#s-local').hidden = !local;
 }
+// l'énergie utilisée aujourd'hui (dans les réglages de papa)
+setInterval(() => {
+  const el = $('#s-usage');
+  if (!el || !$('#dlg-settings').open) return;
+  const u = S.usage && S.usage.day === new Date().toDateString() ? S.usage : { tokens: 0, req: 0, audio: 0 };
+  el.textContent = `Aujourd'hui : ${u.req} réponse${u.req > 1 ? 's' : ''} du cerveau (${Math.round(u.tokens / 1000)} k jetons), ${Math.round(u.audio / 60)} min de voix transcrite.${AI.localDownUntil > Date.now() ? ' Cerveau de la maison injoignable : relais par Groq.' : ''}`;
+}, 2000);
 function readSettingsForm() {
   return {
     brain: ($('input[name=s-brain]:checked') || {}).value || 'groq',
@@ -1722,7 +1739,7 @@ async function testBrain() {
   }
   msg.textContent = 'Test en cours…';
   try {
-    const r = await AI.chat([{ role: 'system', content: CERVEAU.personality() }, { role: 'user', content: '[Test de papa] Dis bonjour en une phrase.' }], { maxTokens: 80 });
+    const r = await AI.chat([{ role: 'system', content: CERVEAU.persona() }, { role: 'user', content: '[Test de papa] Dis bonjour en une phrase.' }], { maxTokens: 80 });
     msg.textContent = `✅ Le cerveau marche : « ${r} »`;
     if (S.settings.seeCloud && VISION.isOn()) {
       try { await AI.see(VISION.snapshot(320), 'Dis juste « ok ».'); msg.textContent += ' · ✅ Vision détaillée OK'; }

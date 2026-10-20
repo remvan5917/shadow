@@ -165,7 +165,7 @@ const OREILLES = (() => {
     return new Blob([b], { type: 'audio/wav' });
   }
   // Quand il attend son nom, il n'envoie pas tout à Groq : seulement les phrases courtes
-  // (« Shadow ! », « Shadow, on joue ? ») et pas plus de 8 par minute. La télé et les longues
+  // (« Shadow ! », « Shadow, on joue ? ») et pas plus de 4 par minute (1 s'il ne voit personne). La télé et les longues
   // conversations d'adultes ne partent plus, ce qui économise la limite gratuite de Groq.
   const cheapSent = [];
   function worthSending(speech) {
@@ -173,7 +173,9 @@ const OREILLES = (() => {
     if (speech > 4.5) return false;
     const now = performance.now();
     while (cheapSent.length && now - cheapSent[0] > 60000) cheapSent.shift();
-    if (cheapSent.length >= 8) return false;
+    // personne devant la caméra depuis un moment : 1 par minute seulement (c'est sûrement la télé) ; sinon 4
+    const alone = typeof VISION !== 'undefined' && VISION.isOn() && typeof seen !== 'undefined' && !seen.present;
+    if (cheapSent.length >= (alone ? 1 : 4)) return false;
     cheapSent.push(now);
     return true;
   }

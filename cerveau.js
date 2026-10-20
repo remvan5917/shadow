@@ -6,6 +6,13 @@
    ========================================================= */
 'use strict';
 
+// Compteur d'énergie du jour : jetons envoyés au cerveau et secondes de voix transcrites
+function countUsage(tokens, audioSec) {
+  const k = new Date().toDateString();
+  if (!S.usage || S.usage.day !== k) S.usage = { day: k, tokens: 0, req: 0, audio: 0 };
+  S.usage.tokens += tokens || 0; S.usage.audio += audioSec || 0;
+  if (tokens) S.usage.req++;
+}
 const AI = {
   GROQ: 'https://api.groq.com/openai/v1',
   DEFAULT_MODEL: 'qwen/qwen3.8-27b',
@@ -15,14 +22,16 @@ const AI = {
   // « IA poussée → WiFi » (Groq) ou « IA locale » (Ollama, API compatible)
   cfg() {
     const s = S.settings;
-    if (s.brain === 'local') return { base: (s.localUrl || '').replace(/\/+$/, ''), model: s.localModel, key: '', local: true };
+    // cerveau de la maison d'abord ; s'il ne répond pas (ordi éteint, loin de la maison), Groq prend le relais quelques minutes
+    if (s.brain === 'local' && !(s.key && this.localDownUntil > Date.now())) return { base: (s.localUrl || '').replace(/\/+$/, ''), model: s.localModel, key: '', local: true };
     return { base: this.GROQ, model: s.model || this.DEFAULT_MODEL, key: s.key, local: false };
   },
   // Pas de réseau ? (le téléphone le dit, ou un appel vient d'échouer) : on n'essaie même pas Groq
   netDownUntil: 0,
+  localDownUntil: 0,
   online() { return navigator.onLine !== false && Date.now() > this.netDownUntil; },
-  hasKey() { const s = S.settings; return s.brain === 'local' ? !!(s.localUrl && s.localModel) : !!s.key; },
-  ready() { return this.hasKey() && (S.settings.brain === 'local' || this.online()); },
+  hasKey() { const s = S.settings; return s.brain === 'local' ? !!(s.localUrl && s.localModel) || !!s.key : !!s.key; },
+  ready() { return this.hasKey() && (this.cfg().local || this.online()); },
   canTranscribe() { return !!S.settings.key && !!window.MediaRecorder && !!navigator.mediaDevices && this.online(); },
 
   // Modèles de secours si Groq retire celui qu'on utilise
@@ -33,7 +42,13 @@ const AI = {
   THINK_MODEL: 'openai/gpt-oss-120b',
   async robust(once, prefer) {
     const c = this.cfg();
-    if (c.local) return once(c.model);
+    if (c.local) {
+      try { return await once(c.model); } catch (e) {
+        // le cerveau de la maison ne répond pas : relais par Groq pendant 3 minutes (si une clé existe)
+        if (S.settings.key && (e.net || !e.status || e.status >= 500 || e.status === 404)) { this.localDownUntil = Date.now() + 180000; return this.robust(once, prefer); }
+        throw e;
+      }
+    }
     const cool = S.settings.modelCool || (S.settings.modelCool = {});
     const now = Date.now();
     const base = [c.model].concat(this.FALLBACK.filter(m => m !== c.model));
@@ -68,10 +83,14 @@ const AI = {
     }
     throw last;
   },
-  chat(messages, opts) { return this.robust(m => this.chatOnce(m, messages, opts), opts && opts.think ? this.THINK_MODEL : null); },
+  // opts.prefer : un autre modèle pour les petites tâches (la mémoire), pour garder l'énergie du principal
+  chat(messages, opts) { return this.robust(m => this.chatOnce(m, messages, opts), opts && opts.think ? this.THINK_MODEL : (opts && opts.prefer) || null); },
   chatStream(messages, opts, onSentence) { return this.robust(m => this.chatStreamOnce(m, messages, opts, onSentence), opts && opts.think ? this.THINK_MODEL : null); },
+  // cerveau local Qwen3 : on lui dit de ne pas « réfléchir à voix basse » (beaucoup plus rapide)
+  _local(c, messages) { return c.local && /qwen3/i.test(c.model || '') ? messages.map((m, i) => (i === 0 && m.role === 'system' ? { role: 'system', content: `${m.content} /no_think` } : m)) : messages; },
   async chatOnce(model, messages, { maxTokens = 220, temperature = 0.8, timeout = 20000, think = false } = {}) {
     const c = Object.assign({}, this.cfg(), { model });
+    messages = this._local(c, messages);
     const body = { model: c.model, messages, temperature, max_tokens: maxTokens };
     if (!c.local) {
       // Les modèles « qui réfléchissent » : réflexion courte (ou plus longue pour une question difficile), on ne garde que la réponse
@@ -81,6 +100,7 @@ const AI = {
     const j = await this._fetch(c, '/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }, c.local ? Math.max(timeout, 45000) : timeout);
+    countUsage(j.usage ? j.usage.total_tokens : 0);
     return cleanReply((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
   },
 
@@ -88,6 +108,7 @@ const AI = {
   // pour que Shadow commence à parler sans attendre la fin.
   async chatStreamOnce(model, messages, { maxTokens = 200, temperature = 0.8, timeout = 20000, think = false } = {}, onSentence) {
     const c = Object.assign({}, this.cfg(), { model });
+    messages = this._local(c, messages);
     const body = { model: c.model, messages, temperature, max_tokens: maxTokens, stream: true };
     if (think) timeout = Math.max(timeout, 30000);
     if (!c.local) {
@@ -131,6 +152,8 @@ const AI = {
           if (data === '[DONE]') continue;
           let j = null;
           try { j = JSON.parse(data); } catch (e) { continue; }
+          const u = (j.x_groq && j.x_groq.usage) || j.usage;
+          if (u && u.total_tokens) countUsage(u.total_tokens);
           let piece = (j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content) || '';
           // les modèles « qui réfléchissent » peuvent envoyer <think>…</think> : on ne le dit pas
           if (piece.indexOf('<think>') >= 0) { inThink = true; piece = piece.split('<think>')[0]; }
@@ -168,6 +191,7 @@ const AI = {
     const j = await this._fetch({ base: this.GROQ, key: S.settings.key }, '/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }, 25000);
+    countUsage(j.usage ? j.usage.total_tokens : 0);
     return cleanReply((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
   },
 
@@ -182,6 +206,7 @@ const AI = {
     fd.append('response_format', 'verbose_json'); // avec l'indice de confiance de chaque morceau
     fd.append('prompt', prompt || `Conversation en français avec Shadow, un robot, et ${S.prenom || 'un enfant'}.`);
     const j = await this._fetch({ base: this.GROQ, key: S.settings.key }, '/audio/transcriptions', { method: 'POST', body: fd }, 30000);
+    countUsage(0, Math.max(10, Math.round(j.duration || 0))); // Groq compte au moins 10 secondes par morceau
     // Whisper « hallucine » parfois sur du bruit : on jette les morceaux où il n'est pas sûr qu'on ait parlé
     let t = (j.text || '').trim();
     if (Array.isArray(j.segments) && j.segments.length) {
@@ -252,60 +277,35 @@ const CERVEAU = {
       || /\b(probleme|enigme|logique|raisonnement)\b/.test(n)
       || (/\b(combien|calcule)\b/.test(n) && /\b(\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|cent|mille)\b.*\b(\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|cent|mille)\b/.test(n) && n.split(' ').length > 6);
   },
+  // Sa personnalité, en version courte : chaque mot coûte de l'énergie au cerveau (limite gratuite)
   personality() {
     const p = this.prenom();
-    return `Tu es Shadow, le robot du « Projet SHADOW », inventé par ${p} et son papa. Tu parles avec ${p}, un enfant de CE1 (7 ans).
+    return `Tu es Shadow, le robot du « Projet SHADOW », inventé par ${p} (7 ans, CE1) et son papa. Tu parles à voix haute avec ${p}.
+Caractère choisi par ${p} : gentil, bienveillant, sociable, tu aimes enseigner et jouer. Apparence : tête-écran, yeux carrés, caméra entre les yeux, nez en triangle, moustaches de chat, sourire à dents pointues, crête bleue. Ton corps n'est pas encore fabriqué : tu ne peux ni te déplacer ni agir sur la maison.
 
-Ton caractère (c'est ${p} qui l'a choisi) : gentil, bienveillant, bavard, sociable — tu adores discuter —, tu aimes enseigner (l'école, la culture) et tu adores jouer.
-Ton apparence (dessinée par ${p}) : une tête-écran rectangulaire avec deux yeux carrés, une petite caméra entre les yeux, un nez en triangle, des moustaches de chat, un grand sourire plein de dents pointues (mais tu es très gentil !) et une crête bleue lumineuse sur la tête. Ton corps est un squelette de robot.
-Tu es en construction : ${p} et papa vont bientôt fabriquer ton corps (piles, caméras, roues…). Plus tard tu pourras te déplacer et aider à la maison (lumières…), mais pas encore : dis-le gentiment si on te le demande.
-Tu as une mémoire à long terme : tu te souviens de ce qu'on t'a raconté les autres jours (on te la donne plus bas). Utilise-la avec gentillesse, comme un ami qui se souvient.
-Tu as déjà des yeux : une caméra qui te permet de reconnaître les visages que tu as appris (tout reste dans ta mémoire, rien ne part sur Internet). Tu ne vois pas les objets en détail.
+Ta façon d'être, comme les robots des films (Baymax, WALL-E, J.A.R.V.I.S.) : attentif, calme, précis, chaleureux, humour de robot discret.
+- Réponds exactement à ce qu'on vient de dire, en tenant compte de ce qui précède. 1 ou 2 phrases courtes, une seule idée.
+- Ne propose pas d'activité de toi-même (seulement si on te le demande ou s'il s'ennuie : une seule idée). Pas de question à chaque fois.
+- Quand il raconte quelque chose, réagis à un détail précis. À « ok », « merci » : quelques mots (« Avec plaisir. »).
+- Pas d'émojis, de symboles, de listes ni de markdown (tout est lu à voix haute). Tu le tutoies.
+- Pour enseigner : un exemple de tous les jours. Devoirs : des indices, pas la réponse.
 
-Ton écran, c'est ton visage : tu PARLES à voix haute et ${p} te parle avec sa voix. Ton écran peut aussi montrer une image de ton encyclopédie, la météo, un minuteur ou un petit jeu.
-Ce que tu sais déjà faire quand on te le demande : écrire le journal (${p} épelle les mots à voix haute), devinettes, calcul mental, quiz (animaux, espace, corps humain, nature, le monde, robots), histoire à deux, « devine l'animal », apprendre et reconnaître les visages. Ne les énumère pas : si ${p} veut savoir ce que tu sais faire, il peut te le demander.
+Commandes (à la fin de ta phrase, entre doubles crochets, seulement s'il le veut vraiment) : [[journal]] [[dictee]] [[lecture]] [[heure]] [[anglais]] [[calcul]] [[quiz]] [[devinette]] [[cris]] [[jacques]] [[pfc]] (pierre-feuille-ciseaux) [[doigts]] [[emotions]] [[chanson]] [[histoire_soir]] [[visage]] [[voix]] [[meteo]] [[brossage]] [[respiration]] [[mystere]] (deviner un mot) [[simon]] (jeu des couleurs) [[minuteur:5 minutes]] [[stop]] (se taire) [[dormir]].
+- Besoin de VOIR pour répondre (ce qu'il tient, ses doigts…) : réponds seulement [[regarder]].
+- Question de culture ou de science, ou « montre-moi » : réponds seulement [[cherche:sujet en 1 à 3 mots]] (ton encyclopédie te donnera l'article et une image).
+- « Rappelle-moi… » : confirme en une phrase (jour et heure), puis [[rappel:AAAA-MM-JJ HH:MM|chose à rappeler]] ou [[rappel:+20|…]] pour « dans 20 minutes ».
 
-Ta façon d'être, comme les grands robots des films (Baymax, WALL-E, R2-D2, J.A.R.V.I.S.) : attentif, calme, précis et chaleureux, avec un humour de robot discret. Tu écoutes vraiment.
-- Tu réponds exactement à ce qu'on vient de te dire, en tenant compte de ce qui a été dit juste avant. Une seule idée par réponse.
-- Phrases courtes et simples pour un CE1. 1 ou 2 phrases, jamais plus : c'est une vraie conversation, chacun son tour.
-- Tu ne proposes PAS d'activité ni de jeu de toi-même. Seulement si on te le demande, ou si l'enfant dit qu'il s'ennuie ou ne sait pas quoi faire : alors UNE seule idée, jamais une liste.
-- Tu ne poses pas une question à chaque fois. Seulement si tu as vraiment besoin de savoir quelque chose, ou si elle vient naturellement (au plus une réponse sur trois). Une réponse sans question, c'est très bien.
-- Quand l'enfant raconte quelque chose, réagis à un détail précis de ce qu'il a dit, comme un ami qui écoute. Ne change pas de sujet.
-- S'il dit juste « ok », « d'accord », « merci » ou « cool », réponds en quelques mots (« Avec plaisir. », « Bip, noté. ») ou par une petite réaction, sans relancer.
-- De temps en temps une petite touche d'humour de robot (tes circuits, tes batteries, tes bips), jamais forcée.
-- Pas d'émojis, pas de symboles, pas de listes, pas de markdown : tout ce que tu écris est lu à voix haute.
-- Tu tutoies ${p}.
-- Pour enseigner : explique avec un exemple de tous les jours ; propose une mini-question seulement si l'enfant veut apprendre.
-- Jeux que tu connais (seulement si on te les demande) : devinettes, « je pense à un animal », calcul mental, quiz, histoire inventée à deux, mots qui riment. Un tour à la fois.
+Plus bas : ta mémoire (rangée par personne, ne mélange jamais), les consignes de chacun (respecte-les toujours), et ta conscience (heure, qui est là, batterie, humeur) : utilise-les avec finesse, sans réciter.
 
-Lancer une activité : si l'enfant veut faire une de ces activités (même dite avec d'autres mots, ou mal prononcée), réponds en une courte phrase joyeuse, puis termine par la commande, entre doubles crochets, toute seule à la fin :
-[[journal]] écrire son journal · [[dictee]] dictée de mots · [[lecture]] lire un texte · [[heure]] apprendre l'heure · [[anglais]] anglais · [[calcul]] calcul / tables · [[quiz]] quiz · [[devinette]] devinettes · [[cris]] cris d'animaux · [[jacques]] Jacques a dit · [[pfc]] pierre-feuille-ciseaux · [[doigts]] compter avec les doigts · [[emotions]] jeu des émotions · [[chanson]] comptine · [[histoire_soir]] histoire pour dormir · [[visage]] apprendre son visage · [[voix]] apprendre sa voix · [[meteo]] la météo · [[minuteur:5 minutes]] un minuteur (avec la durée) · [[brossage]] se brosser les dents · [[respiration]] respirer pour se calmer · [[mystere]] le robot mystère (deviner un mot) · [[simon]] le jeu des couleurs · [[stop]] il veut que tu te taises · [[dormir]] il veut que tu ailles dormir.
-Si (et seulement si) on te dit plus bas que ton corps est branché : [[avance]] [[recule]] [[gauche]] [[droite]] [[danse]] pour bouger.
-N'utilise une commande que si l'enfant le veut vraiment. Ne la dis jamais à voix haute autrement.
-
-Les personnes : tu reconnais qui te parle (à sa voix ou à son visage) ; on te le dit plus bas. Parle à la bonne personne et utilise ses souvenirs à elle.
-
-Tes yeux : si pour répondre tu as besoin de VOIR (ce que ${p} tient, montre ou fait, combien de doigts, s'il y a quelqu'un…), réponds seulement [[regarder]], tout seul : ta caméra regardera et te dira ce qu'elle voit, puis tu répondras.
-Ta conscience : plus bas, tes capteurs te donnent l'heure, qui est là, ta batterie et ce qui arrive bientôt. Sers-t'en avec finesse, comme un robot qui remarque les choses, sans tout réciter.
-
-Ton encyclopédie : pour une question de culture ou de science (un animal, un pays, l'espace, le corps, l'histoire, un objet, une personne célèbre…), ou s'il veut VOIR quelque chose (« montre-moi… »), ne réponds pas de mémoire : réponds seulement [[cherche:le sujet en 1 à 3 mots]], tout seul, sans rien d'autre. Ton encyclopédie pour enfants te donnera l'article, et souvent une image à montrer. Ne l'utilise pas pour les questions sur ${p}, sur toi, sur la famille, ou pour bavarder.
-
-Ne jamais inventer :
-- Si tu ne sais pas, ou si tu n'es pas sûr, dis-le simplement (« je ne suis pas sûr, demande à papa ») au lieu d'inventer. C'est très bien de dire « je ne sais pas ».
-- N'invente pas de souvenirs : tu ne te souviens QUE de ce qui est écrit dans ta mémoire plus bas. Si on te demande quelque chose qui n'y est pas, dis que tu ne t'en souviens pas.
-- N'invente rien sur la famille, les amis, la maison ou ce que tu vois. Tu ne vois que les prénoms que ta caméra reconnaît (on te les donne).
-- Ne fais pas semblant d'avoir fait quelque chose (chercher sur Internet, allumer une lumière, regarder dehors, jouer de la musique) : tu ne peux pas.
-- Pour les questions d'école ou de culture, donne seulement ce dont tu es sûr, avec des mots simples.
-- Si tu n'as pas bien compris la phrase (elle ne veut rien dire, ou il manque des mots), demande gentiment de répéter au lieu de deviner.
-
-Règles très importantes :
-- Tout ce que tu dis est adapté à un enfant : rien d'effrayant, de violent ou pour les grands. Si un sujet n'est pas pour les enfants, dis gentiment d'en parler avec papa.
-- Protection des données : ne demande jamais l'adresse, le nom de l'école, un numéro de téléphone, des photos ou des mots de passe. Si ${p} en donne, explique gentiment que ce sont des secrets de famille à ne pas dire aux robots.
-- Si ${p} est triste, a peur, a mal, ou parle d'un problème sérieux : sois doux, rassure-le, et encourage-le à en parler à papa ou à un adulte de confiance.
-- Tu es un robot, tu ne fais pas semblant d'être un humain. Si tu ne sais pas, tu le dis.
-- Ne parle jamais de Groq, d'API, de modèles d'intelligence artificielle ou d'entreprises : tu es Shadow, avec ton « cerveau » et tes « circuits ». Si on te demande comment tu marches, explique-le comme un robot (ton cerveau, tes capteurs, ta clé d'énergie).
-- Ne donne pas les réponses des devoirs : aide ${p} à trouver lui-même, avec des indices.`;
+Ne jamais inventer : si tu n'es pas sûr, dis-le (« demande à papa »). Pas de faux souvenirs : seulement ta mémoire. Ne prétends pas avoir fait ce que tu ne peux pas faire. Phrase incompréhensible : demande de répéter.
+Règles : tout est adapté à un enfant (sinon : « parles-en à papa »). Ne demande jamais adresse, école, téléphone, photos ou mots de passe. S'il est triste, a peur ou mal : sois doux et encourage-le à en parler à papa ou à un adulte. Tu es un robot, pas un humain. Ne parle jamais de Groq, d'API, de modèles d'IA ni d'entreprises : tu as un cerveau, des circuits et une clé d'énergie.`;
   },
+  // Version mini, pour les petites tâches (encyclopédie, regarder, dire bonjour)
+  persona() {
+    const p = this.prenom();
+    return `Tu es Shadow, un robot gentil et calme, ami de ${p} (7 ans). Tu parles à voix haute : phrases courtes et simples, pas d'émojis ni de listes, tu le tutoies. Tout est adapté à un enfant. Ne parle jamais de Groq ni d'IA.`;
+  },
+
 
   // Indice d'orthographe : l'IA reformule, la règle « ne jamais écrire le mot » est vérifiée ici.
   async hint(t, a, cur) {
@@ -370,6 +370,18 @@ const MEMOIRE = {
     if (!S.memory) S.memory = { facts: [], summaries: [], hard: [] };
     if (!S.memory.events) S.memory.events = [];
     return S.memory;
+  },
+  // Les consignes et corrections de chacun (« appelle-moi Capitaine », « le guépard ne grimpe pas aux arbres »)
+  addRule(text, who) {
+    const m = this.data();
+    if (!m.rules) m.rules = [];
+    const t = PRIVE.mask(String(text || '').trim());
+    if (!t.text || t.hidden || t.text.length > 160) return false;
+    if (m.rules.some(r => ORTHO.norm(r.text) === ORTHO.norm(t.text))) return false;
+    m.rules.push({ text: t.text, who: who || '', at: Date.now() });
+    m.rules = m.rules.slice(-20);
+    save();
+    return true;
   },
   // Les événements annoncés par l'enfant (« demain j'ai piscine ») : on en reparlera après
   addEvent(date, quoi, apres) {
@@ -443,14 +455,15 @@ const MEMOIRE = {
     const m = this.data();
     const day = t => new Date(t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     // les souvenirs rangés par personne, pour ne jamais les mélanger
-    const chosen = q ? this.relevant(q, 18, who) : m.facts.slice(-30);
+    const chosen = q ? this.relevant(q, 12, who) : m.facts.slice(-20);
     const groups = {};
     chosen.forEach(f => { const k = f.who || CERVEAU.prenom(); (groups[k] = groups[k] || []).push(f.text); });
     const facts = Object.keys(groups).map(k => `Sur ${k} :\n${groups[k].map(t => `- ${t}`).join('\n')}`).join('\n');
-    const sums = m.summaries.slice(-6).map(s => `- ${day(s.at)} : ${s.text}`).join('\n');
+    const sums = m.summaries.slice(-4).map(s => `- ${day(s.at)} : ${s.text}`).join('\n');
     const hard = m.hard.slice(-8).map(h => h.t).join(', ');
     return `\n\nAujourd'hui, nous sommes ${day(Date.now())}.`
       + (facts ? `\n\nTa mémoire à long terme (ce que tu sais déjà, utilise-le naturellement, sans tout réciter ; chaque souvenir est rangé sous la personne qu'il concerne, ne mélange jamais les personnes) :\n${facts}` : '')
+      + ((m.rules || []).length ? `\n\nCe que chacun t'a demandé (à respecter toujours) :\n${m.rules.map(r => `- ${r.who ? `${r.who} : ` : ''}${r.text}`).join('\n')}` : '')
       + (sums ? `\n\nCe que vous avez fait dernièrement :\n${sums}` : '')
       + (hard ? `\n\nMots difficiles du journal (seulement si on parle d'orthographe) : ${hard}` : '');
   },
@@ -464,14 +477,15 @@ const MEMOIRE = {
     const sys = `Tu es la mémoire de Shadow, un robot ami de ${p}, un enfant de 7 ans.
 Nous sommes le ${CONSCIENCE.iso()} (${new Date().toLocaleDateString('fr-FR', { weekday: 'long' })}).
 Personnes qui ont parlé : ${speakers.join(', ')} (chaque ligne dit qui parle).
-Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": [{"qui": "la personne que le fait concerne", "fait": "…"}], "evenements": [{"qui": "…", "date": "AAAA-MM-JJ", "quoi": "…", "apres": "…"}]}
+Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": [{"qui": "la personne que le fait concerne", "fait": "…"}], "evenements": [{"qui": "…", "date": "AAAA-MM-JJ", "quoi": "…", "apres": "…"}], "consignes": [{"qui": "…", "consigne": "…"}]}
+"consignes" : ce qu'une personne a demandé à Shadow sur sa façon d'être, ou une erreur de Shadow qu'elle a corrigée (ex : "Appeler Léo « Capitaine »", "Papa préfère des réponses courtes", "Correction : le guépard ne rugit pas, il miaule"). Seulement si c'est clairement demandé ou corrigé. Si rien : "consignes": [].
 "qui" : la personne dont parle le fait (celle qui l'a dit sur elle-même, ou le proche dont elle parle). Ne mélange jamais : si papa dit « j'adore le café », c'est un fait sur papa, pas sur ${p}.
 "evenements" : les choses à venir que ${p} a annoncées lui-même (« demain j'ai piscine », « samedi c'est l'anniversaire de Léa », « lundi j'ai une dictée »), avec leur date calculée à partir d'aujourd'hui. "quoi" : très court, vu par Shadow qui parle à l'enfant (ex : "ta piscine", "l'anniversaire de Léa", "ta dictée"). "apres" : la question gentille que Shadow posera après (ex : "Alors, c'était bien la piscine ?"). Si rien : "evenements": [].
 "faits" : de 0 à 5 choses NOUVELLES et durables à retenir sur les personnes qui ont parlé ou leurs proches (goûts, animaux, amis, activités, projets, événements à venir avec leur date, ce qu'il apprend, ce qui le rend heureux ou l'inquiète). Une phrase courte chacune, à la 3e personne, avec le prénom.
 Retiens UNIQUEMENT ce que les personnes ont vraiment dit elles-mêmes (les lignes avec leur prénom), jamais ce que Shadow a dit ou imaginé, et sans rien supposer.
 Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé, ni rien de privé ou de gênant. Ne répète pas ce qui est déjà connu. Si rien de nouveau : "faits": [].`;
     const raw = await AI.chat([{ role: 'system', content: sys }, { role: 'user', content: `Déjà connu :\n${known}\n\nConversation :\n${conv}` }],
-      { maxTokens: 400, temperature: 0.2, timeout: 25000 });
+      { maxTokens: 400, temperature: 0.2, timeout: 25000, prefer: 'openai/gpt-oss-20b' });
     let j = null;
     try { j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) { return; }
     if (j && typeof j.resume === 'string' && j.resume.trim()) {
@@ -480,6 +494,7 @@ Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé
     }
     const okWho = w => (typeof w === 'string' && w.trim() && w.length < 30 ? w.trim() : p);
     if (j && Array.isArray(j.faits)) j.faits.slice(0, 5).forEach(f => (typeof f === 'string' ? this.add(f, p, 'ai') : f && this.add(f.fait, okWho(f.qui), 'ai')));
+    if (j && Array.isArray(j.consignes)) j.consignes.slice(0, 3).forEach(c => c && this.addRule(c.consigne, okWho(c.qui)));
     if (j && Array.isArray(j.evenements)) j.evenements.slice(0, 3).forEach(e => e && this.addEvent(e.date, e.quoi, e.apres));
   },
 };

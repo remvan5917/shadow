@@ -104,7 +104,7 @@ const ECRAN = (() => {
     face.set('idle');
     let answer = '';
     if (AI.ready()) {
-      const sys = `${CERVEAU.personality()}\n\nVoici ce que dit ton encyclopédie (${r.src}) sur « ${r.title} » :\n${r.text}\n\nRéponds à ${name()} en 2 ou 3 phrases très simples pour un enfant de CE1, en utilisant SEULEMENT ces informations (tu peux simplifier les mots difficiles). Si elles ne répondent pas à sa question, dis gentiment que ton encyclopédie ne le dit pas. ${r.img ? "Une image s'affiche sur ton écran : tu peux dire « regarde ! »." : ''} Pas de commande entre crochets.`;
+      const sys = `${CERVEAU.persona()}\n\nVoici ce que dit ton encyclopédie (${r.src}) sur « ${r.title} » :\n${r.text}\n\nRéponds à ${name()} en 2 ou 3 phrases très simples pour un enfant de CE1, en utilisant SEULEMENT ces informations (tu peux simplifier les mots difficiles). Si elles ne répondent pas à sa question, dis gentiment que ton encyclopédie ne le dit pas. ${r.img ? "Une image s'affiche sur ton écran : tu peux dire « regarde ! »." : ''} Pas de commande entre crochets.`;
       let queue = Promise.resolve(), spokeAny = false;
       try {
         answer = await AI.chatStream([{ role: 'system', content: sys }, { role: 'user', content: PRIVE.mask(question).text }], { maxTokens: 180, temperature: 0.4 }, s => {

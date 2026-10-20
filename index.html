@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '38';
+      window.SHADOW_VERSION = '39';
       function show(msg) {
         var b = document.getElementById('boot-err');
         if (!b) {
@@ -108,7 +108,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v38</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v39</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -162,7 +162,7 @@
       <fieldset>
         <legend>🧠 Le cerveau</legend>
         <label class="check"><input type="radio" name="s-brain" value="groq"> IA poussée → WiFi (Groq)</label>
-        <label class="check"><input type="radio" name="s-brain" value="local"> IA locale (Ollama, sur l'ordi de la maison)</label>
+        <label class="check"><input type="radio" name="s-brain" value="local"> Cerveau de la maison (Ollama sur l'ordi) — Groq prend le relais s'il ne répond pas</label>
         <div id="s-groq">
           <label>Clé Groq <input id="s-key" type="password" placeholder="gsk_…" autocomplete="off"></label>
           <label>Modèle <input id="s-model" type="text" list="models" autocomplete="off"></label>
@@ -175,8 +175,9 @@
         <div id="s-local">
           <label>Adresse d'Ollama <input id="s-local-url" type="text" placeholder="http://localhost:11434/v1" autocomplete="off"></label>
           <label>Modèle local <input id="s-local-model" type="text" placeholder="ex : qwen3:4b" autocomplete="off"></label>
-          <p class="small muted">Voir le fichier LISEZMOI.md pour installer Ollama. La clé Groq reste utile pour les oreilles (Whisper).</p>
+          <p class="small muted">Voir LISEZMOI.md, partie « Cerveau de la maison ». La clé Groq reste utile pour les oreilles (Whisper) et comme relais.</p>
         </div>
+        <p id="s-usage" class="small muted"></p>
         <button type="button" id="s-test" class="ghost">Tester le cerveau</button>
         <p id="s-msg" class="small"></p>
         <p class="small muted">Sans cerveau branché, Shadow marche quand même avec son mini-cerveau intégré : orthographe, devinettes, quiz et calcul.</p>
