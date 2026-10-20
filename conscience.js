@@ -137,13 +137,6 @@ const CONSCIENCE = (() => {
 
   /* ---------- l'heure du coucher ---------- */
   setInterval(() => {
-    lines.push(`Ton humeur intérieure : ${humeur()} (laisse-la colorer un peu ta façon de parler ; n'en parle que si on te le demande).`);
-    const todo = I().filter(x => !x.done).length;
-    if (todo) lines.push(`Rappels que tu as promis de faire : ${todo} (${intentionsText()}).`);
-    const nv = niveau();
-    if (nv) lines.push(nv);
-    const pj = typeof PROJETS !== 'undefined' ? PROJETS.fact() : '';
-    if (pj) lines.push(pj);
     const co = S.settings.coucher;
     if (!co || !awake() || dlg.busy || voice.speaking || dlg.expect) return;
     const [h, m] = co.split(':').map(Number);
