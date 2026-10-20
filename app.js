@@ -436,7 +436,7 @@ async function activity(fn) {
       dlg.state = 'talk';
       return;
     }
-    if (e.message === 'stop') { face.set('happy'); await say("D'accord, on arrête ! Qu'est-ce qu'on fait maintenant ?"); dlg.state = 'talk'; }
+    if (e.message === 'stop') { face.set('happy'); await say("D'accord, on arrête."); dlg.state = 'talk'; }
     else if (e.message === 'silence') { face.set('idle'); await say('Je fais une petite pause. Dis « Shadow » quand tu veux continuer !'); dlg.state = 'standby'; }
   }
 }
@@ -492,7 +492,9 @@ function toStandby() {
   memorize(true);
   dlg.state = 'standby';
   face.set('idle');
-  say('Je reste là. Dis « Shadow » quand tu veux me parler !');
+  // il ne l'annonce qu'une fois par jour : ensuite il se met en veille sans un mot, comme un robot de film
+  const d = daily(), k = dayKey();
+  if (d.standby !== k) { d.standby = k; save(); say('Je reste là. Dis « Shadow » quand tu veux me parler.'); }
 }
 function wake(who) {
   if (dlg.state !== 'sleep') return;
@@ -524,7 +526,6 @@ async function dailyNews() {
     const up = upcoming(14)[0];
     if (up) { if (!up.days) { face.set('happy'); fx.confetti(60); } await say(dodos(up)); }
   }
-  if (d.mot !== k) { d.mot = k; save(); await say(motDuJourText()); }
   if (moodQuestionDue()) { dlg.moodPending = true; await say("Au fait, comment s'est passée ta journée ?"); }
 }
 function goSleep(withWords = true) {
@@ -545,7 +546,7 @@ async function memoryGreeting(who) {
   try {
     const r = await Promise.race([
       AI.chat([{ role: 'system', content: CERVEAU.personality() + MEMOIRE.context() },
-        { role: 'user', content: `(${n} vient d'arriver devant toi.) Dis-lui bonjour en 1 ou 2 phrases courtes. Si c'est naturel, parle d'un souvenir de ta mémoire (une question sur un événement prévu, un goût…). Termine par une proposition ou une question.` }],
+        { role: 'user', content: `(${n} vient d'arriver devant toi.) Dis-lui bonjour en 1 ou 2 phrases courtes, chaleureuses. Si c'est naturel, évoque UN souvenir précis de ta mémoire (un événement prévu, un goût…). Ne propose aucune activité.` }],
       { maxTokens: 120, temperature: 0.6 }),
       wait(5000).then(() => ''),
     ]);
@@ -559,8 +560,9 @@ function greeting(who) {
   const pod = partOfDay();
   const hello = pod === 'matin' ? pick([`Bonjour ${n} ! Tu as bien dormi ?`, `Bip ! Bonjour ${n}, mes circuits se réveillent avec toi !`]) : pod === 'soir' ? pick([`Bonsoir ${n} !`, `Bip ! Bonsoir ${n}, tu as passé une bonne journée ?`]) : pick([`Coucou ${n} !`, `Bip-bip ! Salut ${n} !`]);
   dlg.greeted++;
-  if (dlg.greeted === 1) return `${hello} C'est moi, Shadow. On peut discuter, écrire ton journal, faire une dictée, lire, jouer à Jacques a dit, des devinettes, du calcul, de l'anglais… Qu'est-ce qui te ferait plaisir ?`;
-  return `${hello} ${pick(["Qu'est-ce qu'on fait ?", 'On joue ?', "Je t'écoute."])}`;
+  // comme un robot de film : il salue, il est là, il écoute (pas de liste d'activités)
+  if (dlg.greeted === 1 && !S.seenIntro) { S.seenIntro = true; save(); return `${hello} C'est moi, Shadow. Je t'écoute : parle-moi quand tu veux.`; }
+  return hello;
 }
 
 /* ---------- comprendre ce qu'on lui dit ---------- */
@@ -568,6 +570,9 @@ async function handle(text) {
   const n = N(text);
   // « euh », « hum »… : ce n'est pas une phrase, il continue d'écouter sans répondre
   if (/^(euh+|heu+|hum+|hm+|ben|bah|ah|oh|eh|mmh+|pff+)$/.test(n)) return;
+  // « ok », « d'accord », « cool » : comme R2-D2, un petit bip et un sourire, pas de discours
+  if (!dlg.expect && /^(ok|okay|oki|d accord|dac|cool|top|ca marche|tres bien|bien|super)( shadow)?$/.test(n)) { face.flash('happy', 1200); fx.tone([[988, 0.06], [1319, 0.09]]); return; }
+  if (!dlg.expect && /^(merci|merci beaucoup|merci shadow|merci beaucoup shadow)$/.test(n)) { face.flash('shy', 1500); return say(pick(['Avec plaisir.', 'De rien !', 'Bip. Avec plaisir.'])); }
   if (dlg.expect && Date.now() < dlg.expect.until) {
     const ex = dlg.expect;
     dlg.expect = null;
@@ -692,8 +697,8 @@ async function chatReply(text, hidden = false) {
     const hit = OFFLINE.find(([re]) => re.test(n));
     if (hit) return say(hit[1]());
     face.flash('oops');
-    if (AI.hasKey() && !AI.online()) return say("Je suis en mode exploration : pas de réseau, alors mon grand cerveau se repose. Mais mes circuits de bord marchent : dictée, calcul, l'heure, quiz, devinettes, Jacques a dit, comptines… Qu'est-ce qu'on fait ?");
-    return say("Mon grand cerveau n'est pas branché, alors je ne comprends pas tout. Mais je sais faire une dictée, lire avec toi, l'heure, l'anglais, les tables, des quiz, des devinettes, Jacques a dit, des comptines… Dis « qu'est-ce que tu sais faire » pour tout savoir !");
+    if (AI.hasKey() && !AI.online()) return say("Mode exploration : sans réseau, mon grand cerveau se repose. Mes jeux de bord marchent toujours, demande-moi ce que je sais faire.");
+    return say("Mon grand cerveau n'est pas branché, alors je ne comprends pas tout. Demande-moi ce que je sais faire.");
   }
   const m = hidden ? { text, hidden: false } : PRIVE.mask(text);
   S.chat.push({ role: 'user', content: m.text, hidden });
@@ -743,7 +748,7 @@ async function chatReply(text, hidden = false) {
       save();
       return;
     }
-    const reply = bad ? "Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?" : (clean || (action ? "C'est parti !" : "Bip… j'ai perdu le fil. Tu peux répéter ?"));
+    const reply = bad ? "Hum, ça, c'est un sujet pour en parler avec papa." : (clean || (action ? "C'est parti !" : "Bip… j'ai perdu le fil. Tu peux répéter ?"));
     if (bad || !spoken) await say(reply);
     S.chat.push({ role: 'assistant', content: reply });
     save();
@@ -1143,7 +1148,7 @@ function onPeople(faces) {
     const prev = seen.last[f.name] || 0;
     seen.last[f.name] = now;
     noteVisit(f.name); // garde-robot (si papa l'a activé) : en mémoire vive seulement
-    if (now - prev > 10 * 60000 && calm) {
+    if (now - prev > 30 * 60000 && calm) {
       dlg.state = 'talk'; dlg.silence = 0;
       face.flash('happy');
       const v = f.name === S.prenom && prev ? visitsSince(prev) : [];
@@ -1155,7 +1160,7 @@ function onPeople(faces) {
   const main = faces[0];
   if (!main.name) {
     if (!seen.unknownSince) seen.unknownSince = now;
-    if (calm && now - seen.unknownSince > 3000 && now - seen.askedUnknown > 10 * 60000) {
+    if (calm && now - seen.unknownSince > 8000 && now - seen.askedUnknown > 60 * 60000) {
       seen.askedUnknown = now;
       dlg.state = 'talk'; dlg.silence = 0;
       dlg.expect = { until: now + 60000, run: () => activity(meetFlow) };
@@ -1170,7 +1175,7 @@ function onPeople(faces) {
     face.el.classList.add('smile');
     clearTimeout(seen.smileT);
     seen.smileT = setTimeout(() => face.el.classList.remove('smile'), 1600);
-    if (calm && now - seen.smileAt > 5 * 60000) {
+    if (calm && now - seen.smileAt > 45 * 60000) {
       seen.smileAt = now;
       say(pick(["J'adore ton sourire !", 'Oh, tu souris ! Ça me fait clignoter de joie !', 'Ton sourire recharge mes batteries !']));
     }
@@ -1311,13 +1316,15 @@ async function meetFlow() {
 /* =================== IL PREND L'INITIATIVE =================== */
 // S'il voit l'enfant à côté de lui depuis un moment, sans rien faire, il propose un jeu (pas plus d'une fois tous les 15 min)
 setInterval(() => {
+  if (!S.settings.propose) return; // papa choisit dans les réglages (par défaut : il ne propose rien de lui-même)
   if (!dlg.started || !VISION.isOn() || dlg.busy || voice.speaking || OREILLES.hearing()) return;
   if (!['standby', 'talk'].includes(dlg.state) || dlg.expect) return;
-  const now = Date.now();
-  if (!seen.present || now - seen.presentSince < 60000) return;
-  if (now - (dlg.lastTalk || 0) < 120000 || now - (dlg.lastProposal || 0) < 15 * 60000) return;
+  const now = Date.now(), d = daily();
+  if ((d.proposals || 0) >= 2) return; // 2 fois par jour au plus
+  if (!seen.present || now - seen.presentSince < 4 * 60000) return;
+  if (now - (dlg.lastTalk || 0) < 5 * 60000 || now - (dlg.lastProposal || 0) < 60 * 60000) return;
   if (!VISION.state.faces.some(f => f.name === S.prenom)) return;
-  dlg.lastProposal = now;
+  dlg.lastProposal = now; d.proposals = (d.proposals || 0) + 1; save();
   const today = dayKey();
   const ideas = [
     !(S.journal || []).some(e => dayKey(new Date(e.at)) === today) && ['écrire une phrase dans ton journal', journalFlow],
@@ -1332,7 +1339,7 @@ setInterval(() => {
   dlg.state = 'talk'; dlg.silence = 0;
   dlg.expect = { until: now + 60000, run: () => activity(fn) };
   face.flash('happy');
-  say(pick([`Psst, ${name()} ! Ça te dit de ${label} ?`, `J'ai une idée : on pourrait ${label}. Tu veux ?`, `Bip ! Et si on allait ${label} ?`]));
+  say(pick([`Psst, ${name()}. Ça te dirait de ${label} ?`, `Bip. J'ai une idée : ${label}. Tu veux ?`]));
 }, 20000);
 
 /* =================== SANS RÉSEAU =================== */

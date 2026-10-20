@@ -84,7 +84,7 @@ const ECRAN = (() => {
 
   // question = ce que l'enfant a dit ; fromChat = la question est déjà dans la conversation
   async function savoir(subject, question, fromChat) {
-    if (ETHIQUE.BAD.test(ORTHO.bare(subject))) return say("Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?");
+    if (ETHIQUE.BAD.test(ORTHO.bare(subject))) return say("Hum, ça, c'est un sujet pour en parler avec papa.");
     if (!net()) { face.flash('oops'); return say("Pour chercher dans mon encyclopédie, il me faut du réseau. On regardera tout à l'heure !"); }
     face.set('think');
     VISAGE.puff('question', 2);
@@ -92,7 +92,7 @@ const ECRAN = (() => {
     const r = await lookup(subject);
     await waitLine;
     if (!r) { face.set('confused'); return say(`Je n'ai rien trouvé sur « ${subject} » dans mon encyclopédie. Tu peux le dire autrement ?`); }
-    if (r.bad) return say("Hum, ça c'est un sujet pour en parler avec papa. Et si on jouait à un jeu ?");
+    if (r.bad) return say("Hum, ça, c'est un sujet pour en parler avec papa.");
     const wantsPic = /\b(montre|voir|ressemble)/.test(N(question));
     if (r.img) {
       showBoard(`<div class="savoir"><img src="${esc(r.img)}" alt="" referrerpolicy="no-referrer"><h3>${esc(r.title)}</h3><small>Image : ${esc(r.imgSrc || r.src)}</small></div>`);
@@ -463,6 +463,8 @@ const ECRAN = (() => {
     if (st) st.textContent = S.settings.ville ? `Ville : ${S.settings.ville.name}${S.settings.ville.pays ? ` (${S.settings.ville.pays})` : ''}` : 'Pas de ville : Shadow ne donne pas la météo.';
   }
   function bindSettings() {
+    const prop = $('#s-propose');
+    if (prop) { prop.checked = !!S.settings.propose; prop.addEventListener('change', () => { S.settings.propose = prop.checked; save(); }); }
     const vid = $('#s-video');
     if (vid) { vid.checked = !!S.settings.video; vid.addEventListener('change', () => { S.settings.video = vid.checked; save(); }); }
     const btn = $('#s-ville-ok'), inp = $('#s-ville');
