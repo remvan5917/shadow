@@ -185,7 +185,20 @@ const OREILLES = (() => {
     cheapSent.push(now);
     return true;
   }
+  // la voix d'Atlas (l'assistant de papa) dans la pièce : ce n'est pas quelqu'un de la maison, Shadow ne l'écoute pas
+  // (Atlas prévient l'ordinateur de la maison quand il parle ; on lui demande si ce qu'on vient d'entendre, c'était lui)
+  async function estAtlas(age, dur) {
+    const r = typeof VOIXMAISON !== 'undefined' ? VOIXMAISON.root() : '';
+    if (!r || window.__BANC) return false;
+    const ctl = window.AbortController ? new AbortController() : null;
+    const tm = setTimeout(() => ctl && ctl.abort(), 1500);
+    try {
+      const j = await (await fetch(`${r}/atlas/parle?age=${Math.round(age)}&dur=${Math.round(dur)}`, { cache: 'no-store', signal: ctl ? ctl.signal : undefined })).json();
+      return !!(j && j.atlas);
+    } catch (e) { return false; } finally { clearTimeout(tm); }
+  }
   async function transcribe(audio) {
+    const fin = performance.now(), dur = (audio.length / RATE) * 1000;
     const p = pending;
     if (!p) return;
     p.busy = true;
@@ -197,6 +210,10 @@ const OREILLES = (() => {
       const t = await AI.transcribe(wav(louder(audio)), p.prompt, { cheap: !!p.cheap }); // en veille : les oreilles de la maison d'abord
       timings.push(Math.round(performance.now() - t0)); if (timings.length > 20) timings.shift();
       if (pending !== p) return;
+      if (t.trim() && await estAtlas(performance.now() - fin, dur)) { // c'était Atlas qui parlait : comme un bruit, on réécoute
+        if (pending !== p) return;
+        p.busy = false; lastPrint = null; lastHeard = '(la voix d\'Atlas)'; p.deadline = performance.now() + 8000; return;
+      }
       p.busy = false;
       lastHeard = t.trim() || '(rien compris)';
       if (t.trim()) finish(t.trim()); else p.deadline = performance.now() + 8000; // bruit : on réécoute un peu
