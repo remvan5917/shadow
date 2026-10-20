@@ -206,7 +206,7 @@ const AI = {
   },
 
   // Oreilles (quand le navigateur n'a pas de reconnaissance vocale)
-  async transcribe(blob, prompt = '') {
+  async transcribe(blob, prompt = '', { cheap = false } = {}) {
     const ext = /wav/.test(blob.type) ? 'wav' : /mp4|aac|m4a/.test(blob.type) ? 'mp4' : /ogg/.test(blob.type) ? 'ogg' : 'webm';
     const form = groq => {
       const fd = new FormData();
@@ -237,7 +237,8 @@ const AI = {
     };
     const groqOk = !!S.settings.key && !(S.settings.sttCool > Date.now());
     let j = null;
-    if (home && (S.settings.earsMaisonFirst || !groqOk)) {
+    // en veille (il attend son nom), ou si papa l'a choisi : les oreilles de la maison d'abord (Groq est gardé pour les vraies conversations)
+    if (home && (S.settings.earsMaisonFirst || cheap || !groqOk)) {
       try { j = await viaMaison(); } catch (e) { if (!groqOk) throw e; } // l'ordinateur ne répond pas : Groq
     }
     if (!j) {

@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '49';
+      window.SHADOW_VERSION = '50';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -192,7 +192,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v49</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v50</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -290,8 +290,9 @@
         <label>Sensibilité du micro
           <select id="s-mic-sens">
             <option value="normal">Normale (pièce bruyante)</option>
-            <option value="haute">Haute (conseillé)</option>
+            <option value="haute">Haute</option>
             <option value="max">Très haute (voix douce, micro loin)</option>
+            <option value="loin">Très loin, toute la pièce (conseillé)</option>
           </select>
         </label>
         <label class="check"><input id="s-ns" type="checkbox" checked> Filtre anti-bruit du téléphone (à couper si Shadow comprend mal une voix d'enfant)</label>

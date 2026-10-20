@@ -39,7 +39,7 @@ function fresh() {
     settings: {
       brain: 'groq', key: '', model: AI.DEFAULT_MODEL,
       localUrl: 'http://localhost:11434/v1', localModel: '',
-      sound: true, slow: false, pause: 30, vision: true, ears: 'auto', subtitles: false, micSens: 'haute', lock: false,
+      sound: true, slow: false, pause: 30, vision: true, ears: 'auto', subtitles: false, micSens: 'loin', lock: false,
       seeCloud: false, visionModel: AI.VISION_MODEL,
     },
     people: [], // visages appris : { id, name, desc: [[128 nombres], …] } — jamais de photo
@@ -2068,7 +2068,8 @@ function bind() {
     applyLock();
     subtitle(null, null);
     if (S.settings.vision !== VISION.isOn()) visionToggle(S.settings.vision);
-    if (dlg.started && before.micNS !== S.settings.micNS && OREILLES.engine() === 'whisper') { try { await OREILLES.reopen(); } catch (e) { /* rien */ } }
+    // le micro est rouvert si le filtre anti-bruit change (ou si on passe en mode « très loin », qui le coupe)
+    if (dlg.started && (before.micNS !== S.settings.micNS || (before.micSens === 'loin') !== (S.settings.micSens === 'loin')) && OREILLES.engine() === 'whisper') { try { await OREILLES.reopen(); } catch (e) { /* rien */ } }
     if (dlg.started && (before.ears !== S.settings.ears || before.key !== S.settings.key)) {
       OREILLES.cancel();
       try { await OREILLES.start(); } catch (e) { toast('Micro indisponible'); }
@@ -2109,6 +2110,8 @@ function firstStart() {
 
 function boot() {
   face.el = $('#face');
+  // v50 : « très loin » devient l'écoute par défaut (il entend toute la pièce) ; une seule fois, papa peut revenir en arrière
+  if (!S.settings.micSensV2) { if (S.settings.micSens === 'haute') S.settings.micSens = 'loin'; S.settings.micSensV2 = true; save(); }
   voice.init();
   // L'appli s'est arrêtée brutalement la dernière fois ?
   let crashed = null;

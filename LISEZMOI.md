@@ -102,6 +102,9 @@ Dire **« Shadow, mode vidéo »** : il continue à discuter et à jouer normale
 ## Mode démo (pour filmer une vidéo)
 Ouvrir **https://remvan5917.github.io/shadow/demo/** (ou …/shadow/?demo), puis toucher l'écran : en une minute environ, Shadow se présente tout seul, à voix haute (sans sous-titres). Il montre ses expressions, l'encyclopédie (avec le guépard), un jeu et le minuteur, puis explique ce qu'il fera plus tard à la maison (domotique, déplacements, surveillance) et dehors. Dans ce mode, il n'écoute pas, n'ouvre pas la caméra, ne dit aucun prénom et n'enregistre rien. Il suffit de toucher à nouveau l'écran pour refaire une prise.
 
+## Entendre de loin
+Shadow n'écoute que la bande de la voix humaine (il coupe les grondements graves et les sifflements aigus), ce qui fait bien mieux ressortir une voix lointaine. La sensibilité « Très loin, toute la pièce » (par défaut, ⚙️ → *Sensibilité du micro*) baisse son seuil et coupe le filtre anti-bruit du téléphone, qui effaçait souvent les voix lointaines. En simulation : une voix à 5 m passe de 36 % à 93 % détectée. Si la pièce est très bruyante et qu'il se déclenche pour rien, revenir à « Haute ». En veille (quand il attend son nom), ce qu'il entend part aux oreilles de la maison : Groq est gardé pour les vraies conversations.
+
 ## Partout, même sans WiFi
 Avec le WiFi, Shadow télécharge tout seul ses yeux (≈ 40 Mo, gardés d'une mise à jour à l'autre) ; on peut aussi appuyer sur ⚙️ → *Préparer le mode hors-ligne*. Ensuite, sans réseau (courses, voiture…) :
 - il garde son visage, sa voix, ses yeux et ses jeux de bord (dictée, calcul, l'heure, quiz, devinettes, Jacques a dit, comptines…) ; seul le grand cerveau (Groq) se met en pause (« mode exploration ») ;

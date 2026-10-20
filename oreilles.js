@@ -21,7 +21,7 @@ const OREILLES = (() => {
   // Interrompre Shadow en lui parlant : on écoute aussi pendant qu'il parle (en gardant ~1,7 s de son)
   let ring = [], ttsFrames = 0, ttsPeak = 0, loud = 0, bargedAt = 0;
   // Sensibilité du micro (réglage de papa) : seuil minimum et marge au-dessus du bruit de la pièce
-  const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2] };
+  const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2], loin: [0.0022, 1.7] }; // « loin » : toute la pièce
   let pending = null; // la demande d'écoute en cours
   let rec = null;
   const handlers = { thinking: [], speech: [], speechend: [], bargein: [] };
@@ -52,11 +52,17 @@ const OREILLES = (() => {
   async function openMic() {
     if (!stream) {
       // le filtre anti-bruit du téléphone peut abîmer une voix d'enfant : papa peut le couper dans les réglages
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: S.settings.micNS !== false, autoGainControl: true } });
+      // de loin, le filtre anti-bruit du téléphone efface souvent la voix : on le coupe dans ce mode (notre filtre de voix le remplace)
+      const far = S.settings.micSens === 'loin';
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: !far && S.settings.micNS !== false, autoGainControl: true } });
       if (!ctx) ctx = new AC();
       src = ctx.createMediaStreamSource(stream);
       proc = ctx.createScriptProcessor(2048, 1, 1); // petits morceaux (~45 ms) : il réagit plus vite
-      src.connect(proc);
+      // il n'écoute que la bande de la voix humaine : sans les grondements (frigo, ventilateur, rue) ni les sifflements,
+      // une voix lointaine ressort bien mieux du bruit de la pièce
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 170; hp.Q.value = 0.7;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4800; lp.Q.value = 0.7;
+      src.connect(hp); hp.connect(lp); lp.connect(proc);
       proc.connect(ctx.destination); // sortie muette, nécessaire pour que le micro « tourne »
       proc.onaudioprocess = e => onAudio(e.inputBuffer.getChannelData(0));
     }
@@ -188,7 +194,7 @@ const OREILLES = (() => {
     try { lastPrint = (typeof VOIX !== 'undefined') ? VOIX.print(audio) : null; } catch (e) { lastPrint = null; }
     try {
       const t0 = performance.now();
-      const t = await AI.transcribe(wav(louder(audio)), p.prompt);
+      const t = await AI.transcribe(wav(louder(audio)), p.prompt, { cheap: !!p.cheap }); // en veille : les oreilles de la maison d'abord
       timings.push(Math.round(performance.now() - t0)); if (timings.length > 20) timings.shift();
       if (pending !== p) return;
       p.busy = false;
