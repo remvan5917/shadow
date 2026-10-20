@@ -128,7 +128,64 @@ const LETTER_NAMES = {
 };
 const spellOut = w => [...String(w).toLowerCase()].map(c => LETTER_NAMES[c] || c).join(', ');
 
-const robotVoice = () => (S.settings.voix || 'robot') === 'robot';
+const robotVoice = () => ['robot', 'maison'].includes(S.settings.voix || 'maison'); // « maison » : voix Piper de l'ordinateur (et voix de robot du téléphone en secours)
+
+// La voix de la maison : Piper fabrique la voix sur l'ordinateur (plus belle), et on lui ajoute un vrai effet de robot
+const VOIXMAISON = {
+  downUntil: 0,
+  cache: new Map(),
+  root() { const s = S.settings; return s.brain === 'local' && s.localUrl ? s.localUrl.replace(/\/+$/, '').replace(/\/v1$/, '') : ''; },
+  usable() {
+    return (S.settings.voix || 'maison') === 'maison' && !!this.root() && Date.now() > this.downUntil
+      && navigator.onLine !== false && !!(window.AudioContext || window.webkitAudioContext) && !!window.fetch;
+  },
+  // la voix d'une phrase (gardée un moment : on peut la préparer pendant qu'il dit la phrase d'avant)
+  get(t) {
+    if (this.cache.has(t)) return this.cache.get(t);
+    const ctl = window.AbortController ? new AbortController() : null;
+    const tm = setTimeout(() => ctl && ctl.abort(), 4500);
+    const p = fetch(`${this.root()}/shadow/voix`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: t }), signal: ctl ? ctl.signal : undefined })
+      .then(r => { clearTimeout(tm); if (!r.ok) throw new Error(`voix ${r.status}`); return r.arrayBuffer(); })
+      .then(buf => new Promise((res, rej) => fx.audio().decodeAudioData(buf, res, rej)));
+    p.catch(() => { this.downUntil = Date.now() + 120000; this.cache.delete(t); }); // l'ordi ne répond pas : voix du téléphone pendant 2 min
+    this.cache.set(t, p);
+    if (this.cache.size > 12) this.cache.delete(this.cache.keys().next().value);
+    return p;
+  },
+  prefetch(text) {
+    if (!this.usable() || !S.settings.sound) return;
+    const t = voice.clean(anonymize(text));
+    if (t) this.get(t).catch(() => {});
+  },
+  // joue la voix avec l'effet de robot : résonance métallique + modulation électronique, un peu plus grave
+  play(buffer) {
+    const c = fx.audio();
+    const lvl = S.settings.effet || 'leger';
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = lvl === 'aucun' ? 1 : lvl === 'fort' ? 0.93 : 0.96;
+    const out = c.createGain(); out.gain.value = 1; out.connect(c.destination);
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 110;
+    src.connect(hp);
+    const dry = c.createGain(); dry.gain.value = lvl === 'fort' ? 0.72 : lvl === 'aucun' ? 1 : 0.86;
+    hp.connect(dry); dry.connect(out);
+    const extra = [];
+    if (lvl !== 'aucun') {
+      const d = c.createDelay(0.05); d.delayTime.value = 0.0075; // un écho très court qui se répète : la boîte en métal
+      const fb = c.createGain(); fb.gain.value = lvl === 'fort' ? 0.55 : 0.4;
+      const wet = c.createGain(); wet.gain.value = lvl === 'fort' ? 0.45 : 0.27;
+      hp.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(out);
+      const ring = c.createGain(); ring.gain.value = 0; // modulation en anneau : le timbre électronique
+      const osc = c.createOscillator(); osc.frequency.value = lvl === 'fort' ? 72 : 50;
+      osc.connect(ring.gain); hp.connect(ring);
+      const rw = c.createGain(); rw.gain.value = lvl === 'fort' ? 0.34 : 0.17;
+      ring.connect(rw); rw.connect(out);
+      osc.start(); extra.push(osc);
+    }
+    src.start();
+    return { src, duration: buffer.duration / src.playbackRate.value, stop() { try { src.stop(); } catch (e) { /* déjà fini */ } extra.forEach(o => { try { o.stop(); } catch (e) { /* rien */ } }); } };
+  },
+};
 const voice = {
   v: null,
   speaking: false,
@@ -160,9 +217,34 @@ const voice = {
       .replace(/[«»]/g, ' ').replace(/\s+/g, ' ').trim();
   },
   say(text) {
+    const t = this.clean(text);
+    if (!S.settings.sound || !t) return Promise.resolve();
+    // la voix de la maison (Piper) si l'ordinateur répond, sinon la voix du téléphone
+    if (VOIXMAISON.usable()) return this.sayMaison(t).catch(() => this.saySynth(t));
+    return this.saySynth(t);
+  },
+  sayMaison(t) {
+    return VOIXMAISON.get(t).then(buf => new Promise(res => {
+      if (Date.now() - (this.endedAt || 0) > 2500) fx.comm(); // le petit signal quand il prend la parole
+      OREILLES.mute(true); // il ne s'écoute pas lui-même
+      const node = VOIXMAISON.play(buf);
+      this._cur = node;
+      this.speaking = true; face.talk(true);
+      VISAGE.speak(t, Math.max(0.6, Math.min(1.7, (t.length / 14.5) / Math.max(0.3, node.duration)))); // la bouche suit la durée réelle
+      let done = false;
+      const end = () => {
+        if (done) return;
+        done = true; this.speaking = false; this.endedAt = Date.now(); this._cur = null;
+        node.stop(); face.talk(false); VISAGE.quiet(); OREILLES.mute(false);
+        res();
+      };
+      node.src.onended = end;
+      setTimeout(end, node.duration * 1000 + 1500);
+    }));
+  },
+  saySynth(t) {
     return new Promise(res => {
-      const t = this.clean(text);
-      if (!S.settings.sound || !('speechSynthesis' in window) || !t) return res();
+      if (!('speechSynthesis' in window)) return res();
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(t);
       u.lang = 'fr-FR';
@@ -193,7 +275,10 @@ const voice = {
       speechSynthesis.speak(u);
     });
   },
-  stop() { if ('speechSynthesis' in window) speechSynthesis.cancel(); },
+  stop() {
+    if (this._cur) { try { this._cur.src.onended && this._cur.src.onended(); } catch (e) { /* rien */ } }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  },
   // première parole silencieuse, faite pendant le geste du doigt
   unlock() {
     if (!('speechSynthesis' in window)) return;
@@ -246,6 +331,11 @@ const fx = {
     } catch (e) { /* pas de son */ }
   },
   ok() { this.tone([[660, 0.12], [880, 0.12], [1320, 0.22]]); },
+  audio() {
+    this.ctx = this.ctx || new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return this.ctx;
+  },
   // le petit signal d'un robot de film qui ouvre son canal pour parler (très discret)
   comm() {
     if (!S.settings.sound) return;
@@ -787,6 +877,7 @@ async function chatReply(text, hidden = false) {
       if (bad || !sentence) return;
       if (ETHIQUE.safe(sentence) !== sentence) { bad = true; return; }
       if (!spoken++) face.set(/bravo|génial|super|youpi|hourra|gagné|trouvé/i.test(sentence) ? 'happy' : 'idle');
+      VOIXMAISON.prefetch(sentence); // la voix de la phrase se prépare pendant qu'il dit la précédente
       queue = queue.then(() => say(sentence));
     };
     let raw;

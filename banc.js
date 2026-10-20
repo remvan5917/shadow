@@ -23,6 +23,7 @@
   // ---------- l'environnement simulé ----------
   const dlgOpen = document.querySelector('dialog[open]'); if (dlgOpen) dlgOpen.close();
   const dits = [];
+  const vraieVoix = voice.say.bind(voice);
   voice.say = t => { dits.push(t); return new Promise(r => setTimeout(r, 5)); };
   hear = async () => { await wait(20); return null; };
   S = fresh(); // on part d'une mémoire toute neuve (jamais les vraies données)
@@ -85,6 +86,15 @@
   await essai('minuteur (démarre et s\'arrête)', () => { ECRAN.startTimer(60, 'test'); const a = !document.getElementById('timer').hidden; ECRAN.stopTimer(); return a && document.getElementById('timer').hidden; });
   await essai('projet : création', async () => { await PROJETS.create('je veux apprendre la table de 3 cette semaine', N('je veux apprendre la table de 3 cette semaine')); return PROJETS.active().some(p => p.type === 'table' && p.param === 3); });
   await essai('le carnet de papa (affichage + suppression)', () => { MEMOIRE.addRule('Appeler Testeur « Capitaine »', 'Testeur'); renderMemory(); const a = /Capitaine/.test(document.getElementById('s-rules').textContent); const i = MEMOIRE.data().rules.findIndex(r => /Capitaine/.test(r.text)); document.querySelector(`#s-rules [data-unrule="${i}"]`).click(); return a && !MEMOIRE.data().rules.some(r => /Capitaine/.test(r.text)) && !document.querySelector('#s-rules [data-unrule]'); });
+  await essai("voix de la maison : secours par la voix du téléphone si l'ordinateur ne répond pas", async () => {
+    const avant = { brain: S.settings.brain, url: S.settings.localUrl, voix: S.settings.voix, sound: S.settings.sound };
+    Object.assign(S.settings, { brain: 'local', localUrl: 'http://127.0.0.1:9/v1', voix: 'maison', sound: true });
+    VOIXMAISON.downUntil = 0;
+    const fin = await Promise.race([vraieVoix('Test de secours.').then(() => 'fini'), wait(9000).then(() => 'bloqué')]);
+    const secours = VOIXMAISON.downUntil > Date.now();
+    Object.assign(S.settings, avant); VOIXMAISON.downUntil = 0;
+    return fin === 'fini' && secours;
+  });
   await essai('rapport de systèmes', async () => { dits.length = 0; await CONSCIENCE.rapport(); return /Rapport/.test(dits.join(' ')); });
 
   // ---------- on remet tout en place ----------

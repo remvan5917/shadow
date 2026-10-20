@@ -109,7 +109,7 @@ const ECRAN = (() => {
       try {
         answer = await AI.chatStream([{ role: 'system', content: sys }, { role: 'user', content: PRIVE.mask(question).text }], { maxTokens: 180, temperature: 0.4 }, s => {
           const clean = String(s).replace(/\[\[[^\]]*\]\]/g, '').trim();
-          if (clean && ETHIQUE.safe(clean) === clean) { spokeAny = true; queue = queue.then(() => say(clean)); }
+          if (clean && ETHIQUE.safe(clean) === clean) { spokeAny = true; VOIXMAISON.prefetch(clean); queue = queue.then(() => say(clean)); }
         });
         await queue;
         answer = String(answer || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
@@ -463,9 +463,11 @@ const ECRAN = (() => {
     if (st) st.textContent = S.settings.ville ? `Ville : ${S.settings.ville.name}${S.settings.ville.pays ? ` (${S.settings.ville.pays})` : ''}` : 'Pas de ville : Shadow ne donne pas la météo.';
   }
   function bindSettings() {
-    const vx = $('#s-voix'), info = () => { const el = $('#s-voix-info'); if (el) el.textContent = voice.v ? `Voix utilisée : ${voice.v.name}${robotVoice() ? (voice.male ? ' (voix d\'homme, rendue plus grave)' : ' (rendue beaucoup plus grave)') : ''}` : "Aucune voix française trouvée sur l'appareil."; };
+    const vx = $('#s-voix'), info = () => { const el = $('#s-voix-info'); if (!el) return; if (VOIXMAISON.usable()) { el.textContent = "Voix utilisée : la voix de la maison (Piper, sur l'ordinateur). Si l'ordinateur ne répond pas, Shadow prend la voix du téléphone."; return; } el.textContent = voice.v ? `Voix utilisée : ${voice.v.name}${robotVoice() ? (voice.male ? ' (voix d\'homme, rendue plus grave)' : ' (rendue beaucoup plus grave)') : ''}${(S.settings.voix || 'maison') === 'maison' ? " — la voix de la maison demande le « cerveau de la maison »." : ''}` : "Aucune voix française trouvée sur l'appareil."; };
+    const ef = $('#s-effet');
+    if (ef) { ef.value = S.settings.effet || 'leger'; ef.addEventListener('change', () => { S.settings.effet = ef.value; save(); }); }
     if (vx) {
-      vx.value = S.settings.voix || 'robot';
+      vx.value = S.settings.voix || 'maison';
       vx.addEventListener('change', () => { S.settings.voix = vx.value; save(); voice.choose && voice.choose(); info(); });
       $('#s-voix-test').addEventListener('click', () => { voice.unlock(); voice.choose && voice.choose(); info(); voice.say('Bip. Bonjour, je suis Shadow. Mes circuits sont prêts.'); });
       setTimeout(info, 1600);

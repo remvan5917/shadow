@@ -108,7 +108,7 @@ const CONSCIENCE = (() => {
     let queue = Promise.resolve();
     const raw = await AI.chatStream([{ role: 'system', content: sys }, ...msgs.slice(-3).filter(m => m.role !== 'system')], { maxTokens: 140, temperature: 0.4 }, s => {
       const c = String(s).replace(/\[\[[^\]]*\]\]/g, '').trim();
-      if (c && ETHIQUE.safe(c) === c) { if (face.state === 'think') face.set('idle'); queue = queue.then(() => say(c)); }
+      if (c && ETHIQUE.safe(c) === c) { if (face.state === 'think') face.set('idle'); VOIXMAISON.prefetch(c); queue = queue.then(() => say(c)); }
     });
     await queue;
     const ans = String(raw || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
