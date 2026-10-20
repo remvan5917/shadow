@@ -107,6 +107,12 @@
     Object.assign(S.settings, { brain: avant.brain, localUrl: avant.url, key: avant.key, sttCool: avant.cool });
     return ok2;
   });
+  await essai('mémoire partagée : fusion, oublis et même personne sur deux appareils', () => {
+    const T = Date.now() - 3600000, pr = k => Array.from({ length: 128 }, (_, i) => Math.sin(i + k));
+    const m = SYNC.merge({ updatedAt: T, memory: { facts: [{ id: T + 1, at: T + 1, text: 'a' }, { id: T + 2, at: T + 2, text: 'b' }] }, people: [{ id: T, name: 'Léo', desc: [pr(0)] }], tomb: {} },
+      { updatedAt: T + 5, memory: { facts: [{ id: T + 3, at: T + 3, text: 'c' }] }, people: [{ id: T + 9, name: 'leo', desc: [pr(1)] }], tomb: { 'memory.facts': { [T + 1]: T + 50 } } });
+    return m.memory.facts.map(f => f.text).join('') === 'bc' && m.people.length === 1 && m.people[0].desc.length === 2;
+  });
   await essai('rapport de systèmes', async () => { dits.length = 0; await CONSCIENCE.rapport(); return /Rapport/.test(dits.join(' ')); });
 
   // ---------- on remet tout en place ----------

@@ -64,7 +64,13 @@ function load() {
   } catch (e) { /* mémoire illisible : on repart à zéro */ }
   return fresh();
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* plein ou bloqué */ } }
+function save() {
+  S.updatedAt = Date.now();
+  if (typeof SYNC !== 'undefined') SYNC.markDirty(); // la mémoire partagée sera mise à jour
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* plein ou bloqué */ }
+}
+// une suppression doit voyager vers les autres appareils (sinon la mémoire partagée la ferait revenir)
+const tomb = (path, item) => { if (typeof SYNC !== 'undefined') SYNC.tomb(path, item); };
 let S = load();
 
 /* =================== LE VISAGE =================== */
@@ -1975,7 +1981,7 @@ function bind() {
   $('#jr-close').addEventListener('click', closeJournal);
   $('#jr-list').addEventListener('click', e => {
     const d = e.target.closest('[data-del]');
-    if (d && confirm('Effacer cette phrase du journal ?')) { S.journal = S.journal.filter(x => String(x.id) !== d.dataset.del); save(); openJournal(); }
+    if (d && confirm('Effacer cette phrase du journal ?')) { S.journal.filter(x => String(x.id) === d.dataset.del).forEach(x => tomb('journal', x)); S.journal = S.journal.filter(x => String(x.id) !== d.dataset.del); save(); openJournal(); }
   });
   $$('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close('cancel')));
   $('#dlg-welcome').addEventListener('cancel', e => e.preventDefault());
@@ -2004,7 +2010,7 @@ function bind() {
   $('#s-journal').addEventListener('click', () => { $('#dlg-settings').close('cancel'); openJournal(); });
   $('#s-clear-chat').addEventListener('click', () => { if (confirm('Effacer toute la conversation avec Shadow ?')) { S.chat = []; save(); toast('Conversation effacée'); } });
   $('#s-clear-journal').addEventListener('click', () => {
-    if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
+    if (confirm('Effacer tout le journal et les étoiles ? (impossible à annuler)')) { S.journal.forEach(x => tomb('journal', x)); S.journal = []; S.cur = null; S.stats = fresh().stats; save(); toast('Journal effacé'); }
   });
   $('#s-offline').addEventListener('click', () => preloadOffline(true));
   $('#s-corps').addEventListener('click', async () => {
@@ -2017,12 +2023,13 @@ function bind() {
   $('#s-diag-copy').addEventListener('click', copyReport);
   $('#s-voices').addEventListener('click', e => {
     const b = e.target.closest('[data-forget-voice]');
-    if (b && confirm('Shadow va oublier cette voix. Continuer ?')) { S.voices = VOIX.people().filter(p => String(p.id) !== b.dataset.forgetVoice); save(); renderVoices(); }
+    if (b && confirm('Shadow va oublier cette voix. Continuer ?')) { VOIX.people().filter(p => String(p.id) === b.dataset.forgetVoice).forEach(p => tomb('voices', p)); S.voices = VOIX.people().filter(p => String(p.id) !== b.dataset.forgetVoice); save(); renderVoices(); }
   });
   $('#s-mem').addEventListener('click', e => {
     const b = e.target.closest('[data-unfact]');
     if (!b) return;
     const m = MEMOIRE.data();
+    m.facts.filter(f => String(f.id) === b.dataset.unfact).forEach(f => tomb('memory.facts', f));
     m.facts = m.facts.filter(f => String(f.id) !== b.dataset.unfact); save(); renderMemory();
   });
   // le carnet : supprimer une consigne, un événement, un rappel, arrêter un projet ; ajouter un souvenir
@@ -2030,9 +2037,9 @@ function bind() {
     const b = e.target.closest('[data-unrule],[data-unevent],[data-unintent],[data-unprojet]');
     if (!b) return;
     const m = MEMOIRE.data();
-    if (b.dataset.unrule !== undefined) m.rules.splice(+b.dataset.unrule, 1);
-    if (b.dataset.unevent) m.events = m.events.filter(x => String(x.id) !== b.dataset.unevent);
-    if (b.dataset.unintent) S.intentions = S.intentions.filter(x => String(x.id) !== b.dataset.unintent);
+    if (b.dataset.unrule !== undefined) { tomb('memory.rules', m.rules[+b.dataset.unrule]); m.rules.splice(+b.dataset.unrule, 1); }
+    if (b.dataset.unevent) { m.events.filter(x => String(x.id) === b.dataset.unevent).forEach(x => tomb('memory.events', x)); m.events = m.events.filter(x => String(x.id) !== b.dataset.unevent); }
+    if (b.dataset.unintent) { S.intentions.filter(x => String(x.id) === b.dataset.unintent).forEach(x => tomb('intentions', x)); S.intentions = S.intentions.filter(x => String(x.id) !== b.dataset.unintent); }
     if (b.dataset.unprojet) { const p = (S.projets || []).find(x => String(x.id) === b.dataset.unprojet); if (p) p.ended = true; }
     save(); renderMemory();
   });
@@ -2042,14 +2049,14 @@ function bind() {
     if (MEMOIRE.add(t, w, 'papa')) { $('#s-mem-new').value = ''; renderMemory(); toast('Souvenir ajouté'); } else toast('Déjà connu, ou trop privé pour être gardé');
   });
   $('#s-mem-clear').addEventListener('click', () => {
-    if (confirm('Shadow va oublier tous ses souvenirs (le journal et les visages restent). Continuer ?')) { S.memory = { facts: [], summaries: [], hard: [] }; S.memPos = S.chat.length; save(); renderMemory(); toast('Mémoire effacée'); }
+    if (confirm('Shadow va oublier tous ses souvenirs (le journal et les visages restent). Continuer ?')) { const mm = MEMOIRE.data(); mm.facts.forEach(f => tomb('memory.facts', f)); (mm.rules || []).forEach(r => tomb('memory.rules', r)); (mm.events || []).forEach(e => tomb('memory.events', e)); mm.summaries.forEach(x => tomb('memory.summaries', x)); mm.hard.forEach(x => tomb('memory.hard', x)); S.memory = { facts: [], summaries: [], hard: [] }; S.memPos = S.chat.length; save(); renderMemory(); toast('Mémoire effacée'); }
   });
   $('#s-export').addEventListener('click', exportShadow);
   $('#s-import').addEventListener('click', () => $('#s-import-file').click());
   $('#s-import-file').addEventListener('change', e => { if (e.target.files[0]) importShadow(e.target.files[0]); e.target.value = ''; });
   $('#s-people').addEventListener('click', e => {
     const b = e.target.closest('[data-forget]');
-    if (b && confirm('Shadow va oublier ce visage. Continuer ?')) { S.people = S.people.filter(p => String(p.id) !== b.dataset.forget); save(); renderPeople(); }
+    if (b && confirm('Shadow va oublier ce visage. Continuer ?')) { S.people.filter(p => String(p.id) === b.dataset.forget).forEach(p => tomb('people', p)); S.people = S.people.filter(p => String(p.id) !== b.dataset.forget); save(); renderPeople(); }
   });
   $('#dlg-settings').addEventListener('close', async () => {
     if ($('#dlg-settings').returnValue !== 'save') return;

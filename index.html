@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '48';
+      window.SHADOW_VERSION = '49';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -192,7 +192,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v48</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v49</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -322,6 +322,8 @@
       <fieldset>
         <legend>📒 Le carnet de papa (la mémoire de Shadow)</legend>
         <p id="s-mem-count" class="small muted"></p>
+        <p id="s-sync-state" class="small"></p>
+        <div class="row"><button type="button" id="s-sync-now" class="ghost">🔄 Synchroniser maintenant</button><label class="check" style="margin:0"><input id="s-sync" type="checkbox"> Mémoire partagée avec l'ordinateur de la maison</label></div>
         <h4 class="carnet-h">Souvenirs, par personne</h4>
         <div id="s-mem" class="people mem"></div>
         <div class="row"><input id="s-mem-who" type="text" maxlength="20" placeholder="Qui ? (ex : Papa)" autocomplete="off" style="max-width:9em"><input id="s-mem-new" type="text" maxlength="160" placeholder="Un souvenir à lui apprendre (ex : Papa adore le café)" autocomplete="off"><button type="button" id="s-mem-add" class="ghost">Ajouter</button></div>
@@ -459,6 +461,7 @@
   <script src="ecran.js"></script>
   <script src="conscience.js"></script>
   <script src="projets.js"></script>
+  <script src="sync.js"></script>
   <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>
 </html>

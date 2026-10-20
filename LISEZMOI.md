@@ -108,6 +108,9 @@ Avec le WiFi, Shadow télécharge tout seul ses yeux (≈ 40 Mo, gardés d'une m
 - ses oreilles passent sur la reconnaissance vocale du téléphone (si le français hors connexion est installé, voir ⚙️) ; sinon il dit qu'il n'entend plus, et on le **touche** pour qu'il propose un jeu qui n'a pas besoin d'écouter ;
 - quand le réseau revient, il le dit et reprend tout seul.
 
+## La mémoire partagée (téléphone, ordinateur, tablette…)
+L'ordinateur de la maison garde la mémoire centrale de Shadow (`~/.local/share/shadow/memoire/etat.json`, avec une sauvegarde par jour gardée 14 jours). Chaque appareil réglé sur le « cerveau de la maison » y envoie ce qu'il a appris et récupère ce que les autres ont appris : au démarrage, puis toutes les 45 secondes s'il y a du nouveau. Les mémoires sont **fusionnées** (jamais écrasées) : souvenirs, consignes, événements, visages, voix, journal, médailles, niveau, mots de la dictée, projets, rappels, calendrier, heure du coucher, ville. Ce qu'on supprime sur un appareil est supprimé partout. La même personne apprise sur deux appareils (« Léo » / « leo ») est réunie. Restent propres à chaque appareil : la clé Groq, les réglages du micro et de la caméra, la conversation en cours. Dans le carnet : l'état de la synchronisation, un bouton « Synchroniser maintenant » et une case pour la couper sur un appareil.
+
 ## Le carnet de papa (⚙️)
 Dans les réglages, le carnet montre tout ce que Shadow a retenu, et chaque ligne peut être supprimée : les souvenirs rangés par personne (on peut aussi en ajouter un : « Papa adore le café »), les consignes de chacun, les événements à suivre, les rappels promis et les projets (bouton « Arrêter »).
 

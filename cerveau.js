@@ -492,7 +492,7 @@ const MEMOIRE = {
     if (m.hard.length > 20) m.hard = m.hard.slice(-20);
     save();
   },
-  mastered(t) { const m = this.data(); const before = m.hard.length; m.hard = m.hard.filter(h => h.t !== t); if (m.hard.length !== before) save(); return m.hard.length !== before; },
+  mastered(t) { const m = this.data(); const before = m.hard.length; m.hard.filter(h => h.t === t).forEach(h => tomb('memory.hard', h)); m.hard = m.hard.filter(h => h.t !== t); if (m.hard.length !== before) save(); return m.hard.length !== before; },
   // Ce qu'on donne au grand cerveau à chaque discussion
   context(q, who) {
     const m = this.data();
