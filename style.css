@@ -673,3 +673,14 @@ body.robot .bubble.alert { background: rgba(4, 14, 30, .96); color: #8ff0ff; }
 }
 @media (prefers-reduced-motion: reduce) { .board .futur li { animation: none; opacity: 1; } }
 .board.solid { background: rgba(8, 13, 30, .97); }
+
+/* projets sur plusieurs jours : une pastille par jour */
+.board .projet { color: var(--text); min-width: min(76vw, 460px); }
+.board .projet h3 { margin: 2px 0 16px; font: 700 clamp(15px, 2.6vmin, 20px) Andika, sans-serif; letter-spacing: .28em; text-transform: uppercase; color: var(--eye); text-shadow: 0 0 12px rgba(89, 200, 255, .55); }
+.board .projet .jours { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.board .projet .jours i { width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid #2b3d70; display: block; }
+.board .projet .jours i.ok { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 14px var(--ok); }
+.board .projet .jours i.fait { border-color: var(--eye); box-shadow: inset 0 0 0 5px rgba(89, 200, 255, .35); }
+.board .projet .jours i.auj { border-color: var(--eye); box-shadow: 0 0 12px rgba(89, 200, 255, .7); }
+.board .projet .jours i.rate { border-color: #3a4568; opacity: .6; }
+.board .projet p { margin: 16px 0 0; font: 700 clamp(17px, 3.2vmin, 24px) Andika, sans-serif; }

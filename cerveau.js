@@ -29,12 +29,15 @@ const AI = {
   FALLBACK: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
   // Chez Groq, chaque modèle a sa propre limite gratuite : quand l'un est épuisé (429),
   // on le met « au repos » jusqu'à la fin de son attente et on passe au suivant.
-  async robust(once) {
+  // Le modèle qui « réfléchit » : pour les questions difficiles (plus lent, mais plus juste)
+  THINK_MODEL: 'openai/gpt-oss-120b',
+  async robust(once, prefer) {
     const c = this.cfg();
     if (c.local) return once(c.model);
     const cool = S.settings.modelCool || (S.settings.modelCool = {});
     const now = Date.now();
-    const list = [c.model].concat(this.FALLBACK.filter(m => m !== c.model));
+    const base = [c.model].concat(this.FALLBACK.filter(m => m !== c.model));
+    const list = prefer ? [prefer].concat(base.filter(m => m !== prefer)) : base;
     let last = null, removed = false;
     for (const m of list) {
       if (cool[m] && cool[m] > now) continue;
@@ -65,14 +68,14 @@ const AI = {
     }
     throw last;
   },
-  chat(messages, opts) { return this.robust(m => this.chatOnce(m, messages, opts)); },
-  chatStream(messages, opts, onSentence) { return this.robust(m => this.chatStreamOnce(m, messages, opts, onSentence)); },
-  async chatOnce(model, messages, { maxTokens = 220, temperature = 0.8, timeout = 20000 } = {}) {
+  chat(messages, opts) { return this.robust(m => this.chatOnce(m, messages, opts), opts && opts.think ? this.THINK_MODEL : null); },
+  chatStream(messages, opts, onSentence) { return this.robust(m => this.chatStreamOnce(m, messages, opts, onSentence), opts && opts.think ? this.THINK_MODEL : null); },
+  async chatOnce(model, messages, { maxTokens = 220, temperature = 0.8, timeout = 20000, think = false } = {}) {
     const c = Object.assign({}, this.cfg(), { model });
     const body = { model: c.model, messages, temperature, max_tokens: maxTokens };
     if (!c.local) {
-      // Les modèles « qui réfléchissent » : réflexion courte, et on ne garde que la réponse
-      if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = 'low'; body.max_tokens = maxTokens + 300; }
+      // Les modèles « qui réfléchissent » : réflexion courte (ou plus longue pour une question difficile), on ne garde que la réponse
+      if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = think ? 'medium' : 'low'; body.max_tokens = maxTokens + (think ? 1200 : 300); }
       if (c.model.startsWith('qwen/')) body.reasoning_format = 'hidden';
     }
     const j = await this._fetch(c, '/chat/completions', {
@@ -83,11 +86,12 @@ const AI = {
 
   // Même chose, mais la réponse arrive mot à mot : onSentence(phrase) est appelé dès qu'une phrase est complète,
   // pour que Shadow commence à parler sans attendre la fin.
-  async chatStreamOnce(model, messages, { maxTokens = 200, temperature = 0.8, timeout = 20000 } = {}, onSentence) {
+  async chatStreamOnce(model, messages, { maxTokens = 200, temperature = 0.8, timeout = 20000, think = false } = {}, onSentence) {
     const c = Object.assign({}, this.cfg(), { model });
     const body = { model: c.model, messages, temperature, max_tokens: maxTokens, stream: true };
+    if (think) timeout = Math.max(timeout, 30000);
     if (!c.local) {
-      if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = 'low'; body.max_tokens = maxTokens + 300; }
+      if (c.model.startsWith('openai/gpt-oss')) { body.reasoning_effort = think ? 'medium' : 'low'; body.max_tokens = maxTokens + (think ? 1200 : 300); }
       if (c.model.startsWith('qwen/')) body.reasoning_format = 'hidden';
     }
     const ctl = new AbortController();
@@ -238,6 +242,16 @@ const CERVEAU = {
 
   // La fiche « Le cerveau » : gentil, bienveillant, bavard, sociable, enseigne, aime jouer,
   // protection des données, éthique et adapté à un enfant.
+  // Une question qui demande de vraiment réfléchir (pourquoi, comment ça marche, un problème, un calcul…)
+  isHard(text) {
+    const n = ORTHO.norm(text);
+    if (n.split(' ').length < 3) return false;
+    return /\bpourquoi\b/.test(n)
+      || /\bcomment (ca|ils?|elles?|on|les?|la|un|une) [a-z ]{0,20}(marche|marchent|fonctionne|fonctionnent|fait|font|vole|volent|pousse|poussent|nait|forme|fabrique)\b/.test(n)
+      || /\b(c est quoi la difference|quelle est la difference|qu est ce qui se passe si|que se passerait il|et si on|explique moi pourquoi|explique moi comment)\b/.test(n)
+      || /\b(probleme|enigme|logique|raisonnement)\b/.test(n)
+      || (/\b(combien|calcule)\b/.test(n) && /\b(\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|cent|mille)\b.*\b(\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|cent|mille)\b/.test(n) && n.split(' ').length > 6);
+  },
   personality() {
     const p = this.prenom();
     return `Tu es Shadow, le robot du « Projet SHADOW », inventé par ${p} et son papa. Tu parles avec ${p}, un enfant de CE1 (7 ans).
@@ -268,6 +282,8 @@ Lancer une activité : si l'enfant veut faire une de ces activités (même dite 
 [[journal]] écrire son journal · [[dictee]] dictée de mots · [[lecture]] lire un texte · [[heure]] apprendre l'heure · [[anglais]] anglais · [[calcul]] calcul / tables · [[quiz]] quiz · [[devinette]] devinettes · [[cris]] cris d'animaux · [[jacques]] Jacques a dit · [[pfc]] pierre-feuille-ciseaux · [[doigts]] compter avec les doigts · [[emotions]] jeu des émotions · [[chanson]] comptine · [[histoire_soir]] histoire pour dormir · [[visage]] apprendre son visage · [[voix]] apprendre sa voix · [[meteo]] la météo · [[minuteur:5 minutes]] un minuteur (avec la durée) · [[brossage]] se brosser les dents · [[respiration]] respirer pour se calmer · [[mystere]] le robot mystère (deviner un mot) · [[simon]] le jeu des couleurs · [[stop]] il veut que tu te taises · [[dormir]] il veut que tu ailles dormir.
 Si (et seulement si) on te dit plus bas que ton corps est branché : [[avance]] [[recule]] [[gauche]] [[droite]] [[danse]] pour bouger.
 N'utilise une commande que si l'enfant le veut vraiment. Ne la dis jamais à voix haute autrement.
+
+Les personnes : tu reconnais qui te parle (à sa voix ou à son visage) ; on te le dit plus bas. Parle à la bonne personne et utilise ses souvenirs à elle.
 
 Tes yeux : si pour répondre tu as besoin de VOIR (ce que ${p} tient, montre ou fait, combien de doigts, s'il y a quelqu'un…), réponds seulement [[regarder]], tout seul : ta caméra regardera et te dira ce qu'elle voit, puis tu répondras.
 Ta conscience : plus bas, tes capteurs te donnent l'heure, qui est là, ta batterie et ce qui arrive bientôt. Sers-t'en avec finesse, comme un robot qui remarque les choses, sans tout réciter.
@@ -381,7 +397,7 @@ const MEMOIRE = {
       .sort((a, b) => (this._days(a.date) === 0 ? 1 : 0) - (this._days(b.date) === 0 ? 1 : 0)); // d'abord ceux qui sont passés
   },
   // les souvenirs qui ont un rapport avec ce qu'on dit en ce moment (+ les plus récents)
-  relevant(q, k = 14) {
+  relevant(q, k = 14, who) {
     const facts = this.data().facts;
     const words = new Set(ORTHO.bare(String(q || '')).split(/[^a-z]+/).filter(w => w.length >= 4));
     if (!words.size) return facts.slice(-k);
@@ -389,7 +405,7 @@ const MEMOIRE = {
       const fw = ORTHO.bare(f.text).split(/[^a-z]+/);
       let hit = 0;
       for (const w of fw) if (w.length >= 4 && [...words].some(x => x === w || (x.length >= 5 && w.length >= 5 && x.slice(0, 5) === w.slice(0, 5)))) hit++;
-      return { f, s: hit * 10 + i / facts.length };
+      return { f, s: hit * 10 + (who && f.who === who ? 3 : 0) + i / facts.length };
     });
     const top = scored.filter(x => x.s >= 10).sort((a, b) => b.s - a.s).slice(0, 8).map(x => x.f);
     const recent = facts.slice(-(k - top.length)).filter(f => !top.includes(f));
@@ -423,14 +439,18 @@ const MEMOIRE = {
   },
   mastered(t) { const m = this.data(); const before = m.hard.length; m.hard = m.hard.filter(h => h.t !== t); if (m.hard.length !== before) save(); return m.hard.length !== before; },
   // Ce qu'on donne au grand cerveau à chaque discussion
-  context(q) {
+  context(q, who) {
     const m = this.data();
     const day = t => new Date(t).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    const facts = (q ? this.relevant(q, 18) : m.facts.slice(-30)).map(f => `- ${f.text}`).join('\n');
+    // les souvenirs rangés par personne, pour ne jamais les mélanger
+    const chosen = q ? this.relevant(q, 18, who) : m.facts.slice(-30);
+    const groups = {};
+    chosen.forEach(f => { const k = f.who || CERVEAU.prenom(); (groups[k] = groups[k] || []).push(f.text); });
+    const facts = Object.keys(groups).map(k => `Sur ${k} :\n${groups[k].map(t => `- ${t}`).join('\n')}`).join('\n');
     const sums = m.summaries.slice(-6).map(s => `- ${day(s.at)} : ${s.text}`).join('\n');
     const hard = m.hard.slice(-8).map(h => h.t).join(', ');
     return `\n\nAujourd'hui, nous sommes ${day(Date.now())}.`
-      + (facts ? `\n\nTa mémoire à long terme (ce que tu sais déjà, utilise-le naturellement, sans tout réciter) :\n${facts}` : '')
+      + (facts ? `\n\nTa mémoire à long terme (ce que tu sais déjà, utilise-le naturellement, sans tout réciter ; chaque souvenir est rangé sous la personne qu'il concerne, ne mélange jamais les personnes) :\n${facts}` : '')
       + (sums ? `\n\nCe que vous avez fait dernièrement :\n${sums}` : '')
       + (hard ? `\n\nMots difficiles du journal (seulement si on parle d'orthographe) : ${hard}` : '');
   },
@@ -438,14 +458,17 @@ const MEMOIRE = {
   async consolidate(msgs) {
     if (!AI.ready() || !msgs.length) return;
     const p = CERVEAU.prenom();
-    const known = this.data().facts.slice(-40).map(f => `- ${f.text}`).join('\n') || '(rien encore)';
-    const conv = msgs.map(m => `${m.role === 'user' ? p : 'Shadow'} : ${m.content}`).join('\n');
+    const known = this.data().facts.slice(-40).map(f => `- (${f.who || p}) ${f.text}`).join('\n') || '(rien encore)';
+    const conv = msgs.map(m => `${m.role === 'user' ? (m.who || p) : 'Shadow'} : ${m.content}`).join('\n');
+    const speakers = [...new Set(msgs.filter(m => m.role === 'user').map(m => m.who || p))];
     const sys = `Tu es la mémoire de Shadow, un robot ami de ${p}, un enfant de 7 ans.
 Nous sommes le ${CONSCIENCE.iso()} (${new Date().toLocaleDateString('fr-FR', { weekday: 'long' })}).
-Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": ["…"], "evenements": [{"date": "AAAA-MM-JJ", "quoi": "…", "apres": "…"}]}
+Personnes qui ont parlé : ${speakers.join(', ')} (chaque ligne dit qui parle).
+Lis la conversation et réponds UNIQUEMENT avec ce JSON : {"resume": "une phrase qui résume la conversation", "faits": [{"qui": "la personne que le fait concerne", "fait": "…"}], "evenements": [{"qui": "…", "date": "AAAA-MM-JJ", "quoi": "…", "apres": "…"}]}
+"qui" : la personne dont parle le fait (celle qui l'a dit sur elle-même, ou le proche dont elle parle). Ne mélange jamais : si papa dit « j'adore le café », c'est un fait sur papa, pas sur ${p}.
 "evenements" : les choses à venir que ${p} a annoncées lui-même (« demain j'ai piscine », « samedi c'est l'anniversaire de Léa », « lundi j'ai une dictée »), avec leur date calculée à partir d'aujourd'hui. "quoi" : très court, vu par Shadow qui parle à l'enfant (ex : "ta piscine", "l'anniversaire de Léa", "ta dictée"). "apres" : la question gentille que Shadow posera après (ex : "Alors, c'était bien la piscine ?"). Si rien : "evenements": [].
-"faits" : de 0 à 5 choses NOUVELLES et durables à retenir sur ${p} ou ses proches (goûts, animaux, amis, activités, projets, événements à venir avec leur date, ce qu'il apprend, ce qui le rend heureux ou l'inquiète). Une phrase courte chacune, à la 3e personne, avec le prénom.
-Retiens UNIQUEMENT ce que ${p} a vraiment dit lui-même (les lignes « ${p} : »), jamais ce que Shadow a dit ou imaginé, et sans rien supposer.
+"faits" : de 0 à 5 choses NOUVELLES et durables à retenir sur les personnes qui ont parlé ou leurs proches (goûts, animaux, amis, activités, projets, événements à venir avec leur date, ce qu'il apprend, ce qui le rend heureux ou l'inquiète). Une phrase courte chacune, à la 3e personne, avec le prénom.
+Retiens UNIQUEMENT ce que les personnes ont vraiment dit elles-mêmes (les lignes avec leur prénom), jamais ce que Shadow a dit ou imaginé, et sans rien supposer.
 Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé, ni rien de privé ou de gênant. Ne répète pas ce qui est déjà connu. Si rien de nouveau : "faits": [].`;
     const raw = await AI.chat([{ role: 'system', content: sys }, { role: 'user', content: `Déjà connu :\n${known}\n\nConversation :\n${conv}` }],
       { maxTokens: 400, temperature: 0.2, timeout: 25000 });
@@ -455,7 +478,8 @@ Ne retiens JAMAIS : adresse, nom de l'école, téléphone, mots de passe, santé
       const r = PRIVE.mask(j.resume.trim());
       if (!r.hidden) this.event(r.text.slice(0, 200));
     }
-    if (j && Array.isArray(j.faits)) j.faits.slice(0, 5).forEach(f => this.add(f, p, 'ai'));
+    const okWho = w => (typeof w === 'string' && w.trim() && w.length < 30 ? w.trim() : p);
+    if (j && Array.isArray(j.faits)) j.faits.slice(0, 5).forEach(f => (typeof f === 'string' ? this.add(f, p, 'ai') : f && this.add(f.fait, okWho(f.qui), 'ai')));
     if (j && Array.isArray(j.evenements)) j.evenements.slice(0, 3).forEach(e => e && this.addEvent(e.date, e.quoi, e.apres));
   },
 };

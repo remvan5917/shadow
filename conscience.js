@@ -71,6 +71,8 @@ const CONSCIENCE = (() => {
     if (last && Date.now() - last.at < 3 * 3600000) lines.push(`Dernière activité : ${last.type}${last.d ? ` (${last.d})` : ''}, il y a ${ago(Date.now() - last.at)}.`);
     const ev = MEMOIRE.upcoming ? MEMOIRE.upcoming(7) : [];
     if (ev.length) lines.push(`Ce que l'enfant t'a annoncé : ${ev.map(e => `${e.quoi} (${e.when})`).join(' ; ')}.`);
+    const pj = typeof PROJETS !== 'undefined' ? PROJETS.fact() : '';
+    if (pj) lines.push(pj);
     const co = S.settings.coucher;
     if (co) lines.push(`Heure du coucher fixée par papa : ${co.replace(':', ' h ')}.`);
     return `\n\nTa conscience (ce que tes capteurs savent, vrai et à jour) :\n- ${lines.join('\n- ')}`;
@@ -130,6 +132,8 @@ const CONSCIENCE = (() => {
 
   /* ---------- l'heure du coucher ---------- */
   setInterval(() => {
+    const pj = typeof PROJETS !== 'undefined' ? PROJETS.fact() : '';
+    if (pj) lines.push(pj);
     const co = S.settings.coucher;
     if (!co || !awake() || dlg.busy || voice.speaking || dlg.expect) return;
     const [h, m] = co.split(':').map(Number);

@@ -339,6 +339,13 @@ function whoSpoke() {
   if (seenName && Date.now() - voiceLearnAt > 60000 && (!id || id.name === seenName) && VOIX.learn(seenName, vp)) voiceLearnAt = Date.now();
 }
 const speakerNow = () => (dlg.speaker && Date.now() - dlg.speakerAt < 90000 ? dlg.speaker : '');
+// qui parle en ce moment : sa voix d'abord, sinon le seul visage connu devant lui, sinon l'enfant
+function currentWho() {
+  const sp = speakerNow();
+  if (sp) return sp;
+  const known = VISION.isOn() ? VISION.state.faces.filter(f => f.name) : [];
+  return known.length === 1 ? known[0].name : S.prenom || '';
+}
 
 // Quelqu'un parle fort pendant que Shadow parle : il se tait tout de suite et écoute
 OREILLES.on('bargein', () => {
@@ -535,7 +542,7 @@ function wake(who) {
   dlg.sayNext = async () => {
     await memoryGreeting(who); await updateNews();
     // il reparle d'abord de ce que l'enfant lui avait annoncé (« alors, la piscine ? »), sinon les nouvelles du jour
-    if (!(await CONSCIENCE.followUp())) await dailyNews();
+    if (!(await CONSCIENCE.followUp()) && !(await PROJETS.morning())) await dailyNews();
     CONSCIENCE.batteryCheck();
   };
   OREILLES.cancel();
@@ -614,6 +621,8 @@ async function handle(text) {
   dlg.expect = null;
   const early = ECRAN.routeEarly(n); // « arrête le minuteur » (avant le « stop » général)
   if (early) return early();
+  const pj = PROJETS.route(text, n); // « je veux apprendre la table de 7 cette semaine », « où j'en suis ? »
+  if (pj) return pj();
   // « comment s'est passée ta journée ? » : si la réponse n'est pas une demande de jeu, c'est l'humeur du jour
   const moodWas = dlg.moodPending;
   dlg.moodPending = false;
@@ -735,7 +744,7 @@ async function chatReply(text, hidden = false) {
     return say("Mon grand cerveau n'est pas branché, alors je ne comprends pas tout. Demande-moi ce que je sais faire.");
   }
   const m = hidden ? { text, hidden: false } : PRIVE.mask(text);
-  S.chat.push({ role: 'user', content: m.text, hidden });
+  S.chat.push({ role: 'user', content: m.text, hidden, who: currentWho() });
   if (S.chat.length > 60) { const cut = S.chat.length - 60; S.chat = S.chat.slice(-60); S.memPos = Math.max(0, S.memPos - cut); }
   save();
   if (m.hidden) await say("Chut ! Ça, c'est un secret de famille : je ne l'ai pas envoyé à mon cerveau.");
@@ -745,12 +754,15 @@ async function chatReply(text, hidden = false) {
     const who = speakerNow();
     const now = new Date();
     const facts = `\n\nInfos vraies du moment (sers-t'en, n'en invente pas d'autres) : il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}. Tes yeux sont ${VISION.isOn() ? 'ouverts' : 'fermés'}${vus.length ? `, tu vois ${vus.join(', ')}` : ''}. Tu ne vas pas sur Internet et tu n'as pas les actualités ; tu as seulement ton encyclopédie pour enfants (avec [[cherche:sujet]]).${ECRAN.meteoFact() || " Tu n'as pas la météo sous les yeux : n'en parle pas au hasard (on peut te demander « quel temps fait-il »)."} ${CORPS.branche ? `Ton corps est branché : tu peux bouger avec [[avance]], [[recule]], [[gauche]], [[droite]] ou [[danse]]${CORPS.battery !== null ? ` (batterie du corps : ${CORPS.battery} %)` : ''}.` : "Ton corps n'est pas encore fabriqué."} ${(() => { const m = motDuJour(); const up = upcoming(30).slice(0, 3).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`); return `Le mot du jour est « ${m.mot} » (${m.def}).${up.length ? ` Calendrier : ${up.join(', ')}.` : ''}`; })()}`;
-    const sys = CERVEAU.personality() + MEMOIRE.context(text) + facts + CONSCIENCE.etat() + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
+    const think = CERVEAU.isHard(text); // question difficile : le cerveau qui réfléchit
+    const sys = CERVEAU.personality() + MEMOIRE.context(text, currentWho()) + facts + CONSCIENCE.etat()
+      + (think ? "\n\n(Question difficile : raisonne bien avant de répondre, puis réponds en 2 ou 3 phrases simples avec un exemple de tous les jours. Si c'est un exercice d'école, donne un indice plutôt que la réponse.)" : '') + (vus.length ? `\n\n(En ce moment, ta caméra reconnaît : ${vus.join(', ')}.)` : '')
       + (AI.lastConfident === false ? "\n\n(Attention : la dernière phrase a été mal entendue, elle peut contenir des erreurs. Si elle ne veut rien dire, demande gentiment de répéter au lieu de deviner.)" : '')
       + (who ? `\n\n(À sa voix, tu reconnais que c'est ${who} qui te parle${who !== name() ? ` (pas ${name()})` : ''}. Adresse-toi à ${who}.)` : '');
     const msgs = [{ role: 'system', content: anonymize(sys) + (S.settings.video ? "\n\n(Mode vidéo : on te filme pour présenter le Projet SHADOW. Ne dis AUCUN prénom, dis « mon ami ». C'est sans doute papa qui te parle.)" : '') }, ...S.chat.slice(-16).map(({ role, content }) => ({ role, content }))];
     // Il commence à parler dès que la 1re phrase est prête (la suite arrive pendant qu'il parle)
-    let queue = Promise.resolve(), bad = false, spoken = 0;
+    if (think) { face.set('think'); VISAGE.puff('question', 2); }
+    let queue = think ? say(pick(['Hmm, laisse-moi réfléchir…', 'Bonne question. Je réfléchis…', 'Je fais tourner mes circuits…'])) : Promise.resolve(), bad = false, spoken = 0;
     let action = '', actionArg = '';
     const tAsk = performance.now();
     const onSentence = raw0 => {
@@ -764,10 +776,10 @@ async function chatReply(text, hidden = false) {
     };
     let raw;
     try {
-      raw = await AI.chatStream(msgs, { maxTokens: 150, temperature: 0.55 }, onSentence);
+      raw = await AI.chatStream(msgs, { maxTokens: think ? 220 : 150, temperature: think ? 0.4 : 0.55, think }, onSentence);
     } catch (e) {
       if (spoken) throw e;
-      raw = await AI.chat(msgs, { maxTokens: 150, temperature: 0.55 }); // secours sans « mot à mot »
+      raw = await AI.chat(msgs, { maxTokens: think ? 220 : 150, temperature: 0.55, think }); // secours sans « mot à mot »
       onSentence(raw);
     }
     await queue;

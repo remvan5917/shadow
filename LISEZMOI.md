@@ -61,6 +61,9 @@ Comme un robot de film, Shadow sait où il en est, et s'en sert pour répondre j
 - **Sa batterie est son énergie** : à 20 %, il demande à être branché. À 10 %, il ferme les yeux pour économiser. Il remercie quand on le branche. On peut lui demander « ta batterie ? ».
 - **L'heure du coucher** (⚙️, si papa la règle) : il le dit gentiment, une fois par soir, et propose l'histoire du soir.
 - **« État de tes systèmes »** : il fait son rapport (énergie, réseau, cerveau, yeux, oreilles, mémoire), comme J.A.R.V.I.S.
+- **Un cerveau à deux vitesses** : pour discuter, un cerveau rapide. Pour une question difficile (« pourquoi… », « comment ça marche… », un problème), il dit « je réfléchis » et passe la main à un cerveau plus puissant, qui raisonne avant de répondre. Pour un exercice d'école, il donne un indice plutôt que la réponse.
+- **Les projets sur plusieurs jours** : « je veux apprendre la table de 7 cette semaine » (ou « d'ici vendredi », « en 5 jours »). Il propose l'entraînement du jour une fois par jour, note chaque séance, et l'objectif est atteint quand l'entraînement est réussi deux jours différents. « Où j'en suis ? » affiche les jours. « Arrête mon projet » l'arrête. Projets possibles : tables, compléments, l'heure, dictée, lecture, anglais.
+- **La mémoire par personne** : il range chaque souvenir sous la personne qu'il concerne et ne les mélange pas (si papa dit « j'adore le café », c'est papa qui aime le café). Pour que ça marche bien, chacun lui apprend sa voix : « Shadow, apprends ma voix ».
 Le niveau de batterie est lu dans le téléphone et n'est jamais envoyé ailleurs.
 
 ## Son visage
@@ -184,5 +187,5 @@ Toutes les masses (GND) sont reliées ensemble. L'ESP32 est alimentée par le r�
 Shadow donne des **médailles** (15 en tout) : premier journal, roi du calcul, explorateur sans WiFi… Il les annonce au moment où l'enfant les gagne. Pour les entendre : « mes médailles ». Le **calcul s'adapte** tout seul : quand ça va bien, le niveau monte (jusqu'aux tables et aux nombres plus grands), et il redescend quand c'est trop dur. Le niveau et les médailles apparaissent dans ⚙️ → *Bilan*.
 
 ## Fichiers
-`index.html` (le visage) · `visage.js` (ses expressions) · `app.js` (la conversation) · `ecran.js` (encyclopédie, météo, minuteur, jeux à l'écran) · `conscience.js` (ce qu'il sait de la situation, ses initiatives) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).
+`index.html` (le visage) · `visage.js` (ses expressions) · `app.js` (la conversation) · `ecran.js` (encyclopédie, météo, minuteur, jeux à l'écran) · `conscience.js` (ce qu'il sait de la situation, ses initiatives) · `projets.js` (projets sur plusieurs jours) · `oreilles.js` · `vision.js` · `cerveau.js` · `orthographe.js` · `jeux.js` · `corps.js` · `sw.js` (hors-ligne).
 Pas de compilation : ce sont des fichiers statiques. Après chaque modification, changer `CACHE` dans `sw.js`.
