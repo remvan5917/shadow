@@ -209,9 +209,9 @@ const VOIXMAISON = {
 // les voix de robot du mode papa (mêmes réglages que les essais écoutés par papa)
 // demande : ce que l'ordinateur fabrique (Piper parle plus vite) ; rate : le téléphone ralentit (plus grave, rythme normal)
 const ROBOTS = {
-  sombre: { demande: { voix: 'pierre', vitesse: 0.78 }, rate: 0.78, hp: 70, ring: [34, 0.32], sat: 1.8, comb: [7.5, 0.5, 0.35], pres: [1800, 1.2, 3], lp: 5200, bourdon: [46, 0.18], rev: [2.0, 2.6, 0.24] },
-  demon: { demande: { voix: 'tom', vitesse: 0.7 }, rate: 0.68, hp: 55, ring: [48, 0.55], sat: 3.2, comb: [4.2, 0.62, 0.45], pres: [1200, 1.0, 4], lp: 4200, bourdon: [38, 0.28], rev: [2.8, 2.2, 0.3], gain: 0.62 },
-  glacial: { demande: { voix: 'pierre', vitesse: 0.95 }, rate: 0.9, hp: 140, flang: [2.5, 1.8, 0.18, 0.55, 0.45], pres: [3000, 1.0, 3], lp: 7000, rev: [1.6, 3.0, 0.2] },
+  sombre: { demande: { voix: 'pierre', vitesse: 0.78 }, rate: 0.78, hp: 70, ring: [34, 0.32], sat: 1.8, comb: [7.5, 0.5, 0.35], pres: [1800, 1.2, 3], lp: 5200, bourdon: [46, 0.18] },
+  demon: { demande: { voix: 'tom', vitesse: 0.7 }, rate: 0.68, hp: 55, ring: [48, 0.55], sat: 3.2, comb: [4.2, 0.62, 0.45], pres: [1200, 1.0, 4], lp: 4200, bourdon: [38, 0.28], gain: 0.62 },
+  glacial: { demande: { voix: 'pierre', vitesse: 0.95 }, rate: 0.9, hp: 140, flang: [2.5, 1.8, 0.18, 0.55, 0.45], pres: [3000, 1.0, 3], lp: 7000 },
 };
 VOIXMAISON.irRobot = function (c, sec, puiss) {
   const k = `${c.sampleRate}|${sec}|${puiss}`;
@@ -256,18 +256,17 @@ VOIXMAISON.playRobot = function (buffer, p) {
     env.curve = ec; const el = f('lowpass', 8);
     osc.frequency.value = p.bourdon[0]; osc.connect(bg); cur.connect(env); env.connect(el); el.connect(bg.gain); bg.connect(mixe); osc.start(); oscs.push(osc);
   }
-  const conv = c.createConvolver(); conv.buffer = this.irRobot(c, p.rev[0], p.rev[1]);
-  const wet = G(p.rev[2] * 1.6), out = G(p.gain || 0.82), comp = c.createDynamicsCompressor();
+  const out = G(p.gain || 0.82), comp = c.createDynamicsCompressor();
   comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
   const lim = c.createDynamicsCompressor(); // le limiteur : puissant, mais le haut-parleur ne sature jamais
   lim.threshold.value = -4; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.12;
-  mixe.connect(comp); mixe.connect(conv); conv.connect(wet); wet.connect(comp); comp.connect(out); out.connect(lim); lim.connect(c.destination);
+  mixe.connect(comp); comp.connect(out); out.connect(lim); lim.connect(c.destination); // (pas d'écho : papa n'en veut pas)
   const an = c.createAnalyser(); an.fftSize = 256; an.smoothingTimeConstant = 0.6; lim.connect(an); this.an = an;
   src.start();
-  return { src, tail: p.rev[0], duration: buffer.duration / p.rate, stop() { try { src.stop(); } catch (e) { /* déjà fini */ } setTimeout(() => oscs.forEach(o => { try { o.stop(); } catch (e) { /* rien */ } }), p.rev[0] * 1000); } };
+  return { src, duration: buffer.duration / p.rate, stop() { try { src.stop(); } catch (e) { /* déjà fini */ } oscs.forEach(o => { try { o.stop(); } catch (e) { /* rien */ } }); } };
 };
-// la voix du mode papa : une « IA de film » — un peu plus grave, une présence de studio, une petite salle,
-// un très léger dédoublement ; et une oreille électronique (analyseur) pour que le noyau suive le vrai son
+// la voix du mode papa : une « IA de film » — un peu plus grave, une présence de studio,
+// un très léger dédoublement (sans écho) ; et une oreille électronique (analyseur) pour que le noyau suive le vrai son
 VOIXMAISON.ir = function (c) {
   if (this._ir && this._ir.sampleRate === c.sampleRate) return this._ir;
   const len = Math.round(c.sampleRate * 0.9), b = c.createBuffer(2, len, c.sampleRate), pre = Math.round(c.sampleRate * 0.012);
@@ -286,7 +285,6 @@ VOIXMAISON.playPapa = function (buffer) {
   const dl = c.createDelay(0.05); dl.delayTime.value = 0.016;
   const lfo = c.createOscillator(); lfo.frequency.value = 0.35; const lg = c.createGain(); lg.gain.value = 0.0018; lfo.connect(lg); lg.connect(dl.delayTime);
   const dg = c.createGain(); dg.gain.value = 0.16; comp.connect(dl); dl.connect(dg); dg.connect(out);
-  const conv = c.createConvolver(); conv.buffer = this.ir(c); const wet = c.createGain(); wet.gain.value = 0.13; comp.connect(conv); conv.connect(wet); wet.connect(out);
   const an = c.createAnalyser(); an.fftSize = 256; an.smoothingTimeConstant = 0.6; out.connect(an); this.an = an;
   src.start(); lfo.start();
   return { src, duration: buffer.duration / 0.97, stop() { try { src.stop(); } catch (e) { /* déjà fini */ } try { lfo.stop(); } catch (e) { /* rien */ } } };
