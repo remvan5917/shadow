@@ -198,8 +198,6 @@ const NOYAU = (() => {
     $h('hud-cerveau').className = pret ? '' : 'alerte';
     const bt = typeof brainTimes !== 'undefined' && brainTimes.length ? brainTimes.slice(-5) : [];
     $h('hud-latence').textContent = bt.length ? `${(bt.reduce((a, b) => a + b, 0) / bt.length / 1000).toFixed(1)} s` : '—';
-    const pv = VOIXMAISON.usable() ? (VOIXMAISON.papa() || 'tom') : 'téléphone';
-    $h('hud-voix').textContent = pv.toUpperCase();
     $h('hud-micro').textContent = OREILLES.listening && OREILLES.listening() ? 'ACTIF' : 'VEILLE';
     const met = (ECRAN.meteoFact && ECRAN.meteoFact()) || '';
     const deg = met.match(/-?\d+\s?°/);

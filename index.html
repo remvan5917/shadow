@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '62';
+      window.SHADOW_VERSION = '63';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -45,7 +45,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=62">
+  <link rel="stylesheet" href="style.css?v=63">
 </head>
 <body class="robot">
   <main id="main">
@@ -193,7 +193,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v62</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v63</small></button>
       <div id="papa-badge" hidden><span>MODE PAPA</span><button type="button" id="papa-exit">Quitter</button></div>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
@@ -209,7 +209,6 @@
     <div class="hud-panneau hud-l">
       <p><i>CERVEAU</i><em id="hud-cerveau">—</em></p>
       <p><i>RÉPONSE</i><em id="hud-latence">—</em></p>
-      <p><i>VOIX</i><em id="hud-voix">—</em></p>
       <p><i>MICRO</i><em id="hud-micro">—</em></p>
     </div>
     <div class="hud-panneau hud-r">
@@ -492,27 +491,27 @@
 
   <div id="fx" aria-hidden="true"></div>
 
-  <script src="orthographe.js?v=62"></script>
-  <script src="cerveau.js?v=62"></script>
-  <script src="jeux.js?v=62"></script>
-  <script src="voix.js?v=62"></script>
-  <script src="oreilles.js?v=62"></script>
-  <script src="vision.js?v=62"></script>
-  <script src="corps.js?v=62"></script>
-  <script src="contenus.js?v=62"></script>
-  <script src="visage.js?v=62"></script>
-  <script src="app.js?v=62"></script>
-  <script src="activites.js?v=62"></script>
-  <script src="ecran.js?v=62"></script>
-  <script src="conscience.js?v=62"></script>
-  <script src="projets.js?v=62"></script>
-  <script src="pokedata.js?v=62"></script>
-  <script src="pokemon.js?v=62"></script>
-  <script src="ensemble.js?v=62"></script>
-  <script src="apprendre.js?v=62"></script>
-  <script src="papa.js?v=62"></script>
-  <script src="noyau.js?v=62"></script>
-  <script src="sync.js?v=62"></script>
+  <script src="orthographe.js?v=63"></script>
+  <script src="cerveau.js?v=63"></script>
+  <script src="jeux.js?v=63"></script>
+  <script src="voix.js?v=63"></script>
+  <script src="oreilles.js?v=63"></script>
+  <script src="vision.js?v=63"></script>
+  <script src="corps.js?v=63"></script>
+  <script src="contenus.js?v=63"></script>
+  <script src="visage.js?v=63"></script>
+  <script src="app.js?v=63"></script>
+  <script src="activites.js?v=63"></script>
+  <script src="ecran.js?v=63"></script>
+  <script src="conscience.js?v=63"></script>
+  <script src="projets.js?v=63"></script>
+  <script src="pokedata.js?v=63"></script>
+  <script src="pokemon.js?v=63"></script>
+  <script src="ensemble.js?v=63"></script>
+  <script src="apprendre.js?v=63"></script>
+  <script src="papa.js?v=63"></script>
+  <script src="noyau.js?v=63"></script>
+  <script src="sync.js?v=63"></script>
   <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>
 </html>

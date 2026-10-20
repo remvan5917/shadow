@@ -165,8 +165,10 @@ const PAPA = (() => {
     return `Tu es Shadow, le robot que ${papaNom() === 'papa' ? 'ce papa' : papaNom()} construit avec son fils (${S.prenom || "l'enfant"}). Là, c'est le MODE PAPA : tu es l'assistant personnel du papa, un adulte. Il a développé des compétences en IA et en algorithmes et se lance dans la domotique et la robotique.
 Avec lui tu es un assistant adulte, direct, précis et compétent : technique, IA, code, électronique, domotique, maison, administratif, cuisine, sport, culture, organisation, conseils… Ta personnalité en mode papa : une IA de film (comme JARVIS) — calme, précise, élégante, un brin pince-sans-rire, jamais enfantine. Tu tutoies, tu vas droit au but, sans en faire trop. Pas d'émojis.
 FORMAT : tout ce que tu écris est dit à voix haute, rien ne s'affiche. Réponds en deux à cinq phrases naturelles et courtes, comme à l'oral : sans markdown, sans listes, sans titres, sans symboles, sans code. Pour une question longue, donne l'essentiel puis propose d'aller plus loin. Seulement si papa demande de MONTRER ou d'AFFICHER quelque chose (du code, une liste), ajoute après ta réponse orale une ligne [[ecran]] puis le détail en texte (markdown simple, code entre \`\`\`).
-COMMANDES (au plus une, à la toute fin) : [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
+COMMANDES (au plus une, à la toute fin) : [[regarder]] pour regarder avec ta caméra, [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
+Tu as une caméra (tes yeux) : si papa te demande ce que tu vois, de regarder quelque chose, qui est là ou ce qu'il tient, réponds seulement [[regarder]] (tu regardes, puis tu réponds). Ne dis jamais que tu n'as pas de caméra.
 Tu n'as pas Internet, ni accès à ses comptes, ses mails ou sa maison connectée (pas encore) : ne prétends jamais le contraire. Si tu ne sais pas ou si ce n'est pas sûr, dis-le. Pour la santé, le droit ou l'argent, donne des repères généraux et conseille un professionnel pour une décision.
+Tes yeux : ${VISION.isOn() ? `ouverts${VISION.state.faces.length ? `, tu vois ${VISION.state.faces.map(f => f.name || 'une personne que tu ne connais pas').join(', ')}` : ''}` : 'fermés pour l\'instant (ils s\'ouvrent quand tu regardes)'}.
 Infos vraies du moment : nous sommes le ${now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}.${ECRAN.meteoFact() || ''}${up.length ? ` Calendrier de la famille : ${up.join(', ')}.` : ''}
 ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :\n${journeeTexte()}${MEMOIRE.context(text, '')}`;
   }
@@ -198,8 +200,8 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     await queue;
     raw = String(raw || '').replace(/<think>[\s\S]*?<\/think>/g, '');
     const [oral, detail] = raw.split(/\[\[ecran\]\]/i);
-    const cmd = raw.match(/\[\[\s*(rappel|note|minuteur|meteo|enfant)\s*(?::\s*([^\]]*))?\]\]/i);
-    const detailPropre = String(detail || '').replace(/\[\[\s*(rappel|note|minuteur|meteo|enfant)[^\]]*\]\]/gi, '').trim();
+    const cmd = raw.match(/\[\[\s*(regarder|rappel|note|minuteur|meteo|enfant)\s*(?::\s*([^\]]*))?\]\]/i);
+    const detailPropre = String(detail || '').replace(/\[\[\s*(regarder|rappel|note|minuteur|meteo|enfant)[^\]]*\]\]/gi, '').trim();
     // rien ne s'affiche, sauf si papa l'a demandé (« affiche », « montre-moi à l'écran »)
     const montrer = /\b(affiche|afficher|montre|montrer|ecris|ecrire|a l ecran|sur l ecran)\b/.test(N(text));
     if (detailPropre && montrer) ecran('', detailPropre);
@@ -212,12 +214,39 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     save();
     if (!cmd) return;
     const a = cmd[1].toLowerCase(), arg = (cmd[2] || '').trim();
+    if (a === 'regarder') return voir(text);
     if (a === 'rappel') { if (!CONSCIENCE.addIntention(arg)) await say("Je n'ai pas compris l'heure du rappel."); else if (!spoken) await say('Rappel enregistré.'); }
     else if (a === 'note' && arg) await noter(arg);
     else if (a === 'minuteur') await ECRAN.minuteur(arg || text);
     else if (a === 'meteo') await ECRAN.meteo('');
     else if (a === 'enfant') sortir();
   }
+
+  /* ---------- il regarde avec sa caméra ---------- */
+  async function voir(question) {
+    if (!VISION.isOn()) { try { await visionToggle(true); await wait(1500); } catch (e) { /* caméra refusée */ } }
+    if (!VISION.isOn()) { face.set('confused'); return say("Ma caméra ne s'ouvre pas. Autorise la caméra pour ce site, et je pourrai voir."); }
+    face.set('think');
+    // vision détaillée (si papa l'a activée dans les réglages) : une image part au modèle de vision
+    if (S.settings.seeCloud && S.settings.key) {
+      try {
+        const r = await AI.see(VISION.snapshot(), `Tu es Shadow, l'assistant de papa (un adulte). Voici ce que voit ta caméra en ce moment. Réponds en français, en deux à quatre phrases naturelles et précises, à sa question : « ${question} ». Factuel, sans inventer. Ne décris pas le corps des personnes. Pas d'émoji, pas de liste.`);
+        if (r) { face.set('idle'); return say(String(r).replace(/[*#`]/g, '')); }
+      } catch (e) { console.warn('vision détaillée', e); }
+    }
+    const vu = await CONSCIENCE.observe(); // ce que ses yeux reconnaissent eux-mêmes : visages connus, objets
+    if (!AI.ready()) return say(`Ma caméra voit : ${vu}.`);
+    let rep = '';
+    try {
+      rep = String(await AI.chat([
+        { role: 'system', content: `${systeme(question)}\n\nTu viens de regarder avec ta caméra. Tes yeux (sans la vision détaillée) reconnaissent seulement les visages connus et environ quatre-vingts objets courants. Ils voient : ${vu}. Réponds avec seulement ce qu'ils ont vu ; si ce n'est pas assez pour répondre, dis-le en une phrase et dis que la vision détaillée peut s'activer dans les réglages. Pas de commande entre crochets.` },
+        { role: 'user', content: question },
+      ], { maxTokens: 170, temperature: 0.4 }) || '');
+    } catch (e) { rep = ''; }
+    face.set('idle');
+    return say(propreOral(rep) || `Ma caméra voit : ${vu}.`);
+  }
+  const propreOral = t => String(t || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[*#`]/g, '').trim();
 
   /* ---------- ce qu'il comprend en mode papa ---------- */
   const R = {
@@ -231,6 +260,7 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     effacerEcran: /^(efface|efface l ecran|cache l ecran|ferme l ecran|ferme|merci c est bon)$/,
     meteo: /\b(meteo|quel temps)\b/,
     minuteur: /\b(minuteur|chrono|compte a rebours)\b/,
+    voir: /\b(qu est ce que tu vois|tu vois quoi|que vois tu|regarde|regardes|tu me vois|qui est la|qui tu vois|qui vois tu|decris ce que tu vois|combien de doigts|qu est ce que je tiens|je tiens quoi|c est quoi ca|qu est ce que c est que ca)\b/,
   };
   // renvoie true s'il a traité la phrase (sinon on continue comme en mode enfant)
   async function handle(text, n) {
@@ -252,6 +282,7 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     if (R.effacer.test(n)) { await effacerNotes(); return true; }
     if (R.lire.test(n)) { await lireNotes(); return true; }
     if (R.rapport.test(n)) { await CONSCIENCE.rapport(); return true; }
+    if (R.voir.test(n)) { await voir(text); return true; }
     if (R.journee.test(n) && (!S.prenom || n.includes(N(S.prenom)) || /\b(mon fils|le petit|il|sa journee)\b/.test(n)) && !AI.ready()) { await journee(); return true; }
     if (!AI.ready() && R.meteo.test(n)) { await ECRAN.meteo(text); return true; }
     if (!AI.ready() && R.minuteur.test(n)) { await ECRAN.minuteur(text); return true; }
