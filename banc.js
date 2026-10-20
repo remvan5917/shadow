@@ -164,9 +164,11 @@
     await PAPA.entrer();
     const chatAvant = S.chat.length, streamB = AI.chatStream;
     AI.chatStream = async (m, o, onS) => { const r = "C'est simple.\n[[ecran]]\n```sh\nls\n```"; onS("C'est simple."); onS('[[ecran]]'); return r; };
-    await handle('liste les fichiers en shell');
+    hideBoard(); await handle('comment je liste les fichiers en shell');
+    const rienAffiche = document.getElementById('board').hidden; // sans « affiche » : rien à l'écran
+    await handle('affiche la commande pour lister les fichiers');
     AI.chatStream = streamB;
-    const ecranOk = !!document.querySelector('#board .papa-txt pre') && !dits.some(t => /```|ecran/.test(t));
+    const ecranOk = rienAffiche && !!document.querySelector('#board .papa-txt pre') && !dits.some(t => /```|ecran/.test(t));
     const separe = S.chat.length === chatAvant && S.papa.chat.length >= 2;
     reponse = 'Bonjour !'; hear = async () => { await wait(5); return null; };
     // juste après l'ouverture, ou sur une seule phrase : il reste en mode papa

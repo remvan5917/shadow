@@ -124,7 +124,6 @@ const PAPA = (() => {
   async function lireNotes() {
     const l = notes();
     if (!l.length) return say("Tu n'as aucune note.");
-    ecran('Tes notes', l.map(x => `- ${x.text}`).join('\n'));
     return say(l.length === 1 ? `Une note : ${l[0].text}` : `Tu as ${l.length} notes. ${l.slice(-5).map(x => x.text).join('. ')}.`);
   }
   async function effacerNotes() {
@@ -155,7 +154,6 @@ const PAPA = (() => {
   }
   async function journee() {
     const t = journeeTexte();
-    ecran(`La journée de ${S.prenom || "l'enfant"}`, t.split('\n').map(l => `- ${l}`).join('\n'));
     return say(t.replace(/\n/g, ' '));
   }
 
@@ -166,7 +164,7 @@ const PAPA = (() => {
     const up = upcoming(30).slice(0, 5).map(x => `${x.e.text} dans ${x.days} jour${x.days > 1 ? 's' : ''}`);
     return `Tu es Shadow, le robot que ${papaNom() === 'papa' ? 'ce papa' : papaNom()} construit avec son fils (${S.prenom || "l'enfant"}). Là, c'est le MODE PAPA : tu es l'assistant personnel du papa, un adulte. Il a développé des compétences en IA et en algorithmes et se lance dans la domotique et la robotique.
 Avec lui tu es un assistant adulte, direct, précis et compétent : technique, IA, code, électronique, domotique, maison, administratif, cuisine, sport, culture, organisation, conseils… Ta personnalité en mode papa : une IA de film (comme JARVIS) — calme, précise, élégante, un brin pince-sans-rire, jamais enfantine. Tu tutoies, tu vas droit au but, sans en faire trop. Pas d'émojis.
-FORMAT : tout ce que tu écris AVANT la ligne [[ecran]] est dit à voix haute : une à quatre phrases naturelles, sans markdown, sans symboles, sans code. Si la réponse a besoin de détails (code, liste, étapes, chiffres, tableau), ajoute ensuite une ligne [[ecran]] puis le détail en texte, affiché à l'écran (markdown simple : listes, **gras**, code entre \`\`\`). Sinon, pas de [[ecran]].
+FORMAT : tout ce que tu écris est dit à voix haute, rien ne s'affiche. Réponds en deux à cinq phrases naturelles et courtes, comme à l'oral : sans markdown, sans listes, sans titres, sans symboles, sans code. Pour une question longue, donne l'essentiel puis propose d'aller plus loin. Seulement si papa demande de MONTRER ou d'AFFICHER quelque chose (du code, une liste), ajoute après ta réponse orale une ligne [[ecran]] puis le détail en texte (markdown simple, code entre \`\`\`).
 COMMANDES (au plus une, à la toute fin) : [[rappel:AAAA-MM-JJ HH:MM|texte]] pour un rappel, [[note:texte]] pour l'ajouter à ses notes, [[minuteur:durée]], [[meteo]], [[enfant]] pour repasser en mode enfant.
 Tu n'as pas Internet, ni accès à ses comptes, ses mails ou sa maison connectée (pas encore) : ne prétends jamais le contraire. Si tu ne sais pas ou si ce n'est pas sûr, dis-le. Pour la santé, le droit ou l'argent, donne des repères généraux et conseille un professionnel pour une décision.
 Infos vraies du moment : nous sommes le ${now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, il est ${now.getHours()} h ${String(now.getMinutes()).padStart(2, '0')}.${ECRAN.meteoFact() || ''}${up.length ? ` Calendrier de la famille : ${up.join(', ')}.` : ''}
@@ -202,8 +200,12 @@ ${l ? `Ses notes :\n${l}\n` : ''}La journée de l'enfant (si on te la demande) :
     const [oral, detail] = raw.split(/\[\[ecran\]\]/i);
     const cmd = raw.match(/\[\[\s*(rappel|note|minuteur|meteo|enfant)\s*(?::\s*([^\]]*))?\]\]/i);
     const detailPropre = String(detail || '').replace(/\[\[\s*(rappel|note|minuteur|meteo|enfant)[^\]]*\]\]/gi, '').trim();
-    if (detailPropre) ecran('', detailPropre);
-    const dit = String(oral || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
+    // rien ne s'affiche, sauf si papa l'a demandé (« affiche », « montre-moi à l'écran »)
+    const montrer = /\b(affiche|afficher|montre|montrer|ecris|ecrire|a l ecran|sur l ecran)\b/.test(N(text));
+    if (detailPropre && montrer) ecran('', detailPropre);
+    let dit = String(oral || '').replace(/\[\[[^\]]*\]\]/g, '').trim();
+    // le cerveau a tout mis dans le détail : il le dit (sans les symboles), au lieu de l'afficher
+    if (!dit && detailPropre && !montrer) dit = detailPropre.replace(/```[\s\S]*?```/g, ' ').replace(/[*#`>|_-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 700);
     if (!spoken && dit) await say(dit);
     c.push({ role: 'assistant', content: `${dit}${detailPropre ? `\n[[ecran]]\n${detailPropre}` : ''}`.slice(0, 4000), at: Date.now() });
     if (c.length > 40) data().chat = c.slice(-40);
