@@ -134,6 +134,9 @@ const LETTER_NAMES = {
 };
 const spellOut = w => [...String(w).toLowerCase()].map(c => LETTER_NAMES[c] || c).join(', ');
 
+// un rire écrit dans une phrase (« ha ha ha », « hi hi hi », « hahaha », « ho ho ho »)
+const LAUGH_RE = /(?:^|[^a-zà-ÿ])((?:h[aiouôîé]+[ -]?){2,})(?=$|[^a-zà-ÿ])/i;
+const LAUGH_SPLIT = /((?:^|(?<=[^a-zà-ÿ]))(?:h[aiouôîé]+[ -]?){2,}[!.…]*)/i;
 const robotVoice = () => ['robot', 'maison'].includes(S.settings.voix || 'maison'); // « maison » : voix Piper de l'ordinateur (et voix de robot du téléphone en secours)
 
 // La voix de la maison : Piper fabrique la voix sur l'ordinateur (plus belle), et on lui ajoute un vrai effet de robot
@@ -225,6 +228,22 @@ const voice = {
   say(text) {
     const t = this.clean(text);
     if (!S.settings.sound || !t) return Promise.resolve();
+    // « ha ha ha », « hi hi », « ho ho » : au lieu de les lire, il RIT vraiment (rire de robot)
+    if (LAUGH_RE.test(t)) {
+      const parts = t.split(LAUGH_SPLIT).filter(x => x && x.trim());
+      return parts.reduce((pr, part) => pr.then(() => {
+        if (dlg.interrupt) return;
+        const m = part.match(LAUGH_RE);
+        if (m && m[0].replace(/[\s!.,-]/g, '').length >= part.replace(/[\s!.,-]/g, '').length - 1) {
+          const k = /h[oô]/i.test(part) ? 'ho' : /h[iîy]/i.test(part) ? 'hi' : 'ha';
+          return VISAGE.rire(k, Math.min(8, Math.max(3, (part.match(/h[aiouôîé]/gi) || []).length + 1)));
+        }
+        return this.say1(part);
+      }), Promise.resolve());
+    }
+    return this.say1(t);
+  },
+  say1(t) {
     // la voix de la maison (Piper) si l'ordinateur répond, sinon la voix du téléphone
     if (VOIXMAISON.usable()) return this.sayMaison(t).catch(() => this.saySynth(t));
     return this.saySynth(t);
@@ -282,6 +301,7 @@ const voice = {
     });
   },
   stop() {
+    VISAGE.rireStop();
     if (this._cur) { try { this._cur.src.onended && this._cur.src.onended(); } catch (e) { /* rien */ } }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   },
@@ -720,6 +740,12 @@ async function handle(text) {
   const n = N(text);
   // « euh », « hum »… : ce n'est pas une phrase, il continue d'écouter sans répondre
   if (/^(euh+|heu+|hum+|hm+|ben|bah|ah|oh|eh|mmh+|pff+)$/.test(n)) return;
+  // l'enfant rit : Shadow rit avec lui
+  if (/^((ha|hi|ho|he|hah|hih|mdr|lol)[ !]*){2,}$|^(mdr|lol|ptdr)$/.test(n)) { await say(pick(['Ha ha ha !', 'Hi hi hi !', 'Ha ha ! Tu me fais rire !'])); return; }
+  // « Shadow, rigole ! » : il montre son rire
+  if (/\b(rigole|rigoler|ris|rire|esclaffe toi|fais (un|ton) rire|tu sais (rire|rigoler)|montre moi (ton rire|comment tu ris|comment tu rigoles))\b/.test(n) && !/\b(pourquoi|blague|drole)\b/.test(n)) {
+    await VISAGE.rire('ha', 6); return say(pick(['Voilà mon rire de robot !', 'Ho ho, mes circuits rigolent encore !', 'Rire, ça recharge mes batteries !']));
+  }
   // « ok », « d'accord », « cool » : comme R2-D2, un petit bip et un sourire, pas de discours
   if (!dlg.expect && /^(ok|okay|oki|d accord|dac|cool|top|ca marche|tres bien|bien|super)( shadow)?$/.test(n)) { face.flash('happy', 1200); fx.tone([[988, 0.06], [1319, 0.09]]); return; }
   if (!dlg.expect && /^(merci|merci beaucoup|merci shadow|merci beaucoup shadow)$/.test(n)) { face.flash('shy', 1500); return say(pick(['Avec plaisir.', 'De rien !', 'Bip. Avec plaisir.'])); }

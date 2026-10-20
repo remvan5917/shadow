@@ -215,6 +215,71 @@ const VISAGE = (() => {
   }
   setTimeout(probe, 6000);
 
+  /* ---------- son rire (un vrai rire de robot, fabriqué par le son : aucun enregistrement) ---------- */
+  // « hi » : petit rire aigu et rapide ; « ha » : rire franc ; « ho » : gros rire grave
+  const RIRES = {
+    hi: { f0: 330, form: [300, 2300], syl: 0.085, gap: 0.05 },
+    ha: { f0: 225, form: [760, 1220], syl: 0.11, gap: 0.068 },
+    ho: { f0: 155, form: [460, 820], syl: 0.14, gap: 0.085 },
+  };
+  let rireNodes = [], rireTimers = [];
+  function rireStop() { rireNodes.forEach(n => { try { n.stop(); } catch (e) { /* déjà fini */ } }); rireNodes = []; rireTimers.forEach(clearTimeout); rireTimers = []; }
+  function rire(kind = 'ha', n) {
+    if (!S.settings.sound) return Promise.resolve();
+    const R = RIRES[kind] || RIRES.ha;
+    n = n || (kind === 'hi' ? 5 : kind === 'ho' ? 4 : 5);
+    let c;
+    try { c = fx.audio(); } catch (e) { return Promise.resolve(); }
+    rireStop();
+    const t0 = c.currentTime + 0.03;
+    const out = c.createGain(); out.gain.value = 0.9; out.connect(c.destination);
+    // le même timbre métallique que sa voix (un écho très court qui se répète)
+    const lvl = S.settings.effet || 'leger';
+    if (lvl !== 'aucun') {
+      const d = c.createDelay(0.05); d.delayTime.value = 0.0075;
+      const fb = c.createGain(); fb.gain.value = lvl === 'fort' ? 0.5 : 0.35;
+      const wet = c.createGain(); wet.gain.value = lvl === 'fort' ? 0.4 : 0.25;
+      out.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(c.destination);
+    }
+    const noiseBuf = c.createBuffer(1, Math.round(c.sampleRate * 0.06), c.sampleRate);
+    const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    let t = t0;
+    for (let k = 0; k < n; k++) {
+      const drop = 1 - k * 0.035; // le rire descend un peu à chaque « ha »
+      const f = R.f0 * (k === 0 ? 1.1 : 1) * drop * (0.97 + Math.random() * 0.06);
+      // le souffle du « h »
+      const hn = c.createBufferSource(); hn.buffer = noiseBuf;
+      const hf = c.createBiquadFilter(); hf.type = 'highpass'; hf.frequency.value = 1600;
+      const hg = c.createGain(); hg.gain.setValueAtTime(0.0001, t); hg.gain.exponentialRampToValueAtTime(0.05, t + 0.012); hg.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+      hn.connect(hf); hf.connect(hg); hg.connect(out); hn.start(t); hn.stop(t + 0.06); rireNodes.push(hn);
+      // la voix du « a » : une vibration qui passe par la forme de la voyelle (deux « formants »)
+      const v = c.createOscillator(); v.type = 'sawtooth';
+      const ts = t + 0.025;
+      v.frequency.setValueAtTime(f * 1.06, ts); v.frequency.exponentialRampToValueAtTime(f * 0.92, ts + R.syl);
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, ts); g.gain.exponentialRampToValueAtTime(0.32, ts + 0.014);
+      g.gain.setValueAtTime(0.32, ts + R.syl * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, ts + R.syl);
+      R.form.forEach((fq, i) => { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fq; bp.Q.value = 7; const bg = c.createGain(); bg.gain.value = i ? 0.55 : 1; v.connect(bp); bp.connect(bg); bg.connect(g); });
+      g.connect(out);
+      v.start(ts); v.stop(ts + R.syl + 0.02); rireNodes.push(v);
+      // la bouche s'ouvre à chaque « ha »
+      const at = (ts - c.currentTime) * 1000;
+      rireTimers.push(setTimeout(() => face.el && face.el.setAttribute('data-vis', kind === 'hi' ? 'I' : kind === 'ho' ? 'O' : 'A'), Math.max(0, at)));
+      rireTimers.push(setTimeout(() => face.el && face.el.setAttribute('data-vis', 'X'), Math.max(0, at + R.syl * 900)));
+      t += 0.025 + R.syl + R.gap;
+    }
+    const dur = (t - t0) * 1000;
+    face.flash('laugh', dur + 600);
+    if (face.el) { face.el.classList.add('vis', 'talk'); }
+    OREILLES.mute(true); // il ne s'entend pas rire
+    return new Promise(res => {
+      rireTimers.push(setTimeout(() => {
+        if (face.el) { face.el.classList.remove('vis', 'talk'); face.el.removeAttribute('data-vis'); }
+        OREILLES.mute(false);
+        res();
+      }, dur + 80));
+    });
+  }
+
   /* ---------- les chatouilles ---------- */
   let taps = [], lastTickle = 0;
   function tapped() {
@@ -234,5 +299,5 @@ const VISAGE = (() => {
     return true;
   }
 
-  return { speak, sync, quiet, puff, react, tapped, boot };
+  return { speak, sync, quiet, puff, react, tapped, boot, rire, rireStop };
 })();

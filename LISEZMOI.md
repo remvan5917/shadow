@@ -52,6 +52,9 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 
 Pour arrêter le brossage ou la respiration, il suffit de toucher son visage.
 
+## Son rire
+Shadow rit pour de vrai : un rire de robot fabriqué par le son du téléphone (aucun enregistrement), avec trois sortes de rires (« hi hi » aigu, « ha ha » franc, « ho ho » grave) qui descendent comme un vrai rire, le même timbre métallique que sa voix, et le visage qui rit avec. Il rit quand on le chatouille (trois tapes), quand son cerveau trouve quelque chose de drôle (il écrit « Ha ha ha ! »), quand l'enfant rit (« ha ha ha », « mdr »), ou quand on lui dit « Shadow, rigole ! ».
+
 ## Le monde des Pokémon
 Tout à la voix, avec les 1025 Pokémon (noms français, types, évolutions, tailles, poids, statistiques : faits de PokéAPI, dans `pokedata.js`) :
 - **« Parle-moi de Pikachu »** : la fiche du Pokédex à l'écran (image, numéro, types en couleur, taille, poids, statistiques, évolutions, forces et faiblesses). Il comprend aussi les noms mal entendus (« Pikatchou », « dracofeu »).
