@@ -40,7 +40,9 @@ const AI = {
   online() { return navigator.onLine !== false && Date.now() > this.netDownUntil; },
   hasKey() { const s = S.settings; return s.brain === 'local' ? !!(s.localUrl && s.localModel) || !!s.key : !!s.key; },
   ready() { return this.hasKey() && (this.cfg().local || this.online()); },
-  canTranscribe() { return !!S.settings.key && !!window.MediaRecorder && !!navigator.mediaDevices && this.online(); },
+  // les oreilles : Groq (Whisper large) et/ou les oreilles de la maison (whisper.cpp sur l'ordinateur, sans limite)
+  homeEars() { return typeof VOIXMAISON !== 'undefined' ? VOIXMAISON.root() : ''; },
+  canTranscribe() { return (!!S.settings.key || !!this.homeEars()) && !!window.MediaRecorder && !!navigator.mediaDevices && this.online(); },
 
   // Modèles de secours si Groq retire celui qu'on utilise
   FALLBACK: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
@@ -206,15 +208,47 @@ const AI = {
   // Oreilles (quand le navigateur n'a pas de reconnaissance vocale)
   async transcribe(blob, prompt = '') {
     const ext = /wav/.test(blob.type) ? 'wav' : /mp4|aac|m4a/.test(blob.type) ? 'mp4' : /ogg/.test(blob.type) ? 'ogg' : 'webm';
-    const fd = new FormData();
-    fd.append('file', blob, `voix.${ext}`);
-    fd.append('model', this.STT_MODEL);
-    fd.append('language', 'fr');
-    fd.append('temperature', '0');
-    fd.append('response_format', 'verbose_json'); // avec l'indice de confiance de chaque morceau
-    fd.append('prompt', prompt || `Conversation en français avec Shadow, un robot, et ${S.prenom || 'un enfant'}.`);
-    const j = await this._fetch({ base: this.GROQ, key: S.settings.key }, '/audio/transcriptions', { method: 'POST', body: fd }, 30000);
-    countUsage(0, Math.max(10, Math.round(j.duration || 0))); // Groq compte au moins 10 secondes par morceau
+    const form = groq => {
+      const fd = new FormData();
+      fd.append('file', blob, `voix.${ext}`);
+      if (groq) fd.append('model', this.STT_MODEL);
+      fd.append('language', 'fr');
+      fd.append('temperature', '0');
+      fd.append('response_format', 'verbose_json'); // avec l'indice de confiance de chaque morceau
+      fd.append('prompt', prompt || `Conversation en français avec Shadow, un robot, et ${S.prenom || 'un enfant'}.`);
+      return fd;
+    };
+    const home = this.homeEars();
+    const viaGroq = async () => {
+      const r = await this._fetch({ base: this.GROQ, key: S.settings.key }, '/audio/transcriptions', { method: 'POST', body: form(true) }, 30000);
+      countUsage(0, Math.max(10, Math.round(r.duration || 0))); // Groq compte au moins 10 secondes par morceau
+      this.lastEars = 'groq';
+      return r;
+    };
+    const viaMaison = async () => {
+      const ctl = window.AbortController ? new AbortController() : null;
+      const tm = setTimeout(() => ctl && ctl.abort(), 20000);
+      try {
+        const r = await fetch(`${home}/shadow/oreilles`, { method: 'POST', body: form(false), signal: ctl ? ctl.signal : undefined });
+        if (!r.ok) { const e = new Error(`oreilles de la maison ${r.status}`); e.status = r.status; throw e; }
+        this.lastEars = 'maison';
+        return await r.json();
+      } finally { clearTimeout(tm); }
+    };
+    const groqOk = !!S.settings.key && !(S.settings.sttCool > Date.now());
+    let j = null;
+    if (home && (S.settings.earsMaisonFirst || !groqOk)) {
+      try { j = await viaMaison(); } catch (e) { if (!groqOk) throw e; } // l'ordinateur ne répond pas : Groq
+    }
+    if (!j) {
+      try { j = await viaGroq(); } catch (e) {
+        if (!home) throw e;
+        // limite de Groq atteinte (ou Groq injoignable) : les oreilles de la maison prennent le relais
+        if (e.status === 429) { S.settings.sttCool = Date.now() + Math.max(60, Math.min(e.retryAfter || 600, 6 * 3600)) * 1000; save(); }
+        else if (!e.net && !(e.status >= 500)) throw e;
+        j = await viaMaison();
+      }
+    }
     // Whisper « hallucine » parfois sur du bruit : on jette les morceaux où il n'est pas sûr qu'on ait parlé
     let t = (j.text || '').trim();
     if (Array.isArray(j.segments) && j.segments.length) {

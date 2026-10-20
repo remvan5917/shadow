@@ -95,6 +95,18 @@
     Object.assign(S.settings, avant); VOIXMAISON.downUntil = 0;
     return fin === 'fini' && secours;
   });
+  await essai("oreilles : relais par celles de la maison quand Groq atteint sa limite", async () => {
+    const avant = { brain: S.settings.brain, url: S.settings.localUrl, key: S.settings.key, cool: S.settings.sttCool };
+    Object.assign(S.settings, { brain: 'local', localUrl: 'http://maison.test/v1', key: 'gsk_banc', sttCool: 0 });
+    const vf = AI._fetch, vfetch = window.fetch; let maison = 0;
+    AI._fetch = async () => { const e = new Error('Erreur 429'); e.status = 429; e.retryAfter = 600; throw e; };
+    window.fetch = async (u, o) => { if (/\/shadow\/oreilles/.test(u)) { maison++; return new Response(JSON.stringify({ text: ' Shadow, on joue ?', segments: [{ text: ' Shadow, on joue ?', avg_logprob: -0.2, no_speech_prob: 0.01 }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }); } return vfetch(u, o); };
+    let t = '';
+    try { t = await AI.transcribe(new Blob(['x'], { type: 'audio/wav' })); } finally { AI._fetch = vf; window.fetch = vfetch; }
+    const ok2 = maison === 1 && /on joue/.test(t) && S.settings.sttCool > Date.now();
+    Object.assign(S.settings, { brain: avant.brain, localUrl: avant.url, key: avant.key, sttCool: avant.cool });
+    return ok2;
+  });
   await essai('rapport de systèmes', async () => { dits.length = 0; await CONSCIENCE.rapport(); return /Rapport/.test(dits.join(' ')); });
 
   // ---------- on remet tout en place ----------

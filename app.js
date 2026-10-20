@@ -1643,7 +1643,7 @@ function reportText() {
     `Rapport Shadow v${window.SHADOW_VERSION} — ${new Date().toLocaleString('fr-FR')}`,
     `Navigateur : ${navigator.userAgent}`,
     `Mode vieux téléphone : ${LEGACY} · réseau : ${navigator.onLine === false ? 'hors ligne' : 'en ligne'} · oreilles : ${OREILLES.engine()} · yeux : ${VISION.isOn() ? `ouverts (${VISION.cost()} ms/image)` : 'fermés'}`,
-    `Temps moyens : oreilles ${avg(OREILLES.timings()) || '?'} ms · cerveau (1re phrase) ${avg(brainTimes) || '?'} ms · cerveau utilisé : ${AI.ready() ? (AI.cfg().local ? 'maison' : 'Groq') : 'mini'} · visage : ${VISAGE.fps || '?'} images/s${document.body.classList.contains('lite') ? ' (allégé)' : ''}`,
+    `Temps moyens : oreilles ${avg(OREILLES.timings()) || '?'} ms · cerveau (1re phrase) ${avg(brainTimes) || '?'} ms · cerveau utilisé : ${AI.ready() ? (AI.cfg().local ? 'maison' : 'Groq') : 'mini'} · dernières oreilles : ${AI.lastEars || '?'}${S.settings.sttCool > Date.now() ? ' (Groq au repos)' : ''} · visage : ${VISAGE.fps || '?'} images/s${document.body.classList.contains('lite') ? ' (allégé)' : ''}`,
     `Dernière erreur du cerveau : ${S.lastBrainError ? `${S.lastBrainError.msg} (${new Date(S.lastBrainError.at).toLocaleString('fr-FR')})` : 'aucune'}${crash ? ` · plantage détecté : ${crash}` : ''}`,
     `Auto-test : ${Object.keys(diag).length ? Object.entries(diag).map(([k, v]) => `${k} = ${v}`).join(' | ') : 'pas lancé'}`,
     `Réglages : ${JSON.stringify(s)}`,

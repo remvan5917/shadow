@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '46';
+      window.SHADOW_VERSION = '47';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -192,7 +192,7 @@
       </div>
       <div id="timer" class="timer" hidden></div>
       <div id="board" class="board" hidden></div>
-      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v46</small></button>
+      <button id="hint" class="hint">👆 Touche mon écran pour me réveiller <small class="ver">v47</small></button>
       <div id="bubble" class="bubble" hidden aria-live="polite">
         <p id="heard" class="heard"></p>
         <p id="bubble-text"></p>
@@ -278,6 +278,7 @@
         <div class="row"><button type="button" id="s-voix-test" class="ghost">▶️ Écouter sa voix</button></div>
         <p id="s-voix-info" class="small muted"></p>
         <label class="check"><input id="s-slow" type="checkbox"> Voix plus lente</label>
+        <label class="check"><input id="s-ears-maison" type="checkbox"> Écouter d'abord avec les oreilles de la maison (sans limite, un peu moins précises que Groq). Sinon, elles servent seulement de secours quand Groq ne répond plus.</label>
         <label class="check"><input id="s-subtitles" type="checkbox"> Sous-titres (ce que Shadow entend et dit)</label>
         <label>Les oreilles
           <select id="s-ears">

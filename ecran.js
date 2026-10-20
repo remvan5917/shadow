@@ -464,6 +464,8 @@ const ECRAN = (() => {
   }
   function bindSettings() {
     const vx = $('#s-voix'), info = () => { const el = $('#s-voix-info'); if (!el) return; if (VOIXMAISON.usable()) { el.textContent = "Voix utilisée : la voix de la maison (Piper, sur l'ordinateur). Si l'ordinateur ne répond pas, Shadow prend la voix du téléphone."; return; } el.textContent = voice.v ? `Voix utilisée : ${voice.v.name}${robotVoice() ? (voice.male ? ' (voix d\'homme, rendue plus grave)' : ' (rendue beaucoup plus grave)') : ''}${(S.settings.voix || 'maison') === 'maison' ? " — la voix de la maison demande le « cerveau de la maison »." : ''}` : "Aucune voix française trouvée sur l'appareil."; };
+    const em = $('#s-ears-maison');
+    if (em) { em.checked = !!S.settings.earsMaisonFirst; em.addEventListener('change', () => { S.settings.earsMaisonFirst = em.checked; save(); }); }
     const ef = $('#s-effet');
     if (ef) { ef.value = S.settings.effet || 'leger'; ef.addEventListener('change', () => { S.settings.effet = ef.value; save(); }); }
     if (vx) {
