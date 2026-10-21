@@ -1,8 +1,8 @@
 /* =========================================================
-   SHADOW — ses lumières (seulement celles que papa lui confie)
+   SHADOW — ses lumières et ses appareils (seulement ceux que papa lui confie)
    - Papa coche dans Atlas les appareils que Shadow a le droit de piloter (la lampe de la chambre,
      la veilleuse…) ; l'ordinateur de la maison refuse tout le reste (/maison/shadow).
-   - « Shadow, allume ma lampe », « éteins la veilleuse », « éteins la lumière ».
+   - « Shadow, allume ma lampe », « éteins la veilleuse », « allume la télé »… (une prise peut alimenter n'importe quoi).
    - Pas de discothèque : l'ordinateur accepte au plus 12 commandes en 10 minutes.
    - Si papa l'a choisi, à la fin de l'histoire du soir, il éteint ses lampes.
    ========================================================= */
@@ -24,25 +24,29 @@ const LUMIERES = (() => {
   const mots = t => N(t).split(' ').filter(w => w.length > 1 && !VIDES.has(w));
   function choisis(l, cible) {
     const m = mots(cible);
-    if (!m.length || /\b(tout|toutes|tous)\b/.test(N(cible))) return l; // « allume la lumière », « éteins tout » : tout ce qu'il a le droit
+    if (/\b(tout|toutes|tous)\b/.test(N(cible))) return l; // « éteins tout » : tout ce qu'il a le droit
+    // « allume ma lampe », « la lumière » : seulement des lumières (jamais la télé à la place)
+    const lum = a => a.type === 'lampe' || /\b(lumi\w*|lamp\w*|led|leds|veilleuse|guirlande|lampadaire)\b/.test(N(a.nom));
+    if (!m.length) return /\b(lampe|lampes|lumiere|lumieres)\b/.test(N(cible)) ? l.filter(lum) : l;
     const t = l.filter(a => mots(a.nom).some(x => m.some(w => x === w || (w.length > 3 && x.startsWith(w.slice(0, -1))))));
     return t; // il demande autre chose que ce qu'il a le droit : on refuse (jamais « à peu près »)
   }
   const noms = l => (l.length === 1 ? l[0].nom.toLowerCase() : `${l.slice(0, -1).map(a => a.nom.toLowerCase()).join(', ')} et ${l[l.length - 1].nom.toLowerCase()}`);
   async function pilote(cible, allume) {
     let r; try { r = await appel('/maison/shadow'); } catch (e) { return say("Oh, l'ordinateur de la maison ne répond pas. Je ne peux pas toucher aux lumières."); }
-    if (!r.actif) return say("Papa a mis les lumières en pause. Demande-lui !");
+    if (!r.actif) return say("Papa a mis la maison en pause. Demande-lui !");
     const l = r.appareils || [];
-    if (!l.length) return say("Je n'ai pas encore le droit de toucher aux lumières. C'est papa qui décide, avec Atlas !");
+    if (!l.length) return say("Je n'ai pas le droit de toucher aux appareils de la maison. C'est papa qui décide, avec Atlas !");
     const c = choisis(l, cible);
-    if (!c.length) return say(`Ça, je n'ai pas le droit. Moi, je peux seulement allumer ${noms(l)}.`);
+    if (!c.length) return say(`Ça, je n'ai pas le droit. Moi, je peux seulement allumer et éteindre ${noms(l)}.`);
     let res; try { res = await appel('/maison/shadow/commande', { ids: c.map(a => a.id), allume }); } catch (e) { return say("Oups, ça n'a pas marché. Réessaie dans un instant !"); }
-    if (res.refus === 'trop') return say("Ouh là, on a assez joué avec la lumière ! On la laisse tranquille un petit moment.");
+    if (res.refus === 'trop') return say("Ouh là, on a assez joué avec les boutons ! On laisse tout tranquille un petit moment.");
     if (res.refus) return say("Je n'ai pas le droit. Demande à papa !");
     const ok = (res.resultats || []).filter(x => x.ok);
-    if (!ok.length) return say(`${c.length > 1 ? 'Elles ne répondent' : 'Elle ne répond'} pas. Elle est peut-être débranchée.`);
+    if (!ok.length) return say("Ça ne répond pas. C'est peut-être débranché.");
     face.flash('happy'); fx.tone(allume ? [[784, 0.06], [1175, 0.1]] : [[1175, 0.06], [784, 0.1]]);
-    return say(allume ? pick(['Et la lumière fut !', 'Pouf, allumé !', `C'est allumé, ${name()} !`]) : pick(['Pouf, éteint !', "C'est éteint.", 'Hop, éteint !']));
+    const lumiere = c.every(a => a.type === 'lampe' || /\b(lumi\w*|lamp\w*|led|leds|veilleuse|guirlande|lampadaire)\b/.test(N(a.nom)));
+    return say(allume ? pick(lumiere ? ['Et la lumière fut !', 'Pouf, allumé !', `C'est allumé, ${name()} !`] : ['Pouf, allumé !', `C'est allumé, ${name()} !`, 'Hop, en marche !']) : pick(['Pouf, éteint !', "C'est éteint.", 'Hop, éteint !']));
   }
   // la fin de l'histoire du soir : si papa l'a choisi, il éteint ses lampes
   async function coucher() {
@@ -58,7 +62,8 @@ const LUMIERES = (() => {
   const rafraichir = () => appel('/maison/shadow').then(r => { connus = (r.appareils || []).map(x => x.nom); }).catch(() => {});
   setTimeout(rafraichir, 9000); setInterval(rafraichir, 5 * 60000);
   const R = /^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\s+(?!toi\b)(.+)$/;
-  const LAMPE = /\b(lumiere|lampe|veilleuse|lumieres|guirlande|lampadaire|prise|led|leds|tout)\b/;
+  // ce qu'un enfant peut vouloir allumer (s'il n'en a pas le droit, Shadow le lui dit gentiment)
+  const LAMPE = /\b(lumiere|lampe|veilleuse|lumieres|guirlande|lampadaire|prise|led|leds|tout|tele|television|ventilateur|ventilo|radio|console|musique|enceinte|chauffage|radiateur|aquarium|projecteur|ecran de la tele)\b/;
   function route(text, n) {
     const m = n.match(R);
     if (!m) return null;
