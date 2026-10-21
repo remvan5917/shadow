@@ -46,8 +46,10 @@ const LUMIERES = (() => {
     return t;
   }
   const noms = l => (l.length === 1 ? l[0].nom.toLowerCase() : `${l.slice(0, -1).map(a => a.nom.toLowerCase()).join(', ')} et ${l[l.length - 1].nom.toLowerCase()}`);
+  const journal = [];
+  const note = (quoi, res) => { journal.push(`${new Date().toTimeString().slice(0, 5)} ${quoi} → ${res}`); if (journal.length > 8) journal.shift(); };
   async function pilote(cible, allume) {
-    let r; try { r = await appel('/maison/shadow'); } catch (e) { return say("Oh, l'ordinateur de la maison ne répond pas. Je ne peux pas toucher aux lumières."); }
+    let r; try { r = await appel('/maison/shadow'); } catch (e) { note(`${allume ? 'allume' : 'éteins'} ${cible}`, `maison injoignable (${e.message})`); return say("Oh, l'ordinateur de la maison ne répond pas. Je ne peux pas toucher aux lumières."); }
     if (!r.actif) return say("Papa a mis la maison en pause. Demande-lui !");
     const l = r.appareils || [];
     if (!l.length) return say("Je n'ai pas le droit de toucher aux appareils de la maison. C'est papa qui décide, avec Atlas !");
@@ -65,6 +67,7 @@ const LUMIERES = (() => {
     if (!ok.length) return say("Ça ne répond pas. C'est peut-être débranché.");
     face.flash('happy'); fx.tone(allume ? [[784, 0.06], [1175, 0.1]] : [[1175, 0.06], [784, 0.1]]);
     const lumiere = c.every(lum);
+    note(`${allume ? 'allume' : 'éteins'} ${cible}`, `ok : ${c.map(a => a.nom).join(', ')}`);
     const fin = allume ? pick(lumiere ? ['Et la lumière fut !', 'Pouf, allumé !', `C'est allumé, ${name()} !`] : ['Pouf, allumé !', `C'est allumé, ${name()} !`, 'Hop, en marche !']) : pick(['Pouf, éteint !', "C'est éteint.", 'Hop, éteint !']);
     return say(pasLeDroit.length ? `${fin} Mais ${pasLeDroit.join(' et ')}, je n'ai pas le droit.` : fin);
   }
@@ -88,7 +91,7 @@ const LUMIERES = (() => {
     return null;
   }
   async function regle(cible, o) {
-    let r; try { r = await appel('/maison/shadow'); } catch (e) { return say("Oh, l'ordinateur de la maison ne répond pas."); }
+    let r; try { r = await appel('/maison/shadow'); } catch (e) { note(`règle ${cible}`, `maison injoignable (${e.message})`); return say("Oh, l'ordinateur de la maison ne répond pas."); }
     if (!r.actif) return say("Papa a mis la maison en pause. Demande-lui !");
     const l = (r.appareils || []).filter(a => lum(a) && (a.lum != null || a.teinte != null));
     if (!l.length) return say("Ma lumière ne sait pas changer de force. Je peux juste l'allumer ou l'éteindre !");
@@ -113,7 +116,8 @@ const LUMIERES = (() => {
       if (res.refus) return say("Je n'ai pas le droit. Demande à papa !");
       ok += (res.resultats || []).filter(x => x.ok).length;
     }
-    if (!ok) return say("Ça ne répond pas. C'est peut-être débranché.");
+    if (!ok) { note(`règle ${cible}`, 'pas de réponse des lampes'); return say("Ça ne répond pas. C'est peut-être débranché."); }
+    note(`règle ${cible}`, `ok : ${c.map(a => a.nom).join(', ')}`);
     face.flash('happy'); fx.tone([[880, 0.05], [1046, 0.08]]);
     if (o.dit) return say(pick(o.dit));
     if (o.delta) return say(o.delta < 0 ? pick(['Un peu moins fort.', 'Voilà, plus doux.']) : pick(['Plus fort !', 'Et hop, plus de lumière !']));
@@ -162,5 +166,5 @@ const LUMIERES = (() => {
     if (!LAMPE.test(cible) && !connus.some(x => mots(x).some(w => nm.includes(w)))) return null;
     return () => pilote(cible, /^r?allume/.test(m[1]));
   }
-  return { route, pilote, regle, coucher, _rafraichir: rafraichir };
+  return { route, pilote, regle, coucher, journal: () => journal.slice(), _rafraichir: rafraichir };
 })();
