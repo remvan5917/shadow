@@ -2,7 +2,7 @@
 // Deux réserves :
 // - « shadow-app-vN » : les fichiers de l'appli (changent à chaque version) ;
 // - « shadow-modeles » : les gros modèles des yeux, la police… (gardés d'une version à l'autre).
-const CACHE = 'shadow-app-v72';
+const CACHE = 'shadow-app-v73';
 const MODELS = 'shadow-modeles';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js', 'contenus.js', 'visage.js', 'activites.js', 'ecran.js', 'conscience.js', 'projets.js', 'pokedata.js', 'pokemon.js', 'ensemble.js', 'apprendre.js', 'messages.js', 'lumieres.js', 'sync.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
