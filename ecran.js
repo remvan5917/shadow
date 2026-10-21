@@ -44,28 +44,41 @@ const ECRAN = (() => {
     if (!s || PERSO.test(s) || s.split(' ').length > 4) return '';
     return s;
   }
-  async function lookup(subject) {
-    const key = subject.toLowerCase();
+  // l'encyclopédie de la maison : Vikidia hors ligne (Kiwix sur l'ordinateur), avec les passages qui répondent à la question
+  async function lookupMaison(subject, question) {
+    const r = typeof VOIXMAISON !== 'undefined' ? VOIXMAISON.root() : '';
+    if (!r) return null;
+    try {
+      const j = await getJSON(`${r}/shadow/kiwix?q=${encodeURIComponent(subject)}&question=${encodeURIComponent(PRIVE.mask(question || '').text)}`);
+      const x = j && j.resultat;
+      if (x && x.texte && x.texte.length > 40) return { title: x.titre, text: x.texte, img: '', src: 'Vikidia' };
+    } catch (e) { /* l'ordinateur ne répond pas : Vikidia en ligne */ }
+    return null;
+  }
+  async function lookup(subject, question = '') {
+    const key = `${subject.toLowerCase()}|${N(question)}`;
     if (cache[key]) return cache[key];
     const V = 'https://fr.vikidia.org/w/api.php?format=json&origin=*&';
-    let res = null;
-    try {
-      const s = await getJSON(`${V}action=query&list=search&srlimit=1&srsearch=${encodeURIComponent(subject)}`);
-      const title = s.query && s.query.search[0] && s.query.search[0].title;
-      if (title) {
-        const p = await getJSON(`${V}action=query&prop=extracts|pageimages&exintro=1&explaintext=1&exsentences=5&piprop=thumbnail&pithumbsize=600&redirects=1&titles=${encodeURIComponent(title)}`);
-        const page = p.query && Object.values(p.query.pages)[0];
-        if (page && page.extract && page.extract.length > 40) res = { title: page.title, text: page.extract, img: page.thumbnail ? page.thumbnail.source : '', src: 'Vikidia' };
-        // pas d'image dans Vikidia : celle de l'article Wikipédia du même nom (le sujet est déjà un sujet d'enfant)
-        if (res && !res.img) {
-          try {
-            const w = await getJSON(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(res.title.replace(/ /g, '_'))}`);
-            if (w.thumbnail && w.type !== 'disambiguation') { res.img = w.thumbnail.source; res.imgSrc = 'Wikipédia'; }
-          } catch (e) { /* tant pis, pas d'image */ }
+    let res = await lookupMaison(subject, question);
+    if (!res && net()) {
+      try {
+        const s = await getJSON(`${V}action=query&list=search&srlimit=1&srsearch=${encodeURIComponent(subject)}`);
+        const title = s.query && s.query.search[0] && s.query.search[0].title;
+        if (title) {
+          const p = await getJSON(`${V}action=query&prop=extracts|pageimages&exintro=1&explaintext=1&exsentences=5&piprop=thumbnail&pithumbsize=600&redirects=1&titles=${encodeURIComponent(title)}`);
+          const page = p.query && Object.values(p.query.pages)[0];
+          if (page && page.extract && page.extract.length > 40) res = { title: page.title, text: page.extract, img: page.thumbnail ? page.thumbnail.source : '', src: 'Vikidia' };
         }
-      }
-    } catch (e) { /* on essaie Wikipédia */ }
-    if (!res) {
+      } catch (e) { /* on essaie Wikipédia */ }
+    }
+    // pas d'image dans Vikidia : celle de l'article Wikipédia du même nom (le sujet est déjà un sujet d'enfant)
+    if (res && !res.img && net()) {
+      try {
+        const w = await getJSON(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(res.title.replace(/ /g, '_'))}`);
+        if (w.thumbnail && w.type !== 'disambiguation') { res.img = w.thumbnail.source; res.imgSrc = 'Wikipédia'; }
+      } catch (e) { /* tant pis, pas d'image */ }
+    }
+    if (!res && net()) {
       try {
         const s = await getJSON(`https://fr.wikipedia.org/w/api.php?format=json&origin=*&action=query&list=search&srlimit=1&srsearch=${encodeURIComponent(subject)}`);
         const title = s.query && s.query.search[0] && s.query.search[0].title;
@@ -85,11 +98,11 @@ const ECRAN = (() => {
   // question = ce que l'enfant a dit ; fromChat = la question est déjà dans la conversation
   async function savoir(subject, question, fromChat) {
     if (ETHIQUE.BAD.test(ORTHO.bare(subject))) return say("Hum, ça, c'est un sujet pour en parler avec papa.");
-    if (!net()) { face.flash('oops'); return say("Pour chercher dans mon encyclopédie, il me faut du réseau. On regardera tout à l'heure !"); }
+    if (!net() && !VOIXMAISON.root()) { face.flash('oops'); return say("Pour chercher dans mon encyclopédie, il me faut du réseau. On regardera tout à l'heure !"); }
     face.set('think');
     VISAGE.puff('question', 2);
     const waitLine = say(pick(['Je regarde dans mon encyclopédie…', 'Je cherche dans mes livres de robot…', 'Une seconde, je consulte ma bibliothèque…']));
-    const r = await lookup(subject);
+    const r = await lookup(subject, question);
     await waitLine;
     if (!r) { face.set('confused'); return say(`Je n'ai rien trouvé sur « ${subject} » dans mon encyclopédie. Tu peux le dire autrement ?`); }
     if (r.bad) return say("Hum, ça, c'est un sujet pour en parler avec papa.");

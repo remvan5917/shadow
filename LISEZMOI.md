@@ -40,7 +40,7 @@ Shadow, le robot inventé par un enfant et son papa. **Juste un visage** (d'apr�
 | « Une histoire pour dormir » | histoire du soir, puis il s'endort (ne se réveille pas tout seul pendant 1 h) |
 | « C'est quand mon anniversaire ? » | compte les dodos (calendrier rempli par papa) |
 | « Apprends ma voix » / « Qui parle ? » | apprend une voix (3 petites phrases) / dit qui parle |
-| « C'est quoi un volcan ? » / « Montre-moi un guépard » / « C'est qui Napoléon ? » | cherche dans **Vikidia** (l'encyclopédie des enfants) au lieu d'inventer, montre une image et explique avec des mots simples |
+| « C'est quoi un volcan ? » / « Montre-moi un guépard » / « C'est qui Napoléon ? » | cherche dans **Vikidia** (l'encyclopédie des enfants) au lieu d'inventer — d'abord **hors ligne sur l'ordinateur de la maison** (Kiwix), dans tout l'article, pour trouver le passage qui répond à la question — montre une image et explique avec des mots simples |
 | « Quel temps il fait ? » / « Il va pleuvoir demain ? » | la météo de la ville réglée par papa, avec le conseil (manteau, parapluie…) |
 | « Minuteur de 5 minutes » / « Préviens-moi dans 10 minutes » / « Arrête le minuteur » | compte à rebours dans le coin de l'écran, on peut continuer à parler |
 | « Je vais me brosser les dents » | 2 minutes guidées : en haut à droite, en haut à gauche… |
@@ -198,7 +198,7 @@ Le visage prend la plus grande taille possible, que l'écran soit vertical ou ho
 ## Ce qui part sur Internet (à savoir)
 - **Oreilles « Whisper »** (par défaut avec une clé) : Shadow détecte lui-même quand quelqu'un parle et n'envoie à Groq que ce morceau de voix. Il n'y a pas de bip. Quand il attend son nom, tout ce qui est dit près de lui est envoyé (la télé aussi). Pour l'éviter : mettre « Chrome » dans les réglages (dans ce cas, le son part chez Google).
 - **Discussion** : les phrases partent chez Groq.
-- **Encyclopédie** : le sujet cherché (par exemple « volcan ») part chez Vikidia et Wikipédia, sans rien d'autre. Shadow affiche les images de Vikidia ; quand Vikidia n'a pas d'image, il prend celle de l'article Wikipédia du même sujet.
+- **Encyclopédie** : d'abord **Vikidia hors ligne**, sur l'ordinateur de la maison (Kiwix, fichier `vikidia_fr_all_nopic`, service `shadow-kiwix` sur 127.0.0.1:8180, relais `/shadow/kiwix`) : la question ne sort pas de la maison. En secours (ou pour l'image), le sujet cherché (par exemple « volcan ») part chez Vikidia et Wikipédia, sans rien d'autre. Shadow affiche les images de Vikidia ; quand Vikidia n'a pas d'image, il prend celle de l'article Wikipédia du même sujet.
 - **Météo** : seulement les coordonnées de la ville réglée par papa, arrondies, envoyées à Open-Meteo (gratuit, sans compte).
 - **Vision détaillée** : désactivée par défaut. Si papa l'active, une photo part chez Groq quand on demande « qu'est-ce que tu vois ? ».
 
