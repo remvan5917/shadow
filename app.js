@@ -761,6 +761,8 @@ async function handle(text) {
   dlg.expect = null;
   const early = ECRAN.routeEarly(n); // « arrête le minuteur » (avant le « stop » général)
   if (early) return early();
+  const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
+  if (mg) return mg();
   const pj = PROJETS.route(text, n); // « je veux apprendre la table de 7 cette semaine », « où j'en suis ? »
   if (pj) return pj();
   const ap = APPRENDRE.route(text, n); // « je vais t'apprendre un jeu », « on joue au petit bac », « j'ai une devinette pour toi »
