@@ -51,8 +51,12 @@ const LUMIERES = (() => {
     if (!r.actif) return say("Papa a mis la maison en pause. Demande-lui !");
     const l = r.appareils || [];
     if (!l.length) return say("Je n'ai pas le droit de toucher aux appareils de la maison. C'est papa qui décide, avec Atlas !");
-    const c = choisis(l, cible);
-    if (c === null) return say(`Laquelle ? Je peux allumer ${noms(l.filter(lum))}.`);
+    // « allume ma lumière et la fusée », « éteins le salon, la cuisine et l'escalier » : chaque morceau choisit, on rassemble
+    const bouts = morceaux(cible) || [cible];
+    const choix = bouts.map(b => choisis(l, b));
+    if (choix.some(x => x === null) && bouts.length === 1) return say(`Laquelle ? Je peux allumer ${noms(l.filter(lum))}.`);
+    const c = [...new Set(choix.flatMap(x => (x === null ? l.filter(lum).filter(aMoi) : x)))];
+    const pasLeDroit = bouts.length > 1 ? bouts.filter((b, i) => Array.isArray(choix[i]) && !choix[i].length).map(b => b.replace(/^(la|le|les|l|ma|mon|mes)\s+/, '').replace(/\btele(vision)?\b/, 'la télé')) : [];
     if (!c.length) return say(`Ça, je n'ai pas le droit. Moi, je peux seulement allumer et éteindre ${noms(l)}.`);
     let res; try { res = await appel('/maison/shadow/commande', { ids: c.map(a => a.id), allume }); } catch (e) { return say("Oups, ça n'a pas marché. Réessaie dans un instant !"); }
     if (res.refus === 'trop') return say("Ouh là, on a assez joué avec les boutons ! On laisse tout tranquille un petit moment.");
@@ -61,7 +65,8 @@ const LUMIERES = (() => {
     if (!ok.length) return say("Ça ne répond pas. C'est peut-être débranché.");
     face.flash('happy'); fx.tone(allume ? [[784, 0.06], [1175, 0.1]] : [[1175, 0.06], [784, 0.1]]);
     const lumiere = c.every(lum);
-    return say(allume ? pick(lumiere ? ['Et la lumière fut !', 'Pouf, allumé !', `C'est allumé, ${name()} !`] : ['Pouf, allumé !', `C'est allumé, ${name()} !`, 'Hop, en marche !']) : pick(['Pouf, éteint !', "C'est éteint.", 'Hop, éteint !']));
+    const fin = allume ? pick(lumiere ? ['Et la lumière fut !', 'Pouf, allumé !', `C'est allumé, ${name()} !`] : ['Pouf, allumé !', `C'est allumé, ${name()} !`, 'Hop, en marche !']) : pick(['Pouf, éteint !', "C'est éteint.", 'Hop, éteint !']);
+    return say(pasLeDroit.length ? `${fin} Mais ${pasLeDroit.join(' et ')}, je n'ai pas le droit.` : fin);
   }
   // l'intensité et la teinte (ses ampoules réglables) : « mets ma veilleuse », « lumière douce », « plus fort », « à fond »
   const AMB = [
@@ -90,7 +95,9 @@ const LUMIERES = (() => {
     // de la phrase, on ne garde que les noms de lampes (« baisse la lumière du salon » → salon) ; sinon, c'est la sienne
     const connusMots = l.flatMap(a => mots(a.nom));
     const garde = mots(cible).filter(w => connusMots.some(x => x === w || (w.length > 3 && x.startsWith(w.slice(0, -1)))));
-    const c = choisis(l, /\b(tout|toutes|tous)\b/.test(cible) ? 'toutes les lumieres' : garde.length ? garde.join(' ') : 'ma lumiere');
+    const bouts = (morceaux(cible) || [cible]).map(b => mots(b).filter(w => connusMots.some(x => x === w || (w.length > 3 && x.startsWith(w.slice(0, -1))))));
+    const c = /\b(tout|toutes|tous)\b/.test(cible) ? choisis(l, 'toutes les lumieres') : !garde.length ? choisis(l, 'ma lumiere')
+      : [...new Set(bouts.filter(b => b.length).flatMap(b => choisis(l, b.join(' ')) || []))];
     if (c === null) return say(`Laquelle ? Il y a ${noms(l)}.`);
     if (!c.length) return say(`Ça, je n'ai pas le droit. Moi, je peux régler ${noms(l)}.`);
     const val = a => {
@@ -131,8 +138,20 @@ const LUMIERES = (() => {
   const LAMPE = /\b(lumiere|lampe|veilleuse|lumieres|guirlande|lampadaire|prise|led|leds|tout|tele|television|ventilateur|ventilo|radio|console|musique|enceinte|chauffage|radiateur|aquarium|projecteur|ecran de la tele)\b/;
   // « mets ma lumière en veilleuse », « baisse ma lampe », « lumière plus forte », « mets la veilleuse »
   const R2 = /^(?:shadow\s+)?(?:mets|met|baisse|monte|augmente|diminue|tamise|fais|passe|regle)\b|\b(lumiere|lampe|veilleuse)\b.*\b(plus|moins|trop|douce|doux|fort|forte|chaud|chaude|froid|froide|a fond|tamisee)\b/;
+  const morceaux = t => { const p = String(t).split(/\s*(?:,|\bet\b|\bpuis\b|\bainsi que\b)\s*/).map(x => x.trim()).filter(Boolean); return p.length > 1 ? p : null; };
   function route(text, n) {
-    if (R2.test(n) && /\b(lumiere|lumieres|lampe|lampes|veilleuse|chambre)\b/.test(n) && !/^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\b/.test(n)) {
+    // « allume ma lumière et éteins la fusée » : deux ordres dans la même phrase, l'un après l'autre
+    const bouts = morceaux(n);
+    if (bouts && bouts.filter(b => /^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe|mets|met|baisse|monte)\b/.test(b)).length > 1) {
+      const ordres = []; let cur = null;
+      for (const b of bouts) { if (/^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe|mets|met|baisse|monte)\b/.test(b) || !cur) { cur = b; ordres.push(cur); } else ordres[ordres.length - 1] = `${ordres[ordres.length - 1]} et ${b}`; }
+      const fs = ordres.map(o => route1(o, o));
+      if (fs.every(Boolean)) return async () => { for (const f of fs) await f(); };
+    }
+    return route1(text, n);
+  }
+  function route1(text, n) {
+    if (R2.test(n) && (/\b(lumiere|lumieres|lampe|lampes|veilleuse|chambre)\b/.test(n) || connus.some(x => mots(x).some(w => mots(n).includes(w)))) && !/\b(son|volume|musique|tele|television)\b/.test(n) && !/^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\b/.test(n)) {
       if (COULEUR.test(n) && !/\b(chaud|chaude|froid|froide|jaune|blanc|blanche)\b/.test(n)) return () => say("Ma lampe ne fait que du blanc : du blanc tout chaud, comme un feu de camp, ou du blanc comme en plein jour. Pas de couleurs, désolé !");
       const o = voeu(n);
       if (o) return () => regle(n, o);
