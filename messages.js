@@ -81,5 +81,16 @@ const MESSAGES = (() => {
     if (R.lis.test(n)) return lis;
     return null;
   }
+  // le diagnostic à distance (comme Atlas) : l'ordinateur de la maison sait s'il est éveillé, et si un message attend
+  async function diagnostic() {
+    const r0 = root(); if (!r0 || window.__BANC) return;
+    const vu = typeof VISION !== 'undefined' && VISION.isOn() && VISION.state.faces.some(f => f.name && S.prenom && f.name === S.prenom);
+    const d = { appareil: `shadow (${/Android/i.test(navigator.userAgent) ? 'téléphone' : 'ordinateur'})`, v: window.SHADOW_VERSION, demarre: dlg.started, etat: dlg.state, occupe: dlg.busy,
+      cache: document.hidden, cameraAllumee: typeof VISION !== 'undefined' && VISION.isOn(), enfantVu: vu, parleIlYa: dlg.lastTalk ? Math.round((Date.now() - dlg.lastTalk) / 1000) : null,
+      messagesEnAttente: attente.length, oreilles: typeof OREILLES !== 'undefined' && OREILLES.engine ? OREILLES.engine() : '' };
+    try { await fetch(`${r0}/atlas/diag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d), keepalive: true }); } catch (e) { /* plus tard */ }
+  }
+  setInterval(diagnostic, 30000); setTimeout(diagnostic, 10000);
+  document.addEventListener('visibilitychange', diagnostic);
   return { route, envoie, releve, _attente: () => attente };
 })();
