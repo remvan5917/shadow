@@ -488,6 +488,7 @@ async function histoireSoirFlow() {
   S.settings.slow = before;
   face.el.classList.remove('drowsy');
   await say(`Fais de beaux rêves, ${name()}. Bip… bip… zzz.`);
+  LUMIERES.coucher(); // si papa l'a choisi : il éteint ses lampes
   pauseUntil = Date.now() + 60 * 60000; // il ne se réveille pas tout seul pendant 1 heure (même s'il voit quelqu'un)
   logAct('soir', '', null, null);
   goSleep(false);

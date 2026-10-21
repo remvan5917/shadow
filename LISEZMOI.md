@@ -57,6 +57,7 @@ Le « mode papa » est devenu un projet séparé : **Atlas**, l'assistant person
 Shadow redevient 100 % le robot de l'enfant. Atlas lit seulement la mémoire de Shadow (journée de l'enfant, agenda), sans jamais y écrire.
 Le relais de l'ordinateur sert les deux : voix (`/shadow/voix`, y compris les voix de robot d'Atlas), oreilles, `/shadow/web`, `/shadow/pc`, et `/atlas/etat` (la mémoire d'Atlas, séparée).
 
+- **Ses lumières** (`lumieres.js`) : « allume ma lampe », « éteins la veilleuse », « éteins tout » — seulement les appareils que papa a cochés dans Atlas ; l'ordinateur de la maison refuse tout le reste, et au plus 12 commandes en 10 minutes (« on a assez joué avec la lumière ! »). Si papa l'a choisi, il éteint ses lampes à la fin de l'histoire du soir.
 - **Le messager** (`messages.js`) : papa dit à Atlas « dis à mon fils que je rentre à 19 h » ; Shadow le dit à l'enfant dès qu'il est là (vu à la caméra, ou il vient de lui parler), puis propose de répondre. « Shadow, dis à papa que… », « papa m'a répondu ? ». Les messages restent 3 jours sur l'ordinateur de la maison (`/maison/messages`).
 - Atlas peut dire à papa ce que Shadow a appris dans la journée, et l'effacer à sa demande (une pierre tombale dans la mémoire centrale : chaque appareil de Shadow oublie à sa synchronisation).
 ## Jouer à plusieurs (toute la famille)
