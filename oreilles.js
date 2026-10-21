@@ -218,7 +218,7 @@ const OREILLES = (() => {
       }
       p.busy = false;
       lastHeard = t.trim() || '(rien compris)';
-      garde(t.trim() || '(rien)', `→ ${(typeof AI !== 'undefined' && AI.lastEars) || '?'}, ${(dur / 1000).toFixed(1)} s, ${(typeof AI !== 'undefined' && AI.lastConfident === false) ? 'pas sûr' : 'sûr'}`);
+      garde(t.trim() || '(rien)', `→ ${(typeof AI !== 'undefined' && AI.lastEars) || '?'}, ${(typeof AI !== 'undefined' && AI.lastConfident === false) ? 'pas sûr' : 'sûr'}`);
       if (t.trim()) finish(t.trim()); else p.deadline = performance.now() + 8000; // bruit : on réécoute un peu
     } catch (e) {
       if (pending === p) finish({ error: e.message, status: e.status || 0, retryAfter: e.retryAfter || 0, net: !!e.net });
@@ -289,6 +289,7 @@ const OREILLES = (() => {
     listening: () => !!pending,
     meter: () => ({ level, threshold, noise, lastHeard, speaking }),
     entendus: () => entendus.slice(),
+    note: (t, quoi) => garde(t, quoi),
     timings: () => timings.slice(),
     reopen: async () => { closeMic(); return start(); },
     takePrint: () => { const p = lastPrint; lastPrint = null; return p; },

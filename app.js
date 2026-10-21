@@ -409,7 +409,7 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = 
   dlg.interrupt = false; // on écoute à nouveau : Shadow peut reparler
   const ctxPrompt = prompt || `${name()} parle en français à Shadow, son robot.`;
   let r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, cheap, endSilence: endSilence || (prompt === SPELL_PROMPT ? 2.2 : 1.15) });
-  if (typeof r === 'string' && r && isEcho(r)) { OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
+  if (typeof r === 'string' && r && isEcho(r)) { OREILLES.note(r, '→ ignoré : l\'écho de sa propre voix'); OREILLES.takePrint(); r = await OREILLES.listen({ prompt: ctxPrompt, maxWait, endSilence: 0.9 }); }
   face.el.classList.remove('hearing');
   if (r && typeof r === 'object') {
     if (r.net || (r.error === 'no-ears' && !AI.online())) {
@@ -445,11 +445,18 @@ async function hear({ prompt = '', maxWait = 20000, face: f = 'listen', cheap = 
 }
 // Sa propre voix qui revient du haut-parleur : on la reconnaît et on l'ignore
 function isEcho(t) {
-  if (Date.now() - (voice.endedAt || 0) > 2500) return false; // l'écho arrive juste après qu'il a parlé
+  // l'écho commence juste après qu'il a parlé ; le temps d'enregistrer la phrase et de la transcrire, on le reçoit
+  // jusqu'à une douzaine de secondes plus tard (avant : 2,5 s, et son écho passait pour une vraie phrase)
+  if (voice.speaking || Date.now() - (voice.endedAt || 0) > 12000) return voice.speaking && echoDe(t);
   const words = s => N(s).split(' ').filter(w => w.length > 2);
   const a = words(t), b = new Set(words(lastSaid));
   if (a.length < 4 || !b.size) return false; // une réponse courte qui reprend ses mots (« la baleine bleue ») n'est pas un écho
   return a.filter(w => b.has(w)).length / a.length > 0.85;
+}
+function echoDe(t) { // pendant qu'il parle : sa phrase à lui qui revient
+  const words = s => N(s).split(' ').filter(w => w.length > 2);
+  const a = words(t), b = new Set(words(lastSaid));
+  return a.length >= 3 && b.size > 0 && a.filter(w => b.has(w)).length / a.length > 0.7;
 }
 const heardLog = [];
 const brainTimes = [];
