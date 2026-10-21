@@ -18,6 +18,8 @@ const OREILLES = (() => {
   let muted = false, muteUntil = 0;
   let noise = 0.004, speaking = false, voiced = 0, silent = 0, buf = [], pre = [], peak = 0, frames = 0;
   let level = 0, threshold = 0.012, lastHeard = '', lastPrint = null;
+  const entendus = []; // pour le diagnostic de papa (gardé en mémoire vive sur l'ordinateur de la maison, jamais sur un disque)
+  const garde = (t, quoi) => { entendus.push(`${new Date().toTimeString().slice(0, 8)} « ${String(t).slice(0, 90)} » ${quoi}`); if (entendus.length > 10) entendus.shift(); };
   // Interrompre Shadow en lui parlant : on écoute aussi pendant qu'il parle (en gardant ~1,7 s de son)
   let ring = [], ttsFrames = 0, ttsPeak = 0, loud = 0, bargedAt = 0;
   // Sensibilité du micro (réglage de papa) : seuil minimum et marge au-dessus du bruit de la pièce
@@ -212,10 +214,11 @@ const OREILLES = (() => {
       if (pending !== p) return;
       if (t.trim() && await estAtlas(performance.now() - fin, dur)) { // c'était Atlas qui parlait : comme un bruit, on réécoute
         if (pending !== p) return;
-        p.busy = false; lastPrint = null; lastHeard = '(la voix d\'Atlas)'; p.deadline = performance.now() + 8000; return;
+        p.busy = false; lastPrint = null; lastHeard = '(la voix d\'Atlas)'; garde(t.trim(), '→ jeté : Atlas parlait en même temps'); p.deadline = performance.now() + 8000; return;
       }
       p.busy = false;
       lastHeard = t.trim() || '(rien compris)';
+      garde(t.trim() || '(rien)', `→ ${(typeof AI !== 'undefined' && AI.lastEars) || '?'}, ${(dur / 1000).toFixed(1)} s, ${(typeof AI !== 'undefined' && AI.lastConfident === false) ? 'pas sûr' : 'sûr'}`);
       if (t.trim()) finish(t.trim()); else p.deadline = performance.now() + 8000; // bruit : on réécoute un peu
     } catch (e) {
       if (pending === p) finish({ error: e.message, status: e.status || 0, retryAfter: e.retryAfter || 0, net: !!e.net });
@@ -285,6 +288,7 @@ const OREILLES = (() => {
     engine: () => engine,
     listening: () => !!pending,
     meter: () => ({ level, threshold, noise, lastHeard, speaking }),
+    entendus: () => entendus.slice(),
     timings: () => timings.slice(),
     reopen: async () => { closeMic(); return start(); },
     takePrint: () => { const p = lastPrint; lastPrint = null; return p; },
