@@ -783,6 +783,7 @@ async function handle(text) {
   // « comment s'est passée ta journée ? » : si la réponse n'est pas une demande de jeu, c'est l'humeur du jour
   const moodWas = dlg.moodPending;
   dlg.moodPending = false;
+  if (/\b(histoire (immersive|magique|lumineuse|avec (la |ta |les )?(lumiere|lampe)s?)|raconte (moi )?une histoire avec (la |ta |les )?(lumiere|lampe)s?)\b/.test(n) && !RE.bedtime.test(n)) return histoireLumiereFlow();
   if (RE.bedtime.test(n)) return histoireSoirFlow();
   if (RE.sleep.test(n)) return goSleep();
   if (RE.stop.test(n)) { CORPS.bouger('stop'); closeJournal(); hideBoard(); face.set('idle'); await say("D'accord, je me tais. Dis « Shadow » quand tu veux me parler."); dlg.state = 'standby'; return; }

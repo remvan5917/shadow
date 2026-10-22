@@ -172,6 +172,12 @@ const CONTENUS = (() => {
     "Un petit robot regardait la mer depuis la plage. Les vagues faisaient chhh, chhh, comme une respiration. Il compta les vagues : une, deux, trois… À la dixième, ses yeux se fermèrent tout doucement. Ses circuits rêvèrent de dauphins et d'étoiles. Bonne nuit…",
   ];
 
+  /* ---------- Histoires immersives (la lampe joue avec : [effet] au début d'une phrase) ---------- */
+  const HISTOIRES_LUMIERE = [
+    "[nuit] Ce soir-là, un petit robot nommé Bip regardait le ciel depuis sa fenêtre. [etoiles] Une à une, les étoiles s'allumaient, comme si quelqu'un les réveillait doucement. Bip monta dans sa fusée en carton, qui n'était pas en carton du tout. [fusee] Trois, deux, un… décollage ! [nuit] Là-haut, tout était calme et bleu. [magie] Une étoile filante s'approcha et lui fit un clin d'œil brillant. Elle lui dit : « Chaque fois que tu fais un rêve, j'allume une nouvelle étoile. » [dodo] Alors Bip rentra tout doucement, se blottit sous sa couverture, et ferma les yeux pour allumer une étoile. Bonne nuit…",
+    "[feu] Au bord d'un lac, un petit renard faisait griller une guimauve près d'un feu de camp. [mer] Les vagues du lac faisaient chhh, chhh, tout doucement. [orage] Au loin, très loin, un petit orage rigolo fit boum, comme un tambour qui éternue. Le renard éclata de rire : « Même pas peur, c'est le ciel qui joue de la musique ! » [nuit] Puis les nuages partirent, et la nuit redevint toute calme. [etoiles] Le ciel se remplit d'étoiles, comme des paillettes. [dodo] Le petit renard bâilla, se roula en boule près des braises chaudes, et s'endormit en souriant. Bonne nuit…",
+  ];
+
   /* ---------- Le jeu des émotions ---------- */
   const EMOTIONS = [
     { k: 'happy', dis: 'une tête toute contente', bravo: 'Quel beau sourire !', moi: 'happy' },
@@ -195,5 +201,5 @@ const CONTENUS = (() => {
     return list[day % list.length];
   };
 
-  return { MOTS_CE1, TEXTES, ANGLAIS, MOTS_DU_JOUR, CRIS, COMPTINES, HISTOIRES_SOIR, EMOTIONS, JACQUES, pickDay };
+  return { MOTS_CE1, TEXTES, ANGLAIS, MOTS_DU_JOUR, CRIS, COMPTINES, HISTOIRES_SOIR, HISTOIRES_LUMIERE, EMOTIONS, JACQUES, pickDay };
 })();

@@ -469,22 +469,38 @@ async function newRiddle() {
 
 /* =================== 13. BONJOUR, BONSOIR, HISTOIRE DU SOIR =================== */
 function partOfDay() { const h = new Date().getHours(); return h < 11 ? 'matin' : h < 18 ? 'jour' : 'soir'; }
+const EFFETS_HISTOIRE = ['nuit', 'etoiles', 'soleil', 'feu', 'mer', 'magie', 'orage', 'fusee', 'dodo'];
+// lit l'histoire phrase par phrase ; un [effet] en début de phrase → la lampe le joue pendant qu'il parle
+async function litHistoire(story, lampes) {
+  let dodo = false;
+  for (const phrase of story.match(/[^.!?…]+(?:[.!?…]+\s*[»”"]?)?/g) || [story]) {
+    const m = phrase.match(/\[([^\]]+)\]/), nom = m ? N(m[1]).replace(/\s+/g, '') : '';
+    if (lampes.length && EFFETS_HISTOIRE.includes(nom)) { LUMIERES.effet(lampes, nom); if (nom === 'dodo') dodo = true; }
+    const t = phrase.replace(/\[[^\]]*\]/g, '').trim();
+    if (/[a-zà-ÿ]/i.test(t)) { await say(t); await wait(350); }
+  }
+  return dodo;
+}
+const CONSIGNE_LUMIERE = "Sa lampe de chambre joue l'histoire avec toi : au début de 4 à 6 phrases, mets UN effet entre crochets, choisi parmi [nuit] [etoiles] [soleil] [feu] [mer] [magie] [orage] [fusee], quand l'histoire s'y prête (un orage lointain et rigolo, jamais effrayant).";
 async function histoireSoirFlow() {
   face.set('idle');
-  await say(`D'accord ${name()}, je te raconte une histoire pour dormir. Installe-toi bien…`);
+  const lampes = await LUMIERES.lampeHistoire();
+  await say(`D'accord ${name()}, je te raconte une histoire pour dormir. Installe-toi bien…${lampes.length ? ' Regarde ta lampe : elle va jouer l\'histoire avec moi.' : ''}`);
+  if (lampes.length) LUMIERES.effet(lampes, 'nuit');
   let story = '';
   if (AI.ready()) {
     try {
       story = await AI.chat([{ role: 'system', content: CERVEAU.persona() + MEMOIRE.context() },
-        { role: 'user', content: `(${name()} va se coucher.) Raconte-lui une histoire du soir très douce et calme, de 7 à 9 phrases simples, où il peut y avoir un de ses goûts de ta mémoire. Rien qui fait peur. Termine par « Bonne nuit… ».` }], { maxTokens: 450, temperature: 0.8 });
+        { role: 'user', content: `(${name()} va se coucher.) Raconte-lui une histoire du soir très douce et calme, de 7 à 9 phrases simples, où il peut y avoir un de ses goûts de ta mémoire. Rien qui fait peur.${lampes.length ? ` ${CONSIGNE_LUMIERE} Mets [dodo] au début de la dernière phrase.` : ''} Termine par « Bonne nuit… ».` }], { maxTokens: 500, temperature: 0.8 });
       story = ETHIQUE.safe(story);
     } catch (e) { story = ''; }
   }
-  if (!story) story = pick(CONTENUS.HISTOIRES_SOIR);
+  if (!story) story = pick(lampes.length ? CONTENUS.HISTOIRES_LUMIERE : CONTENUS.HISTOIRES_SOIR);
   const before = S.settings.slow;
   S.settings.slow = true; // il parle plus lentement
   face.el.classList.add('drowsy');
-  for (const phrase of story.match(/[^.!?…]+[.!?…]*/g) || [story]) { await say(phrase.trim()); await wait(350); }
+  const dodo = await litHistoire(story, lampes);
+  if (lampes.length && !dodo) LUMIERES.effet(lampes, 'dodo');
   S.settings.slow = before;
   face.el.classList.remove('drowsy');
   await say(`Fais de beaux rêves, ${name()}. Bip… bip… zzz.`);
@@ -492,6 +508,25 @@ async function histoireSoirFlow() {
   pauseUntil = Date.now() + 60 * 60000; // il ne se réveille pas tout seul pendant 1 heure (même s'il voit quelqu'un)
   logAct('soir', '', null, null);
   goSleep(false);
+}
+// le jour : « raconte-moi une histoire avec ta lumière » (une aventure, la lampe joue avec)
+async function histoireLumiereFlow() {
+  const lampes = await LUMIERES.lampeHistoire();
+  if (!lampes.length) await say(window.SHADOW_CHEZ_PAPA === false ? "Ici, je n'ai pas de lampe magique : je te la raconte quand même, avec ma voix !" : "Je n'ai pas le droit de toucher à ta lampe : demande à papa de me la confier. Je te la raconte quand même !");
+  else { await say('Histoire immersive ! Regarde bien ta lampe…'); LUMIERES.effet(lampes, 'nuit'); }
+  let story = '';
+  if (AI.ready()) {
+    try {
+      story = await AI.chat([{ role: 'system', content: CERVEAU.persona() + MEMOIRE.context() },
+        { role: 'user', content: `(${name()} veut une histoire.) Raconte-lui une aventure joyeuse et pleine de surprises, de 8 à 10 phrases simples, où il peut y avoir un de ses goûts de ta mémoire.${lampes.length ? ` ${CONSIGNE_LUMIERE} Mets [soleil] au début de la dernière phrase.` : ''} Termine par une belle fin.` }], { maxTokens: 550, temperature: 0.9 });
+      story = ETHIQUE.safe(story);
+    } catch (e) { story = ''; }
+  }
+  if (!story) story = pick(CONTENUS.HISTOIRES_LUMIERE).replace(/\[dodo\][^]*$/, '[soleil] Et le lendemain matin, tout le monde se réveilla avec une nouvelle aventure en tête. Fin !');
+  await litHistoire(story, lampes);
+  if (lampes.length) LUMIERES.effet(lampes, 'soleil');
+  logAct('histoire', 'lumière', null, null);
+  return say(pick(['Fin de l\'histoire ! Ma lampe a bien joué, non ?', 'Et voilà ! Tu veux une autre histoire ?']));
 }
 
 /* =================== 14. RAPPELS =================== */

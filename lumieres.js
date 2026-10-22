@@ -260,6 +260,13 @@ const LUMIERES = (() => {
   }, 20000);
   setTimeout(lienReleve, 16000); setInterval(lienReleve, 10 * 60000);
 
+  // les histoires immersives : sa lampe à lui (jamais celle de papa) joue l'histoire — chez papa seulement
+  async function lampeHistoire() {
+    if (window.SHADOW_CHEZ_PAPA === false) return [];
+    try { const r = await appel('/maison/shadow'); if (!r.actif || r.a_la_maison === false) return []; return (r.appareils || []).filter(a => lum(a) && aMoi(a)).map(a => a.id).slice(0, 2); } catch (e) { return []; }
+  }
+  const effet = (ids, nom) => { if (ids && ids.length) appel('/maison/shadow/effet', { ids, effet: nom }).catch(() => {}); };
+
   // il écoute le canal direct : Atlas peut lui demander de faire le compte à rebours
   async function ecoute() {
     for (;;) {
@@ -325,5 +332,5 @@ const LUMIERES = (() => {
     if (!LAMPE.test(cible) && !connus.some(x => mots(x).some(w => nm.includes(w)))) return null;
     return () => pilote(cible, /^r?allume/.test(m[1]));
   }
-  return { route, pilote, regle, coucher, fusee, pourPapa, journal: () => journal.slice(), _rafraichir: rafraichir };
+  return { route, pilote, regle, coucher, fusee, pourPapa, lampeHistoire, effet, journal: () => journal.slice(), _rafraichir: rafraichir };
 })();
