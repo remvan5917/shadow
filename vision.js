@@ -419,6 +419,7 @@ const VISION = (() => {
     supported: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
     start, stop, capture, identify, state, diag,
     isOn: () => on,
+    flux: () => stream, rotation: () => rot || 0, // pour filmer un message sans rouvrir la caméra
     cost: () => Math.round(cost),
     isLoading: () => !!loading && !api,
     on: (ev, fn) => handlers[ev].push(fn),

@@ -145,7 +145,7 @@ const LUMIERES = (() => {
   let holoAttente = [], holoDernier = null;
   const enfantLa = () => (typeof VISION !== 'undefined' && VISION.isOn() && VISION.state.faces.some(f => f.name && S.prenom && f.name === S.prenom)) || Date.now() - (dlg.lastTalk || 0) < 3 * 60000;
   async function holoReleve() {
-    try { const r = await appel('/maison/hologramme'); holoAttente = (r.hologrammes || []).filter(h => !h.lu).map(h => h.id); } catch (e) { /* plus tard */ }
+    try { const r = await appel('/maison/hologramme'); holoAttente = (r.hologrammes || []).filter(h => !h.lu && h.de !== 'enfant').map(h => h.id); } catch (e) { /* plus tard */ }
   }
   async function projette(id, rejoue) {
     const r0 = root(); if (!r0) return;
@@ -174,6 +174,48 @@ const LUMIERES = (() => {
     holoDernier = id;
     if (!rejoue) { appel('/maison/hologramme', { lu: id }).catch(() => {}); await say(pick(['Fin de la transmission. Tu veux le revoir ? Dis : rejoue le message.', 'Message terminé ! Dis « rejoue le message » pour le revoir.'])); }
   }
+  // l'inverse : l'enfant enregistre un message holographique pour papa (Atlas le projette chez papa)
+  async function pourPapa() {
+    if (!window.MediaRecorder || !navigator.mediaDevices) return say("Oh, je ne sais pas filmer sur cet appareil.");
+    let video = null, audio = null, propre = null;
+    try {
+      audio = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      if (typeof VISION !== 'undefined' && VISION.isOn() && VISION.flux()) video = VISION.flux().getVideoTracks()[0];
+      else { propre = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } }); video = propre.getVideoTracks()[0]; }
+    } catch (e) { if (audio) audio.getTracks().forEach(t => t.stop()); return say("Oups, je n'arrive pas à ouvrir ma caméra et mon micro."); }
+    const flux = new MediaStream([video, ...audio.getAudioTracks()]);
+    const rot = typeof VISION !== 'undefined' && VISION.rotation ? VISION.rotation() : 0;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#000;display:grid;place-items:center';
+    el.innerHTML = `<video autoplay muted playsinline style="max-width:92vw;max-height:80vh;border-radius:14px;transform:rotate(${rot}deg);filter:sepia(1) hue-rotate(165deg) saturate(2.4) brightness(1.1)"></video>
+      <div data-e style="position:fixed;top:16px;left:0;right:0;text-align:center;font:15px ui-monospace,monospace;letter-spacing:.3em;color:#7dd3fc">◢ MESSAGE POUR PAPA · PRÊT</div>
+      <div style="position:fixed;bottom:18px;left:0;right:0;text-align:center;font:14px system-ui;color:#7dd3fc">Touche l'écran pour arrêter</div>`;
+    document.body.appendChild(el); el.querySelector('video').srcObject = flux;
+    dlg.busy = true;
+    try {
+      await say(pick(['Super ! Regarde-moi bien et parle à papa. Trois, deux, un… action !', 'Message holographique pour papa ! Souris ! Trois, deux, un… c\'est parti !']));
+      OREILLES.mute(true);
+      const type = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
+      const rec = new MediaRecorder(flux, { mimeType: type, videoBitsPerSecond: 800000 }), morceaux = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) morceaux.push(e.data); };
+      const fini = new Promise(r => { rec.onstop = r; });
+      rec.start(500); fx.tone([[1319, 0.12]]);
+      const etat = el.querySelector('[data-e]'), t0 = Date.now();
+      const tic = setInterval(() => { etat.textContent = `◢ ENREGISTREMENT ● ${Math.max(0, 20 - Math.round((Date.now() - t0) / 1000))}`; }, 250);
+      await new Promise(r => { const t = setTimeout(r, 20000); el.onclick = () => { clearTimeout(t); r(); }; });
+      clearInterval(tic); rec.stop(); await fini;
+      OREILLES.mute(false); fx.tone([[1319, 0.08], [988, 0.14]]);
+      const blob = new Blob(morceaux, { type: 'video/webm' });
+      if (blob.size < 5000) return say("Oh, ça n'a pas marché. On réessaie ?");
+      const r0 = root();
+      const r = await fetch(`${r0}/maison/hologramme?de=enfant&rot=${rot}`, { method: 'POST', headers: { 'Content-Type': 'video/webm' }, body: blob, cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      face.flash('happy');
+      return say(pick(['Message holographique envoyé à papa ! Il va te voir en hologramme !', 'Bip bip, transmission envoyée ! Papa va recevoir ton hologramme.']));
+    } catch (e) { return say("Oups, je n'ai pas réussi à l'envoyer à papa."); }
+    finally { OREILLES.mute(false); el.remove(); audio.getTracks().forEach(t => t.stop()); if (propre) propre.getTracks().forEach(t => t.stop()); dlg.busy = false; }
+  }
+
   // toutes les 30 secondes : un message attend et l'enfant est là → on le projette
   setInterval(async () => {
     if (!holoAttente.length || !dlg.started || dlg.busy || voice.speaking || OREILLES.hearing() || dlg.expect || !['standby', 'talk'].includes(dlg.state) || !enfantLa()) return;
@@ -229,6 +271,7 @@ const LUMIERES = (() => {
     return route1(text, n);
   }
   function route1(text, n) {
+    if (/\b(enregistre|filme|fais|envoie)\b.*\b(message|video|hologramme)\b.*\bpapa\b|\bmessage (video|holographique) pour papa\b|\bhologramme pour papa\b/.test(n)) return pourPapa;
     if (/\b(rejoue|remets|revoir|repasse) (le |ton |mon )?(message|hologramme)\b/.test(n) && holoDernier) return () => projette(holoDernier, true);
     if (/\b(lance la fusee|lancement de la fusee|fais decoller la fusee|compte a rebours|decollage)\b/.test(n)) return () => fusee(false);
     if (R2.test(n) && (/\b(lumiere|lumieres|lampe|lampes|veilleuse|chambre)\b/.test(n) || connus.some(x => mots(x).some(w => mots(n).includes(w)))) && !/\b(son|volume|musique|tele|television)\b/.test(n) && !/^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\b/.test(n)) {
@@ -242,5 +285,5 @@ const LUMIERES = (() => {
     if (!LAMPE.test(cible) && !connus.some(x => mots(x).some(w => nm.includes(w)))) return null;
     return () => pilote(cible, /^r?allume/.test(m[1]));
   }
-  return { route, pilote, regle, coucher, fusee, journal: () => journal.slice(), _rafraichir: rafraichir };
+  return { route, pilote, regle, coucher, fusee, pourPapa, journal: () => journal.slice(), _rafraichir: rafraichir };
 })();
