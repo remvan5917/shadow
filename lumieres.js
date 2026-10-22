@@ -148,7 +148,11 @@ const LUMIERES = (() => {
       if (!r0 || window.__BANC || !dlg.started) { await new Promise(r => setTimeout(r, 10000)); continue; }
       try {
         const j = await (await fetch(`${r0}/maison/canal/shadow?attente=25`, { cache: 'no-store' })).json();
-        for (const m of j.messages || []) if (m.type === 'fusee' && !dlg.busy) await fusee(true);
+        for (const m of j.messages || []) {
+          if (m.type === 'fusee' && !dlg.busy) await fusee(true);
+          // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
+          else if (m.type === 'coucher') { face.flash('happy'); fx.tone([[523, 0.15], [659, 0.15], [784, 0.3]]); await say(pick([`${name()}, c'est l'heure d'aller au lit ! Va vite te brosser les dents : la salle de bain est allumée. Je t'ai mis la Fusée et ta radio.`, `Mission dodo, ${name()} ! D'abord les dents à la salle de bain, ensuite au lit : la Fusée et ta radio t'attendent.`])); }
+        }
       } catch (e) { await new Promise(r => setTimeout(r, 15000)); }
     }
   }
