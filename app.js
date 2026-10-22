@@ -746,6 +746,15 @@ function greeting(who) {
 }
 
 /* ---------- comprendre ce qu'on lui dit ---------- */
+// ce qu'un enfant dit à l'oral, en ordre clair (seulement pour les ordres : une vraie question reste telle quelle)
+const INFINITIFS_ENFANT = { allumer: 'allume', rallumer: 'rallume', eteindre: 'eteins', mettre: 'mets', baisser: 'baisse', monter: 'monte', lancer: 'lance', raconter: 'raconte', chanter: 'chante', montrer: 'montre', danser: 'danse', dire: 'dis', faire: 'fais' };
+function reformuleEnfant(n) {
+  if (/\b(trop noir|trop sombre|il fait (tout )?noir|on (n )?y voit rien|j ai peur du noir)\b/.test(n) && !/\b(dehors|nuit dehors)\b/.test(n)) return 'allume ma lampe';
+  if (/\b(trop clair|ca m eblouit|ca eblouit)\b/.test(n)) return 'baisse ma lampe';
+  let m = n.replace(/^(est ce que |est ce qu )?(tu peux|tu pourrais|tu veux bien|peux tu|tu voudrais bien|je veux que tu|j aimerais que tu)\s+(me |nous )?/, '').replace(/\s+(s il te plait|stp|svp|shadow)$/, '');
+  m = m.replace(/^(\w+)\b/, w => INFINITIFS_ENFANT[w] || w);
+  return m !== n && /^(allume|rallume|eteins|mets|baisse|monte|lance|raconte|chante|montre|danse)\b/.test(m) ? m : null;
+}
 async function handle(text) {
   if (window.SHADOW_DUO) return; // le duo avec Atlas : il n'écoute pas (il entendrait Atlas)
   const n = N(text);
@@ -754,7 +763,7 @@ async function handle(text) {
   // l'enfant rit : Shadow rit avec lui
   if (/^((ha|hi|ho|he|hah|hih|mdr|lol)[ !]*){2,}$|^(mdr|lol|ptdr)$/.test(n)) { await say(pick(['Ha ha ha !', 'Hi hi hi !', 'Ha ha ! Tu me fais rire !'])); return; }
   // « Shadow, rigole ! » : il montre son rire
-  if (/\b(rigole|rigoler|ris|rire|esclaffe toi|fais (un|ton) rire|tu sais (rire|rigoler)|montre moi (ton rire|comment tu ris|comment tu rigoles))\b/.test(n) && !/\b(pourquoi|blague|drole)\b/.test(n)) {
+  if (/\b(rigole|rigoler|ris|rire|esclaffe toi|fais (un|ton) rire|tu sais (rire|rigoler)|montre moi (ton rire|comment tu ris|comment tu rigoles))\b/.test(n) && !/\b(pourquoi|blague|drole)\b/.test(n) && !/\bfais (moi|nous) rire\b/.test(n)) {
     await VISAGE.rire('ha', 6); return say(pick(['Voilà mon rire de robot !', 'Ho ho, mes circuits rigolent encore !', 'Rire, ça recharge mes batteries !']));
   }
   // « ok », « d'accord », « cool » : comme R2-D2, un petit bip et un sourire, pas de discours
@@ -767,6 +776,14 @@ async function handle(text) {
     if (isNo(text)) return say("D'accord ! Une autre fois.");
   }
   dlg.expect = null;
+  const clair = reformuleEnfant(n); // « tu peux allumer ma lampe », « il fait trop noir » : en ordre clair
+  if (clair && clair !== n) return handle(clair);
+  if (/\bfais (moi|nous) rire\b/.test(n)) return AI.ready() ? chatReply('(Il veut rire.) Raconte-lui une blague drôle pour un enfant de son âge, courte, puis rigole avec lui.', true) : say(pick(JOKES));
+  if (/\b(je m ennuie|on s ennuie|je sais pas quoi faire|j ai rien a faire|je sais plus quoi faire)\b/.test(n)) {
+    const idees = JEUX.shuffle(['une chasse au trésor', 'des devinettes', 'un quiz Pokémon', 'une histoire avec ma lumière', 'pierre-feuille-ciseaux', 'Jacques a dit', 'une danse de robot', 'le jeu des couleurs']).slice(0, 3);
+    face.flash('happy'); fx.tone([[784, 0.08], [988, 0.12]]);
+    return say(`Bip ! Alerte ennui ! On pourrait faire ${idees[0]}, ${idees[1]}, ou ${idees[2]}. Qu'est-ce qui te dit ?`);
+  }
   const early = ECRAN.routeEarly(n); // « arrête le minuteur » (avant le « stop » général)
   if (early) return early();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
