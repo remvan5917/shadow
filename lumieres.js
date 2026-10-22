@@ -6,6 +6,7 @@
    - Pas de discothèque : l'ordinateur accepte au plus 12 commandes en 10 minutes.
    - « ma lumière », « ma chambre » : la lampe qui porte son prénom (pas toutes les lumières de la maison).
    - « mets ma veilleuse », « lumière douce », « baisse ma lumière », « à fond » : l'intensité et la teinte (ampoules réglables).
+   - « lance la fusée » : le compte à rebours, et la Fusée s'allume au décollage ; en duo quand Atlas lance la séquence.
    - Si papa l'a choisi, à la fin de l'histoire du soir, il éteint ses lampes (celles de sa chambre).
    ========================================================= */
 'use strict';
@@ -124,6 +125,34 @@ const LUMIERES = (() => {
     if (o.teinte != null && o.lum == null) return say(o.teinte < 50 ? 'Lumière chaude, comme un feu de camp.' : 'Lumière blanche, comme en plein jour.');
     return say(`C'est réglé à ${o.lum} pour cent.`);
   }
+  // la fusée : « Shadow, lance la fusée » (seul), ou en duo quand Atlas lance la séquence (le canal direct de la maison)
+  const canal = (nom, msg) => appel(`/maison/canal/${nom}`, msg).catch(() => {});
+  async function fusee(duo) {
+    let r = null; try { r = await appel('/maison/shadow'); } catch (e) { /* sans la maison, il fait le compte à rebours quand même */ }
+    const f = r && r.actif && (r.appareils || []).find(a => /\bfusee\b/.test(N(a.nom)));
+    if (duo) canal('atlas', { type: 'fusee-pret', de: 'shadow' });
+    face.flash('happy');
+    await say(duo ? pick(['Reçu, Atlas ! Équipage prêt pour le lancement !', 'Prêt, Atlas ! Je lance le compte à rebours !']) : pick(['Séquence de lancement ! Attache ta ceinture !', 'Tous à vos postes : on décolle !']));
+    if (f && f.allume) { try { await appel('/maison/shadow/commande', { ids: [f.id], allume: false }); } catch (e) { /* tant pis */ } }
+    await say('Dix… neuf… huit… sept… six… cinq… quatre… trois… deux… un…');
+    let partie = false;
+    if (f) { try { const c = await appel('/maison/shadow/commande', { ids: [f.id], allume: true }); partie = (c.resultats || []).some(x => x.ok); } catch (e) { /* tant pis */ } }
+    fx.tone([[220, 0.25], [330, 0.25], [440, 0.25], [880, 0.5]]); face.flash('happy');
+    await say(partie ? 'Décollage ! La Fusée est allumée !' : 'Décollage ! Vroooum !');
+    if (duo) canal('atlas', { type: 'fusee-ok', de: 'shadow' });
+  }
+  // il écoute le canal direct : Atlas peut lui demander de faire le compte à rebours
+  async function ecoute() {
+    for (;;) {
+      const r0 = root();
+      if (!r0 || window.__BANC || !dlg.started) { await new Promise(r => setTimeout(r, 10000)); continue; }
+      try {
+        const j = await (await fetch(`${r0}/maison/canal/shadow?attente=25`, { cache: 'no-store' })).json();
+        for (const m of j.messages || []) if (m.type === 'fusee' && !dlg.busy) await fusee(true);
+      } catch (e) { await new Promise(r => setTimeout(r, 15000)); }
+    }
+  }
+  setTimeout(ecoute, 12000);
   // la fin de l'histoire du soir : si papa l'a choisi, il éteint ses lampes
   async function coucher() {
     try {
@@ -155,6 +184,7 @@ const LUMIERES = (() => {
     return route1(text, n);
   }
   function route1(text, n) {
+    if (/\b(lance la fusee|lancement de la fusee|fais decoller la fusee|compte a rebours|decollage)\b/.test(n)) return () => fusee(false);
     if (R2.test(n) && (/\b(lumiere|lumieres|lampe|lampes|veilleuse|chambre)\b/.test(n) || connus.some(x => mots(x).some(w => mots(n).includes(w)))) && !/\b(son|volume|musique|tele|television)\b/.test(n) && !/^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\b/.test(n)) {
       if (COULEUR.test(n) && !/\b(chaud|chaude|froid|froide|jaune|blanc|blanche)\b/.test(n)) return () => say("Ma lampe ne fait que du blanc : du blanc tout chaud, comme un feu de camp, ou du blanc comme en plein jour. Pas de couleurs, désolé !");
       const o = voeu(n);
@@ -166,5 +196,5 @@ const LUMIERES = (() => {
     if (!LAMPE.test(cible) && !connus.some(x => mots(x).some(w => nm.includes(w)))) return null;
     return () => pilote(cible, /^r?allume/.test(m[1]));
   }
-  return { route, pilote, regle, coucher, journal: () => journal.slice(), _rafraichir: rafraichir };
+  return { route, pilote, regle, coucher, fusee, journal: () => journal.slice(), _rafraichir: rafraichir };
 })();
