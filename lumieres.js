@@ -144,10 +144,10 @@ const LUMIERES = (() => {
     if (duo) canal('atlas', { type: 'fusee-ok', de: 'shadow' });
   }
   // le message holographique de papa : projeté en plein écran façon hologramme bleu, quand l'enfant est là
-  let holoAttente = [], holoDernier = null;
+  let holoAttente = [], holoDernier = null, capsOuvertes = {}, capsFermees = []; // les capsules temporelles : verrouillées jusqu'à leur jour
   const enfantLa = () => (typeof VISION !== 'undefined' && VISION.isOn() && VISION.state.faces.some(f => f.name && S.prenom && f.name === S.prenom)) || Date.now() - (dlg.lastTalk || 0) < 3 * 60000;
   async function holoReleve() {
-    try { const r = await appel('/maison/hologramme'); holoAttente = (r.hologrammes || []).filter(h => !h.lu && h.de !== 'enfant').map(h => h.id); } catch (e) { /* plus tard */ }
+    try { const r = await appel('/maison/hologramme'); const l = (r.hologrammes || []).filter(h => !h.lu && h.de !== 'enfant'); l.filter(h => h.capsule).forEach(h => { capsOuvertes[h.id] = h; }); holoAttente = l.map(h => h.id); capsFermees = (r.capsules || []).filter(h => h.de !== 'enfant'); } catch (e) { /* plus tard */ }
   }
   async function projette(id, rejoue) {
     const r0 = root(); if (!r0) return;
@@ -164,7 +164,12 @@ const LUMIERES = (() => {
       <div style="position:fixed;top:14px;left:0;right:0;text-align:center;font:13px ui-monospace,monospace;letter-spacing:.35em;color:#7dd3fc">◢ MESSAGE HOLOGRAPHIQUE · PAPA</div>`;
     document.body.appendChild(el);
     try {
-      if (!rejoue) { fx.tone([[523, 0.12], [784, 0.12], [1047, 0.25]]); await say(pick(['Bip bip ! Message holographique entrant… de papa !', 'Transmission holographique reçue ! C\'est un message de papa !'])); }
+      const cap = !rejoue && capsOuvertes[id];
+      if (cap) { // l'ouverture de la capsule temporelle : le compte à rebours, comme dans un film
+        const lab = el.querySelector('div[style*="letter-spacing:.35em"]'); if (lab) lab.textContent = '◢ CAPSULE TEMPORELLE · DÉVERROUILLAGE';
+        fx.tone([[392, 0.2], [523, 0.2], [659, 0.3]]);
+        await say(`Alerte ! ${name()}, une capsule temporelle s'ouvre aujourd'hui ! Papa l'a scellée le ${new Date(cap.at * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}. Ouverture dans trois… deux… un…`);
+      } else if (!rejoue) { fx.tone([[523, 0.12], [784, 0.12], [1047, 0.25]]); await say(pick(['Bip bip ! Message holographique entrant… de papa !', 'Transmission holographique reçue ! C\'est un message de papa !'])); }
       OREILLES.mute(true);
       requestAnimationFrame(() => { el.style.opacity = '1'; });
       const v = el.querySelector('video'); v.src = url;
@@ -295,6 +300,8 @@ const LUMIERES = (() => {
           if (m.type === 'fusee' && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
           else if (m.type === 'lien') lienAttente = { mot: m.texte || '' };
+          else if (m.type === 'mission-matin' && typeof MISSIONS !== 'undefined' && dlg.started && !dlg.busy) await MISSIONS.briefing(); // après le lever de soleil de sa lampe
+          else if (m.type === 'medaille' && typeof MISSIONS !== 'undefined') await MISSIONS.medaille(m.texte);
           // le duo avec Atlas : il se tait et n'écoute plus pendant le sketch ; il dit ses répliques, puis répond « fini »
           else if (m.type === 'duo-pret') { if (dlg.started && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) canal('atlas', { type: 'duo-ok', de: 'shadow' }); }
           else if (m.type === 'duo-debut') duoDebut();
@@ -341,6 +348,13 @@ const LUMIERES = (() => {
     return route1(text, n);
   }
   function route1(text, n) {
+    if (/\b(capsules? temporelles?|j ai une capsule|il y a une capsule)\b/.test(n)) return async () => {
+      await holoReleve();
+      if (!capsFermees.length) return say("Aucune capsule temporelle ne t'attend pour l'instant… mais qui sait ce que prépare papa ?");
+      const c = capsFermees.slice().sort((a, b) => a.capsule.localeCompare(b.capsule))[0], d = new Date(`${c.capsule}T12:00:00`), j = Math.ceil((d - Date.now()) / 86400000);
+      fx.tone([[392, 0.15], [330, 0.25]]);
+      return say(`Mystère… ${capsFermees.length > 1 ? `${capsFermees.length} capsules temporelles` : 'Une capsule temporelle'} de papa ${capsFermees.length > 1 ? "t'attendent" : "t'attend"}. La prochaine s'ouvrira le ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}, dans ${j} jour${j > 1 ? 's' : ''}. Même moi, je n'ai pas le droit de l'ouvrir avant !`);
+    };
     if (/\b(demande|pose (la |une |ta |ma )?question|dis) (a |au )?atlas\b/.test(n)) { const q = String(text).replace(/^.*?\batlas\b[\s,:]*/i, '').replace(/^(si|de|d['’]|que|qu['’])\s*/i, '').trim(); return () => demandeAtlas(q); }
     if (/\b(je pense (tres fort |fort )?a (mon )?papa|(mon )?papa me manque|tu me manques papa|(envoie|envoyer|fais|faire) (un |des |plein de |gros |un gros )*(bisous?|calins?|coeurs?|rayons?)( lumineux)? (a|au|pour) (mon )?papa|fais briller (la |les )?(lumieres?|lampes?) (de|a|chez) papa|signal (lumineux )?(a|pour) papa)\b/.test(n)) return () => pensePapa(/\bmanque/.test(n));
     if (/\b(enregistre|filme|fais|envoie)\b.*\b(message|video|hologramme)\b.*\bpapa\b|\bmessage (video|holographique) pour papa\b|\bhologramme pour papa\b/.test(n)) return pourPapa;

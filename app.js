@@ -524,7 +524,7 @@ const RE = {
   meet: /\b(apprends (mon|ton|son|le) visage|souviens toi de (moi|mon visage)|retiens mon visage|faire connaissance|fais connaissance|on fait connaissance|enregistre mon visage|memorise mon visage)\b/,
   who: /\b(tu me reconnais|qui je suis|qui suis je|tu sais qui je suis|qui tu vois|tu vois qui|qui est la|tu me vois)\b/,
   what: /(\bqu est ce que tu vois\b|\btu vois quoi\b|\bc est quoi ca\b|^qu est ce que c est( ca)?$|\bregarde (ca|ce que|mon|ma|mes)\b|\bqu est ce que je tiens\b|\bqu est ce que j ai dans la main\b|\btu vois ca\b|\bdevine ce que (je|j ai)\b)/,
-  hunt: /\b(chasse au tresor|cherche un objet|va chercher|jeu des objets|trouve un objet|apporte|chasse aux objets)\b/,
+  hunt: /\b(chasse au tresor|cherche un objet|va chercher|jeu des objets|trouve un objet|apporte|chasse aux objets|mission scanner|jeu du scanner|agent secret)\b/,
   time: /\b(quelle heure|l heure qu il est)\b/,
   date: /\b(quel jour|on est quel jour|la date|quel mois)\b/,
   maison: /\b(allume|eteins|eteint|ouvre|ferme|monte|baisse)\b.*\b(lumiere|lumieres|lampe|volets?|television|tele|chauffage|radio)\b/,
@@ -771,6 +771,8 @@ async function handle(text) {
   if (early) return early();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
+  const mi = typeof MISSIONS !== 'undefined' && MISSIONS.route(text, n); // « mes missions », « mission accomplie : j'ai brossé mes dents »
+  if (mi) return mi();
   const lu = LUMIERES.route(text, n); // « allume ma lampe » (seulement ce que papa lui a confié)
   if (lu) return lu();
   const pj = PROJETS.route(text, n); // « je veux apprendre la table de 7 cette semaine », « où j'en suis ? »
@@ -1491,39 +1493,59 @@ async function whatFlow() {
 
 // Jeu : « Va me chercher un livre ! »
 async function huntFlow() {
-  if (LEGACY) { face.flash('oops'); return say("La chasse aux objets a besoin d'un Chrome plus récent. Papa peut le mettre à jour dans le Play Store."); }
+  if (LEGACY) { face.flash('oops'); return say("La chasse au trésor a besoin d'un Chrome plus récent. Papa peut le mettre à jour dans le Play Store."); }
   if (!(await needEyes())) return;
-  let found = 0;
-  const items = JEUX.shuffle(JEUX.CHASSE);
-  await say('Chasse aux objets ! Je te demande un objet, tu vas le chercher et tu me le montres devant la caméra. Prêt ?');
-  for (let round = 0; round < 3; round++) {
-    const item = items[round];
-    const label = JEUX.OBJETS[item];
-    await say(`Va me chercher ${label} ! Tu as une minute. Si tu n'en trouves pas, dis « je trouve pas ».`);
-    face.set('listen');
-    const t0 = Date.now();
-    let ok = false, gaveUp = false;
-    // il regarde ET il écoute en même temps
-    const listening = (async () => {
-      for (;;) {
-        const t = await hear({ maxWait: 60000 });
-        if (t === null || ok || !t) return;
-        if (RE.stop.test(N(t))) { gaveUp = 'stop'; return; }
-        if (RE.dontknow.test(N(t)) || /\b(trouve pas|pas trouve|y en a pas|j en ai pas)\b/.test(N(t))) { gaveUp = true; return; }
+  // la chasse au trésor scanner : 5 missions (des objets, des couleurs), un scanner à l'écran, des points et un grade d'agent
+  const COULEURS = ['rouge', 'bleu', 'vert', 'jaune'];
+  const objets = JEUX.shuffle(JEUX.CHASSE).slice(0, 3), couleurs = JEUX.shuffle(COULEURS).slice(0, 2);
+  const missions = JEUX.shuffle([...objets.map(o => ({ o })), ...couleurs.map(c => ({ c }))]);
+  let points = 0, trouves = 0;
+  const hud = document.createElement('div');
+  hud.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:55;pointer-events:none;font-family:ui-monospace,monospace;color:#7dd3fc;text-align:center;padding:10px;background:linear-gradient(180deg,rgba(2,11,20,.85),transparent)';
+  document.body.appendChild(hud);
+  const affiche = (m, i, reste) => { hud.innerHTML = `<div style="font-size:12px;letter-spacing:.3em">◢ MISSION ${i + 1} / ${missions.length} · ${points} PTS</div><div style="margin-top:4px;font:700 clamp(20px,5vw,34px) system-ui;color:#e0f2fe">${m.o ? esc(JEUX.OBJETS[m.o]) : `quelque chose de ${esc(m.c)}`}</div><div style="font-size:14px;color:${reste < 15 ? '#fca5a5' : '#5eead4'}">⏱ ${reste} s</div>`; };
+  const balayage = () => { const b = document.createElement('div'); b.style.cssText = 'position:fixed;left:0;right:0;height:4px;top:15%;z-index:56;background:linear-gradient(90deg,transparent,#38bdf8,transparent);box-shadow:0 0 22px #38bdf8;transition:top 1.2s ease-in-out'; document.body.appendChild(b); requestAnimationFrame(() => { b.style.top = '85%'; }); setTimeout(() => b.remove(), 1300); };
+  try {
+    await say('Agent secret, ici Shadow. Mission scanner : je te donne une cible, tu la trouves dans la maison, et tu la montres devant ma caméra. Plus tu es rapide, plus tu gagnes de points. Prêt ? Top départ !');
+    for (let i = 0; i < missions.length; i++) {
+      const m = missions[i];
+      await say(m.o ? `Mission ${i + 1} : trouve-moi ${JEUX.OBJETS[m.o]} !` : `Mission ${i + 1} : trouve-moi quelque chose de ${m.c} ! Montre-le bien au milieu.`);
+      face.set('listen');
+      const t0 = Date.now(), DUREE = 60000;
+      let ok = false, gaveUp = false, vuCouleur = 0;
+      const listening = (async () => {
+        for (;;) {
+          const t = await hear({ maxWait: 60000 });
+          if (t === null || ok || !t) return;
+          if (RE.stop.test(N(t))) { gaveUp = 'stop'; return; }
+          if (RE.dontknow.test(N(t)) || /\b(trouve pas|pas trouve|y en a pas|j en ai pas|suivant|passe)\b/.test(N(t))) { gaveUp = true; return; }
+        }
+      })();
+      while (!ok && !gaveUp && Date.now() - t0 < DUREE) {
+        affiche(m, i, Math.ceil((DUREE - (Date.now() - t0)) / 1000));
+        try {
+          if (m.o) ok = (await VISION.objects()).some(o => o.label === m.o && o.score > 0.4);
+          else { vuCouleur = VISION.colorAt('center') === m.c ? vuCouleur + 1 : 0; ok = vuCouleur >= 3; } // 3 fois de suite : ce n'est pas un hasard
+        } catch (e) { break; }
+        if (!ok) await wait(500);
       }
-    })();
-    while (!ok && !gaveUp && Date.now() - t0 < 60000) {
-      try { ok = (await VISION.objects()).some(o => o.label === item && o.score > 0.4); } catch (e) { break; }
-      if (!ok) await wait(600);
+      OREILLES.cancel();
+      await listening;
+      if (gaveUp === 'stop') throw new Stop('stop');
+      if (ok) {
+        const gagne = 10 + Math.round(Math.max(0, DUREE - (Date.now() - t0)) / 6000);
+        points += gagne; trouves++; S.stats.hunt++; save();
+        balayage(); fx.tone([[880, 0.06], [1175, 0.06], [1568, 0.06], [2093, 0.2]]); await wait(900);
+        face.set('happy'); fx.confetti(30);
+        await say(`Analyse terminée… ${m.o ? JEUX.OBJETS[m.o] : `du ${m.c}`} détecté ! Mission réussie ! Plus ${gagne} points.`);
+      } else { face.flash('oops'); await say(pick(['Temps écoulé, agent ! Celle-là était difficile. Mission suivante !', 'Pas grave, agent ! On passe à la cible suivante.'])); }
     }
-    OREILLES.cancel();
-    await listening;
-    if (gaveUp === 'stop') throw new Stop('stop');
-    if (ok) { found++; S.stats.hunt++; save(); face.set('happy'); fx.ok(); fx.confetti(40); await say(`Bravo ! Je vois ${label} ! Tu es super rapide !`); }
-    else { face.flash('oops'); await say(`Pas grave ! Ce n'était pas facile à trouver.`); }
-  }
-  face.set('happy');
-  await say(`Tu as trouvé ${found} objet${found > 1 ? 's' : ''} sur 3 ! ${found === 3 ? 'Champion de la chasse !' : 'Bien joué !'}`);
+  } finally { hud.remove(); }
+  const grade = points >= 160 ? 'Agent légendaire' : points >= 110 ? 'Agent d\'élite' : points >= 60 ? 'Agent confirmé' : 'Agent débutant';
+  const avant = S.tresorRecord || 0;
+  if (points > avant) { S.tresorRecord = points; save(); }
+  face.set('happy'); fx.confetti(60);
+  return say(`Fin de la chasse au trésor ! ${trouves} cible${trouves > 1 ? 's' : ''} sur ${missions.length}, ${points} points. Grade : ${grade} !${points > avant && avant ? ` Nouveau record, l'ancien était ${avant} !` : ''}`);
 }
 
 /* ----- Faire connaissance (apprendre un visage) ----- */
