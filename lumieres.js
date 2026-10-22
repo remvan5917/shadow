@@ -225,6 +225,41 @@ const LUMIERES = (() => {
   }, 30000);
   setTimeout(holoReleve, 15000); setInterval(holoReleve, 10 * 60000);
 
+  // le lien lumineux : « je pense à papa » → chez papa, ses lampes allumées respirent ; papa répond → l'écran s'illumine (même chez maman)
+  let lienAt = 0, lienAttente = null;
+  function lueur(titre, ms) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:58;pointer-events:none;background:radial-gradient(55% 55% at 50% 50%,rgba(56,189,248,.6),rgba(2,12,27,0) 72%);opacity:0;transition:opacity 1.3s';
+    el.innerHTML = `<div style="position:fixed;top:16px;left:0;right:0;text-align:center;font:14px ui-monospace,monospace;letter-spacing:.3em;color:#7dd3fc">${titre}</div>`;
+    document.body.appendChild(el);
+    let k = 0; const n = Math.max(2, Math.round(ms / 1400));
+    const t = setInterval(() => { el.style.opacity = k % 2 ? '0.2' : '1'; if (++k > n) { clearInterval(t); el.style.opacity = '0'; setTimeout(() => el.remove(), 1400); } }, 1400);
+  }
+  async function pensePapa(manque) {
+    if (Date.now() - lienAt < 45000) return say("C'est déjà parti ! Papa vient de recevoir ta pensée.");
+    lienAt = Date.now();
+    let r; try { r = await appel('/maison/lien', { de: 'enfant' }); } catch (e) { lienAt = 0; return say("Oh, je n'arrive pas à joindre la maison de papa. On réessaie dans un petit moment ?"); }
+    face.flash('happy'); fx.tone([[659, 0.15], [880, 0.15], [1319, 0.35]]); lueur('◢ SIGNAL ENVOYÉ À PAPA', 5000);
+    const deb = manque ? pick(["Je suis sûr que tu lui manques aussi. ", "Papa pense fort à toi, lui aussi. "]) : '';
+    return say(deb + (r.lampes ? pick(["C'est parti ! Chez papa, la lumière vient de respirer trois fois, comme un petit cœur, pour lui dire que tu penses à lui.", "Bip ! Ta pensée est arrivée : les lampes de papa ont brillé pour lui."]) : pick(["C'est envoyé ! Papa va recevoir ton signal : il saura que tu penses à lui.", "Ta pensée est partie chez papa ! Il va recevoir un petit signal."])));
+  }
+  async function lienRecu(mot) {
+    dlg.busy = true;
+    try {
+      face.flash('happy'); fx.tone([[523, 0.15], [784, 0.15], [1047, 0.4]]); lueur('◢ PAPA PENSE À TOI', 8000);
+      await say(`${name()} ! Papa pense à toi ! Il t'envoie un rayon de lumière${mot ? `, et il te dit : ${mot}` : ''}.`);
+    } finally { dlg.busy = false; }
+    appel('/maison/lien', { lu: 'papa' }).catch(() => {});
+  }
+  async function lienReleve() {
+    try { const r = await appel('/maison/lien'); if (r.papa && !r.papa.lu && r.papa.at > Date.now() / 1000 - 12 * 3600) lienAttente = { mot: r.papa.mot || '' }; } catch (e) { /* plus tard */ }
+  }
+  setInterval(async () => {
+    if (!lienAttente || !dlg.started || dlg.busy || voice.speaking || OREILLES.hearing() || dlg.expect || !['standby', 'talk'].includes(dlg.state) || !enfantLa()) return;
+    const m = lienAttente; lienAttente = null; await lienRecu(m.mot);
+  }, 20000);
+  setTimeout(lienReleve, 16000); setInterval(lienReleve, 10 * 60000);
+
   // il écoute le canal direct : Atlas peut lui demander de faire le compte à rebours
   async function ecoute() {
     for (;;) {
@@ -235,6 +270,7 @@ const LUMIERES = (() => {
         for (const m of j.messages || []) {
           if (m.type === 'fusee' && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
+          else if (m.type === 'lien') lienAttente = { mot: m.texte || '' };
           else if (m.type === 'hologramme') { if (m.texte && !holoAttente.includes(m.texte)) holoAttente.push(m.texte); }
           else if (m.type === 'coucher' && window.SHADOW_CHEZ_PAPA !== false) { face.flash('happy'); fx.tone([[523, 0.15], [659, 0.15], [784, 0.3]]); await say(pick([`${name()}, c'est l'heure d'aller au lit ! Va vite te brosser les dents : la salle de bain est allumée. Je t'ai mis la Fusée et ta radio.`, `Mission dodo, ${name()} ! D'abord les dents à la salle de bain, ensuite au lit : la Fusée et ta radio t'attendent.`])); }
         }
@@ -274,6 +310,7 @@ const LUMIERES = (() => {
     return route1(text, n);
   }
   function route1(text, n) {
+    if (/\b(je pense (tres fort |fort )?a (mon )?papa|(mon )?papa me manque|tu me manques papa|(envoie|envoyer|fais|faire) (un |des |plein de |gros |un gros )*(bisous?|calins?|coeurs?|rayons?)( lumineux)? (a|au|pour) (mon )?papa|fais briller (la |les )?(lumieres?|lampes?) (de|a|chez) papa|signal (lumineux )?(a|pour) papa)\b/.test(n)) return () => pensePapa(/\bmanque/.test(n));
     if (/\b(enregistre|filme|fais|envoie)\b.*\b(message|video|hologramme)\b.*\bpapa\b|\bmessage (video|holographique) pour papa\b|\bhologramme pour papa\b/.test(n)) return pourPapa;
     if (/\b(rejoue|remets|revoir|repasse) (le |ton |mon )?(message|hologramme)\b/.test(n) && holoDernier) return () => projette(holoDernier, true);
     if (/\b(lance la fusee|lancement de la fusee|fais decoller la fusee|compte a rebours|decollage)\b/.test(n)) return () => fusee(false);
