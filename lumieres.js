@@ -141,6 +141,46 @@ const LUMIERES = (() => {
     await say(partie ? 'Décollage ! La Fusée est allumée !' : 'Décollage ! Vroooum !');
     if (duo) canal('atlas', { type: 'fusee-ok', de: 'shadow' });
   }
+  // le message holographique de papa : projeté en plein écran façon hologramme bleu, quand l'enfant est là
+  let holoAttente = [], holoDernier = null;
+  const enfantLa = () => (typeof VISION !== 'undefined' && VISION.isOn() && VISION.state.faces.some(f => f.name && S.prenom && f.name === S.prenom)) || Date.now() - (dlg.lastTalk || 0) < 3 * 60000;
+  async function holoReleve() {
+    try { const r = await appel('/maison/hologramme'); holoAttente = (r.hologrammes || []).filter(h => !h.lu).map(h => h.id); } catch (e) { /* plus tard */ }
+  }
+  async function projette(id, rejoue) {
+    const r0 = root(); if (!r0) return;
+    let url; try { const b = await (await fetch(`${r0}/maison/hologramme/${id}`, { cache: 'no-store' })).blob(); if (b.size < 5000) return; url = URL.createObjectURL(b); } catch (e) { return; }
+    dlg.busy = true;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:60;background:radial-gradient(60% 55% at 50% 55%,#06223a,#000 75%);display:grid;place-items:center;opacity:0;transition:opacity .8s';
+    el.innerHTML = `<style>@keyframes holoClig{0%,100%{opacity:.9}47%{opacity:.75}50%{opacity:.4}53%{opacity:.85}}@keyframes holoBal{from{background-position:0 0}to{background-position:0 40px}}</style>
+      <div style="position:relative;width:min(86vw,720px);animation:holoClig 3.2s infinite">
+        <video playsinline style="width:100%;display:block;border-radius:10px;filter:sepia(1) hue-rotate(165deg) saturate(3) brightness(1.25) contrast(1.15);mix-blend-mode:screen;-webkit-mask-image:radial-gradient(70% 70% at 50% 50%,#000 60%,transparent 100%);mask-image:radial-gradient(70% 70% at 50% 50%,#000 60%,transparent 100%)"></video>
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(125,211,252,.12) 0 2px,transparent 2px 6px);animation:holoBal 2s linear infinite;pointer-events:none"></div>
+        <div style="position:absolute;left:50%;bottom:-60px;transform:translateX(-50%);width:70%;height:60px;background:radial-gradient(50% 100% at 50% 100%,rgba(125,211,252,.35),transparent 70%)"></div>
+      </div>
+      <div style="position:fixed;top:14px;left:0;right:0;text-align:center;font:13px ui-monospace,monospace;letter-spacing:.35em;color:#7dd3fc">◢ MESSAGE HOLOGRAPHIQUE · PAPA</div>`;
+    document.body.appendChild(el);
+    try {
+      if (!rejoue) { fx.tone([[523, 0.12], [784, 0.12], [1047, 0.25]]); await say(pick(['Bip bip ! Message holographique entrant… de papa !', 'Transmission holographique reçue ! C\'est un message de papa !'])); }
+      OREILLES.mute(true);
+      requestAnimationFrame(() => { el.style.opacity = '1'; });
+      const v = el.querySelector('video'); v.src = url;
+      await new Promise(res => { v.onended = res; v.onerror = res; el.onclick = res; setTimeout(res, 40000); v.play().catch(() => { v.muted = true; v.play().catch(res); }); });
+    } finally {
+      el.style.opacity = '0'; setTimeout(() => { el.remove(); URL.revokeObjectURL(url); }, 900);
+      OREILLES.mute(false); dlg.busy = false;
+    }
+    holoDernier = id;
+    if (!rejoue) { appel('/maison/hologramme', { lu: id }).catch(() => {}); await say(pick(['Fin de la transmission. Tu veux le revoir ? Dis : rejoue le message.', 'Message terminé ! Dis « rejoue le message » pour le revoir.'])); }
+  }
+  // toutes les 30 secondes : un message attend et l'enfant est là → on le projette
+  setInterval(async () => {
+    if (!holoAttente.length || !dlg.started || dlg.busy || voice.speaking || OREILLES.hearing() || dlg.expect || !['standby', 'talk'].includes(dlg.state) || !enfantLa()) return;
+    const id = holoAttente.shift(); await projette(id, false);
+  }, 30000);
+  setTimeout(holoReleve, 15000); setInterval(holoReleve, 10 * 60000);
+
   // il écoute le canal direct : Atlas peut lui demander de faire le compte à rebours
   async function ecoute() {
     for (;;) {
@@ -151,6 +191,7 @@ const LUMIERES = (() => {
         for (const m of j.messages || []) {
           if (m.type === 'fusee' && !dlg.busy) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
+          else if (m.type === 'hologramme') { if (m.texte && !holoAttente.includes(m.texte)) holoAttente.push(m.texte); }
           else if (m.type === 'coucher') { face.flash('happy'); fx.tone([[523, 0.15], [659, 0.15], [784, 0.3]]); await say(pick([`${name()}, c'est l'heure d'aller au lit ! Va vite te brosser les dents : la salle de bain est allumée. Je t'ai mis la Fusée et ta radio.`, `Mission dodo, ${name()} ! D'abord les dents à la salle de bain, ensuite au lit : la Fusée et ta radio t'attendent.`])); }
         }
       } catch (e) { await new Promise(r => setTimeout(r, 15000)); }
@@ -188,6 +229,7 @@ const LUMIERES = (() => {
     return route1(text, n);
   }
   function route1(text, n) {
+    if (/\b(rejoue|remets|revoir|repasse) (le |ton |mon )?(message|hologramme)\b/.test(n) && holoDernier) return () => projette(holoDernier, true);
     if (/\b(lance la fusee|lancement de la fusee|fais decoller la fusee|compte a rebours|decollage)\b/.test(n)) return () => fusee(false);
     if (R2.test(n) && (/\b(lumiere|lumieres|lampe|lampes|veilleuse|chambre)\b/.test(n) || connus.some(x => mots(x).some(w => mots(n).includes(w)))) && !/\b(son|volume|musique|tele|television)\b/.test(n) && !/^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\b/.test(n)) {
       if (COULEUR.test(n) && !/\b(chaud|chaude|froid|froide|jaune|blanc|blanche)\b/.test(n)) return () => say("Ma lampe ne fait que du blanc : du blanc tout chaud, comme un feu de camp, ou du blanc comme en plein jour. Pas de couleurs, désolé !");
