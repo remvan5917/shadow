@@ -28,6 +28,25 @@ const MESSAGES = (() => {
   setTimeout(releve, 8000); setInterval(releve, 30000);
   const lu = m => appel('/maison/messages', { lu: m.id }).catch(() => {});
 
+  // le message de papa s'affiche aussi en hologramme : les lettres bleues apparaissent pendant que Shadow le lit
+  function holoTexte(texte) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(60% 55% at 50% 55%,rgba(6,34,58,.96),rgba(0,0,0,.97) 75%);opacity:0;transition:opacity .7s;cursor:pointer';
+    el.innerHTML = `<style>@keyframes hT{0%,100%{opacity:1}48%{opacity:.82}50%{opacity:.45}52%{opacity:.9}}@keyframes hB{from{background-position:0 0}to{background-position:0 48px}}</style>
+      <div style="position:fixed;top:16px;left:0;right:0;text-align:center;font:13px ui-monospace,monospace;letter-spacing:.35em;color:#7dd3fc">◢ MESSAGE HOLOGRAPHIQUE · PAPA</div>
+      <div style="position:relative;max-width:min(86vw,760px);padding:28px 32px;border:1px solid rgba(125,211,252,.45);border-radius:18px;box-shadow:0 0 40px rgba(56,189,248,.35),0 0 80px rgba(56,189,248,.15) inset;animation:hT 3.4s infinite">
+        <div data-t style="font:600 clamp(24px,5.2vw,46px)/1.25 system-ui,sans-serif;color:#d6f4ff;text-shadow:0 0 12px rgba(125,211,252,.9),0 0 28px rgba(56,189,248,.6);text-align:center;min-height:1.3em"></div>
+        <div style="position:absolute;inset:0;border-radius:18px;background:repeating-linear-gradient(0deg,rgba(125,211,252,.1) 0 2px,transparent 2px 6px);animation:hB 2.2s linear infinite;pointer-events:none"></div>
+        <div style="position:absolute;left:50%;bottom:-70px;transform:translateX(-50%);width:70%;height:70px;background:radial-gradient(50% 100% at 50% 100%,rgba(125,211,252,.35),transparent 70%)"></div>
+      </div>`;
+    document.body.appendChild(el); requestAnimationFrame(() => { el.style.opacity = '1'; });
+    const zone = el.querySelector('[data-t]'); let i = 0;
+    const tape = setInterval(() => { i += 1; zone.textContent = texte.slice(0, i); if (i >= texte.length) clearInterval(tape); }, Math.max(28, Math.min(70, 2600 / Math.max(1, texte.length))));
+    const fermer = () => { clearInterval(tape); el.style.opacity = '0'; setTimeout(() => el.remove(), 800); };
+    el.onclick = fermer;
+    return fermer;
+  }
+
   // il le dit quand l'enfant est là, et que Shadow n'est pas occupé
   setInterval(async () => {
     if (!attente.length || !dlg.started || dlg.busy || voice.speaking || OREILLES.hearing() || dlg.expect) return;
@@ -39,7 +58,9 @@ const MESSAGES = (() => {
     try {
       lu(m);
       face.flash('happy', 2000); fx.tone([[784, 0.08], [1047, 0.08], [1319, 0.12]]);
-      await say(`${name()} ! J'ai un message de papa : « ${m.texte} »`);
+      await say(`${name()} ! Message holographique de papa !`);
+      const fermer = holoTexte(m.texte);
+      try { await say(`« ${m.texte} »`); await new Promise(r => setTimeout(r, 2500)); } finally { fermer(); }
       dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
       dlg.expect = { until: Date.now() + 40000, run: () => activity(reponse) };
       await say('Tu veux lui répondre ?');
