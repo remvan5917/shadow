@@ -108,8 +108,8 @@ const MESSAGES = (() => {
     const vu = typeof VISION !== 'undefined' && VISION.isOn() && VISION.state.faces.some(f => f.name && S.prenom && f.name === S.prenom);
     const d = { appareil: `shadow (${/Android/i.test(navigator.userAgent) ? 'téléphone' : 'ordinateur'})`, v: window.SHADOW_VERSION, demarre: dlg.started, etat: dlg.state, occupe: dlg.busy,
       cache: document.hidden, cameraAllumee: typeof VISION !== 'undefined' && VISION.isOn(), enfantVu: vu, parleIlYa: dlg.lastTalk ? Math.round((Date.now() - dlg.lastTalk) / 1000) : null,
-      entendus: typeof OREILLES !== 'undefined' && OREILLES.entendus ? OREILLES.entendus() : [], niveau: typeof OREILLES !== 'undefined' && OREILLES.meter ? +OREILLES.meter().level.toFixed(4) : null, seuil: typeof OREILLES !== 'undefined' && OREILLES.meter ? +OREILLES.meter().threshold.toFixed(4) : null, micSens: S.settings.micSens || 'haute', maisonDabord: !!S.settings.earsMaisonFirst,
-      maison: typeof LUMIERES !== 'undefined' && LUMIERES.journal ? LUMIERES.journal() : [], messagesEnAttente: attente.length, oreilles: typeof OREILLES !== 'undefined' && OREILLES.engine ? OREILLES.engine() : '' };
+      entendus: window.SHADOW_CHEZ_PAPA !== false && typeof OREILLES !== 'undefined' && OREILLES.entendus ? OREILLES.entendus() : [], chezPapa: window.SHADOW_CHEZ_PAPA !== false, // chez maman : rien de ce qu'il entend niveau: typeof OREILLES !== 'undefined' && OREILLES.meter ? +OREILLES.meter().level.toFixed(4) : null, seuil: typeof OREILLES !== 'undefined' && OREILLES.meter ? +OREILLES.meter().threshold.toFixed(4) : null, micSens: S.settings.micSens || 'haute', maisonDabord: !!S.settings.earsMaisonFirst,
+      maison: window.SHADOW_CHEZ_PAPA !== false && typeof LUMIERES !== 'undefined' && LUMIERES.journal ? LUMIERES.journal() : [], messagesEnAttente: attente.length, oreilles: typeof OREILLES !== 'undefined' && OREILLES.engine ? OREILLES.engine() : '' };
     try { await fetch(`${r0}/atlas/diag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d), keepalive: true }); } catch (e) { /* plus tard */ }
   }
   setInterval(diagnostic, 30000); setTimeout(diagnostic, 10000);

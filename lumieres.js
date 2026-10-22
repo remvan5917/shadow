@@ -62,6 +62,7 @@ const LUMIERES = (() => {
     const pasLeDroit = bouts.length > 1 ? bouts.filter((b, i) => Array.isArray(choix[i]) && !choix[i].length).map(b => b.replace(/^(la|le|les|l|ma|mon|mes)\s+/, '').replace(/\btele(vision)?\b/, 'la télé')) : [];
     if (!c.length) return say(`Ça, je n'ai pas le droit. Moi, je peux seulement allumer et éteindre ${noms(l)}.`);
     let res; try { res = await appel('/maison/shadow/commande', { ids: c.map(a => a.id), allume }); } catch (e) { return say("Oups, ça n'a pas marché. Réessaie dans un instant !"); }
+    if (res.refus === 'pas a la maison') { window.SHADOW_CHEZ_PAPA = false; return say(pick(["Je suis loin de la maison de papa : d'ici, je ne peux pas toucher à ses lumières !", "Oh, on n'est pas chez papa : ses lumières sont trop loin pour moi !"])); }
     if (res.refus === 'trop') return say("Ouh là, on a assez joué avec les boutons ! On laisse tout tranquille un petit moment.");
     if (res.refus) return say("Je n'ai pas le droit. Demande à papa !");
     const ok = (res.resultats || []).filter(x => x.ok);
@@ -113,6 +114,7 @@ const LUMIERES = (() => {
     let ok = 0;
     for (const g of Object.values(groupes)) {
       let res; try { res = await appel('/maison/shadow/commande', Object.assign({ ids: g.ids, allume: true }, g.v)); } catch (e) { return say("Oups, ça n'a pas marché. Réessaie dans un instant !"); }
+      if (res.refus === 'pas a la maison') { window.SHADOW_CHEZ_PAPA = false; return say("Je suis loin de la maison de papa : d'ici, je ne peux pas toucher à ses lumières !"); }
       if (res.refus === 'trop') return say("Ouh là, on a assez joué avec les boutons ! On laisse tout tranquille un petit moment.");
       if (res.refus) return say("Je n'ai pas le droit. Demande à papa !");
       ok += (res.resultats || []).filter(x => x.ok).length;
@@ -231,10 +233,10 @@ const LUMIERES = (() => {
       try {
         const j = await (await fetch(`${r0}/maison/canal/shadow?attente=25`, { cache: 'no-store' })).json();
         for (const m of j.messages || []) {
-          if (m.type === 'fusee' && !dlg.busy) await fusee(true);
+          if (m.type === 'fusee' && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
           else if (m.type === 'hologramme') { if (m.texte && !holoAttente.includes(m.texte)) holoAttente.push(m.texte); }
-          else if (m.type === 'coucher') { face.flash('happy'); fx.tone([[523, 0.15], [659, 0.15], [784, 0.3]]); await say(pick([`${name()}, c'est l'heure d'aller au lit ! Va vite te brosser les dents : la salle de bain est allumée. Je t'ai mis la Fusée et ta radio.`, `Mission dodo, ${name()} ! D'abord les dents à la salle de bain, ensuite au lit : la Fusée et ta radio t'attendent.`])); }
+          else if (m.type === 'coucher' && window.SHADOW_CHEZ_PAPA !== false) { face.flash('happy'); fx.tone([[523, 0.15], [659, 0.15], [784, 0.3]]); await say(pick([`${name()}, c'est l'heure d'aller au lit ! Va vite te brosser les dents : la salle de bain est allumée. Je t'ai mis la Fusée et ta radio.`, `Mission dodo, ${name()} ! D'abord les dents à la salle de bain, ensuite au lit : la Fusée et ta radio t'attendent.`])); }
         }
       } catch (e) { await new Promise(r => setTimeout(r, 15000)); }
     }
@@ -251,7 +253,8 @@ const LUMIERES = (() => {
   }
   // les noms de ce qu'il a le droit de piloter (« allume l'étoile », si papa lui a confié « Étoile »)
   let connus = [];
-  const rafraichir = () => appel('/maison/shadow').then(r => { connus = (r.appareils || []).map(x => x.nom); }).catch(() => {});
+  // chez papa (sur le Wi-Fi de sa maison) ou ailleurs (chez maman) : ailleurs, il ne pilote pas la maison de papa et ne lui rapporte rien de ce qu'il entend
+  const rafraichir = () => appel('/maison/shadow').then(r => { connus = (r.appareils || []).map(x => x.nom); window.SHADOW_CHEZ_PAPA = r.a_la_maison !== false; }).catch(() => {});
   setTimeout(rafraichir, 9000); setInterval(rafraichir, 5 * 60000);
   const R = /^(?:shadow\s+)?(allume|rallume|eteins|eteint|eteind|coupe)\s+(?!toi\b)(.+)$/;
   // ce qu'un enfant peut vouloir allumer (s'il n'en a pas le droit, Shadow le lui dit gentiment)
