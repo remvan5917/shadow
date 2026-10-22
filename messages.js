@@ -29,11 +29,11 @@ const MESSAGES = (() => {
   const lu = m => appel('/maison/messages', { lu: m.id }).catch(() => {});
 
   // le message de papa s'affiche aussi en hologramme : les lettres bleues apparaissent pendant que Shadow le lit
-  function holoTexte(texte) {
+  function holoTexte(texte, titre = 'MESSAGE HOLOGRAPHIQUE · PAPA') {
     const el = document.createElement('div');
     el.style.cssText = 'position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(60% 55% at 50% 55%,rgba(6,34,58,.96),rgba(0,0,0,.97) 75%);opacity:0;transition:opacity .7s;cursor:pointer';
     el.innerHTML = `<style>@keyframes hT{0%,100%{opacity:1}48%{opacity:.82}50%{opacity:.45}52%{opacity:.9}}@keyframes hB{from{background-position:0 0}to{background-position:0 48px}}</style>
-      <div style="position:fixed;top:16px;left:0;right:0;text-align:center;font:13px ui-monospace,monospace;letter-spacing:.35em;color:#7dd3fc">◢ MESSAGE HOLOGRAPHIQUE · PAPA</div>
+      <div style="position:fixed;top:16px;left:0;right:0;text-align:center;font:13px ui-monospace,monospace;letter-spacing:.35em;color:#7dd3fc">◢ ${titre}</div>
       <div style="position:relative;max-width:min(86vw,760px);padding:28px 32px;border:1px solid rgba(125,211,252,.45);border-radius:18px;box-shadow:0 0 40px rgba(56,189,248,.35),0 0 80px rgba(56,189,248,.15) inset;animation:hT 3.4s infinite">
         <div data-t style="font:600 clamp(24px,5.2vw,46px)/1.25 system-ui,sans-serif;color:#d6f4ff;text-shadow:0 0 12px rgba(125,211,252,.9),0 0 28px rgba(56,189,248,.6);text-align:center;min-height:1.3em"></div>
         <div style="position:absolute;inset:0;border-radius:18px;background:repeating-linear-gradient(0deg,rgba(125,211,252,.1) 0 2px,transparent 2px 6px);animation:hB 2.2s linear infinite;pointer-events:none"></div>
@@ -114,5 +114,5 @@ const MESSAGES = (() => {
   }
   setInterval(diagnostic, 30000); setTimeout(diagnostic, 10000);
   document.addEventListener('visibilitychange', diagnostic);
-  return { route, envoie, releve, _attente: () => attente };
+  return { route, envoie, releve, holoTexte, _attente: () => attente };
 })();

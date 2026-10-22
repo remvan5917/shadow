@@ -267,6 +267,23 @@ const LUMIERES = (() => {
   }
   const effet = (ids, nom) => { if (ids && ids.length) appel('/maison/shadow/effet', { ids, effet: nom }).catch(() => {}); };
 
+  // le duo avec Atlas
+  let duoT = null, attenteAtlas = null;
+  function duoDebut() { window.SHADOW_DUO = true; dlg.busy = true; OREILLES.mute(true); clearTimeout(duoT); duoT = setTimeout(duoFin, 4 * 60000); } // au pire, il se réveille seul après 4 minutes
+  function duoFin() { clearTimeout(duoT); if (!window.SHADOW_DUO) return; window.SHADOW_DUO = false; dlg.busy = false; OREILLES.mute(false); face.flash('happy'); }
+  // « demande à Atlas pourquoi le ciel est bleu » : la question part chez Atlas, la réponse revient en hologramme
+  async function demandeAtlas(q) {
+    if (!q || q.length < 3) return say("Je demande quoi à Atlas ?");
+    fx.tone([[880, 0.08], [1175, 0.08], [1568, 0.12]]); face.flash('happy');
+    const r = new Promise(res => { attenteAtlas = res; setTimeout(() => { if (attenteAtlas === res) { attenteAtlas = null; res(null); } }, 45000); });
+    try { await appel('/maison/canal/atlas', { type: 'question', texte: q, de: 'shadow' }); } catch (e) { attenteAtlas = null; return say("Oh, je n'arrive pas à joindre Atlas. Réessaie tout à l'heure !"); }
+    await say(pick(['Bip bip… je transmets ta question à Atlas !', 'Transmission vers Atlas… bip, bip, bip…']));
+    const m = await r;
+    if (!m || !m.texte) return say(pick(["Atlas ne répond pas : il doit être occupé. Pose-moi la question, à moi !", "Pas de réponse d'Atlas… il fait peut-être la sieste des robots !"]));
+    const fermer = typeof MESSAGES !== 'undefined' && MESSAGES.holoTexte ? MESSAGES.holoTexte(m.texte, 'TRANSMISSION · ATLAS') : null;
+    try { await say(m.aVoix ? pick(['Atlas t\'a répondu ! Je te l\'écris en hologramme.', 'Voilà la réponse d\'Atlas, en hologramme !']) : `Atlas répond : ${m.texte}`); await wait(m.aVoix ? 6000 : 1500); } finally { if (typeof fermer === 'function') fermer(); }
+  }
+
   // il écoute le canal direct : Atlas peut lui demander de faire le compte à rebours
   async function ecoute() {
     for (;;) {
@@ -278,6 +295,13 @@ const LUMIERES = (() => {
           if (m.type === 'fusee' && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
           else if (m.type === 'lien') lienAttente = { mot: m.texte || '' };
+          // le duo avec Atlas : il se tait et n'écoute plus pendant le sketch ; il dit ses répliques, puis répond « fini »
+          else if (m.type === 'duo-pret') { if (dlg.started && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) canal('atlas', { type: 'duo-ok', de: 'shadow' }); }
+          else if (m.type === 'duo-debut') duoDebut();
+          else if (m.type === 'duo-fin') duoFin();
+          else if (m.type === 'replique') { if (!window.SHADOW_DUO) duoDebut(); face.flash(pick(['happy', 'happy', 'shy'])); try { await say(m.texte || 'Bip bip !'); } finally { canal('atlas', { type: 'replique-ok', texte: m.id || '', de: 'shadow' }); } }
+          else if (m.type === 'reponse-atlas') { const w = attenteAtlas; attenteAtlas = null; if (w) w(m); }
+          else if (m.type === 'accueil' && window.SHADOW_CHEZ_PAPA !== false && dlg.started && !dlg.busy) { face.flash('happy'); fx.tone([[523, 0.12], [659, 0.12], [784, 0.12], [1047, 0.3]]); await wait(9000); await say(m.texte === 'duo' ? pick([`Papa et ${name()} sont rentrés ! Mes capteurs sont tout contents !`, 'Bip bip ! Toute l\'équipe est de retour à la base !']) : pick([`${name()} ! Tu es rentré ! Je t'attendais, copilote !`, `Bip bip ! Mon capitaine ${name()} est de retour !`])); }
           else if (m.type === 'hologramme') { if (m.texte && !holoAttente.includes(m.texte)) holoAttente.push(m.texte); }
           else if (m.type === 'coucher' && window.SHADOW_CHEZ_PAPA !== false) { face.flash('happy'); fx.tone([[523, 0.15], [659, 0.15], [784, 0.3]]); await say(pick([`${name()}, c'est l'heure d'aller au lit ! Va vite te brosser les dents : la salle de bain est allumée. Je t'ai mis la Fusée et ta radio.`, `Mission dodo, ${name()} ! D'abord les dents à la salle de bain, ensuite au lit : la Fusée et ta radio t'attendent.`])); }
         }
@@ -317,6 +341,7 @@ const LUMIERES = (() => {
     return route1(text, n);
   }
   function route1(text, n) {
+    if (/\b(demande|pose (la |une |ta |ma )?question|dis) (a |au )?atlas\b/.test(n)) { const q = String(text).replace(/^.*?\batlas\b[\s,:]*/i, '').replace(/^(si|de|d['’]|que|qu['’])\s*/i, '').trim(); return () => demandeAtlas(q); }
     if (/\b(je pense (tres fort |fort )?a (mon )?papa|(mon )?papa me manque|tu me manques papa|(envoie|envoyer|fais|faire) (un |des |plein de |gros |un gros )*(bisous?|calins?|coeurs?|rayons?)( lumineux)? (a|au|pour) (mon )?papa|fais briller (la |les )?(lumieres?|lampes?) (de|a|chez) papa|signal (lumineux )?(a|pour) papa)\b/.test(n)) return () => pensePapa(/\bmanque/.test(n));
     if (/\b(enregistre|filme|fais|envoie)\b.*\b(message|video|hologramme)\b.*\bpapa\b|\bmessage (video|holographique) pour papa\b|\bhologramme pour papa\b/.test(n)) return pourPapa;
     if (/\b(rejoue|remets|revoir|repasse) (le |ton |mon )?(message|hologramme)\b/.test(n) && holoDernier) return () => projette(holoDernier, true);

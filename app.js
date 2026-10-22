@@ -747,6 +747,7 @@ function greeting(who) {
 
 /* ---------- comprendre ce qu'on lui dit ---------- */
 async function handle(text) {
+  if (window.SHADOW_DUO) return; // le duo avec Atlas : il n'écoute pas (il entendrait Atlas)
   const n = N(text);
   // « euh », « hum »… : ce n'est pas une phrase, il continue d'écouter sans répondre
   if (/^(euh+|heu+|hum+|hm+|ben|bah|ah|oh|eh|mmh+|pff+)$/.test(n)) return;
