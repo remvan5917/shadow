@@ -581,6 +581,7 @@ async function ask(text, { prompt = '', wait: w = 20000, retry = 1 } = {}) {
       continue;
     }
     if (RE.stop.test(N(a))) throw new Stop('stop');
+    if (/^(shadow|chadow|shado|shadow shadow)$/.test(N(a))) throw new Stop('nom'); // on l'appelle : ce n'est pas une réponse, on veut lui parler d'autre chose
     if (RE.repeat.test(N(a))) { line = text; continue; }
     face.set('idle');
     return a;
@@ -610,6 +611,7 @@ async function activity(fn) {
       return;
     }
     if (e.message === 'stop') { face.set('happy'); await say("D'accord, on arrête."); dlg.state = 'talk'; }
+    else if (e.message === 'nom') { face.set('listen'); await say(pick(['Oui ? Je t\'écoute !', 'Je suis là ! Dis-moi.'])); dlg.state = 'talk'; dlg.silence = 0; }
     else if (e.message === 'silence') { face.set('idle'); await say('Je fais une petite pause. Dis « Shadow » quand tu veux continuer !'); dlg.state = 'standby'; }
   }
 }
@@ -758,6 +760,7 @@ function reformuleEnfant(n) {
   return m !== n && /^(allume|rallume|eteins|mets|baisse|monte|lance|raconte|chante|montre|danse)\b/.test(m) ? m : null;
 }
 async function handle(text) {
+  if (/^(shadow|chadow|shado)( shadow)*$/.test(N(text))) { face.set('listen'); dlg.state = 'talk'; dlg.silence = 0; return say(pick(['Oui ? Je t\'écoute !', 'Je suis là ! Dis-moi.', 'Bip ? Je t\'écoute !'])); } // juste son nom : il écoute (il ne continue pas une vieille histoire)
   if (window.SHADOW_DUO) return; // le duo avec Atlas : il n'écoute pas (il entendrait Atlas)
   const n = N(text);
   // « euh », « hum »… : ce n'est pas une phrase, il continue d'écouter sans répondre

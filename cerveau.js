@@ -177,10 +177,10 @@ const AI = {
       for (;;) {
         const m = pending.match(/^([\s\S]{20,}?[.!?…])(\s+|$)/);
         if (!m || (!m[2] && !force)) break;
-        onSentence(cleanReply(m[1]));
+        { const t1 = cleanReply(m[1]); if (/[a-zà-ÿ0-9]/i.test(t1)) onSentence(t1); } // pas de « phrase » faite d'un seul guillemet
         pending = pending.slice(m[0].length);
       }
-      if (force && cleanReply(pending)) { onSentence(cleanReply(pending)); pending = ''; }
+      if (force && /[a-zà-ÿ0-9]/i.test(cleanReply(pending))) { onSentence(cleanReply(pending)); pending = ''; }
     };
     try {
       const res = await fetch(c.base + '/chat/completions', {
@@ -348,7 +348,8 @@ const isModelError = e => (e.status === 400 || e.status === 404) && /model|decom
 function cleanReply(t) {
   return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/[\u2600-\u27BF\u2B00-\u2BFF]|[\uD83C-\uDBFF][\uDC00-\uDFFF]|\uFE0F|\u200D/g, '') // émojis (les petits cerveaux en mettent)
-    .replace(/^#+\s*/gm, '').replace(/^\s*[-*]\s+/gm, '').replace(/[ \t]{2,}/g, ' ').trim();
+    .replace(/^#+\s*/gm, '').replace(/^\s*[-*]\s+/gm, '').replace(/\*([^*\n]+)\*/g, '$1').replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, '$1$2').replace(/[*`]+/g, '') // l'italique et les étoiles (Mistral en met)
+    .replace(/\s*\n+\s*/g, ' ').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 const CERVEAU = {
