@@ -325,10 +325,12 @@ function subtitle(html, heard) {
   document.body.classList.toggle('subs', !$('#bubble').hidden);
 }
 // Shadow parle (et affiche des sous-titres si papa les a activés)
+const DITS = []; // ses dernières phrases (le diagnostic de papa, chez papa seulement)
 function say(text) {
   if (dlg.interrupt) return Promise.resolve(); // on vient de lui parler : il se tait et écoute
   text = anonymize(text);
   lastSaid = text;
+  DITS.push(`${new Date().toLocaleTimeString('fr-FR')} ${String(text).replace(/<[^>]+>/g, ' ').slice(0, 160)}`); if (DITS.length > 8) DITS.shift();
   $('#bubble').classList.remove('alert');
   $('#heard').textContent = '';
   subtitle(esc(String(text).replace(/<[^>]+>/g, ' ')), null);
