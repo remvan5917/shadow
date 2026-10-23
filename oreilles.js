@@ -23,7 +23,7 @@ const OREILLES = (() => {
   // Interrompre Shadow en lui parlant : on écoute aussi pendant qu'il parle (en gardant ~1,7 s de son)
   let ring = [], ttsFrames = 0, ttsPeak = 0, loud = 0, bargedAt = 0;
   // Sensibilité du micro (réglage de papa) : seuil minimum et marge au-dessus du bruit de la pièce
-  const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2], loin: [0.0022, 1.7] }; // « loin » : toute la pièce
+  const SENS = { normal: [0.012, 3], haute: [0.007, 2.5], max: [0.004, 2], loin: [0.0019, 1.6] }; // (oct. 2026 : un cran plus sensible, Voxtral trie mieux le bruit) // « loin » : toute la pièce
   let pending = null; // la demande d'écoute en cours
   let rec = null;
   const handlers = { thinking: [], speech: [], speechend: [], bargein: [] };

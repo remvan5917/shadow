@@ -55,7 +55,7 @@ const AI = {
   ready() { return this.hasKey() && (this.cfg().local || this.online()); },
   // les oreilles : Groq (Whisper large) et/ou les oreilles de la maison (whisper.cpp sur l'ordinateur, sans limite)
   homeEars() { return typeof VOIXMAISON !== 'undefined' ? VOIXMAISON.root() : ''; },
-  canTranscribe() { return (!!S.settings.key || !!this.homeEars()) && !!window.MediaRecorder && !!navigator.mediaDevices && this.online(); },
+  canTranscribe() { return (!!S.settings.key || !!S.settings.mistralKey || !!this.homeEars()) && !!window.MediaRecorder && !!navigator.mediaDevices && this.online(); },
 
   // Modèles de secours si Groq retire celui qu'on utilise
   FALLBACK: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
@@ -282,8 +282,22 @@ const AI = {
     };
     const groqOk = !!S.settings.key && !(S.settings.sttCool > Date.now());
     let j = null;
+    // Voxtral (Mistral) d'abord, si papa a mis la clé : la meilleure oreille en français ; un plafond par jour, puis comme avant
+    const sec = /wav/.test(blob.type) ? blob.size / 32000 : 4;
+    const jour = new Date().toDateString();
+    if (!S.oreillesMistral || S.oreillesMistral.jour !== jour) S.oreillesMistral = { jour, sec: 0 };
+    if (S.settings.mistralKey && !(this.mistralSttDown > Date.now()) && S.oreillesMistral.sec < (S.settings.voxtralMaxMin || 120) * 60 && this.online()) {
+      try {
+        const fd = new FormData();
+        fd.append('file', blob, `voix.${ext}`); fd.append('model', 'voxtral-mini-latest'); fd.append('language', 'fr');
+        const r = await this._fetch({ base: this.MISTRAL, key: S.settings.mistralKey }, '/audio/transcriptions', { method: 'POST', body: fd }, 15000);
+        S.oreillesMistral.sec += sec; this.lastEars = 'mistral'; this.lastConfident = true;
+        if (typeof compteMois === 'function') compteMois('mistral', 'voxtral-mini-latest', Math.round(sec), 0);
+        j = { text: r.text || '' };
+      } catch (e) { j = null; this.mistralSttDown = Date.now() + (e.status === 429 ? 600000 : e.status === 401 ? 3600000 : 120000); }
+    }
     // en veille (il attend son nom), ou si papa l'a choisi : les oreilles de la maison d'abord (Groq est gardé pour les vraies conversations)
-    if (home && (S.settings.earsMaisonFirst || cheap || !groqOk)) {
+    if (!j && home && (S.settings.earsMaisonFirst || cheap || !groqOk)) {
       try { j = await viaMaison(); } catch (e) { if (!groqOk) throw e; } // l'ordinateur ne répond pas : Groq
     }
     if (!j) {
