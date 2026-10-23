@@ -797,6 +797,7 @@ async function handle(text) {
   if (st) return st();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
+  if (/\b(radio shadow|ta radio|ton emission|la radio de shadow|ton journal du matin)\b/.test(n) && !/\b(arrete|coupe|stop)\b/.test(n)) return activity(radioShadowFlow);
   if (/\b(aide moi (pour|a faire|avec|dans) mes devoirs|mes devoirs|regarde mes devoirs|regarde mon (cahier|exercice|travail)|verifie (ma|mon|mes) (dictee|devoirs?|calculs?|exercices?|cahier)|tu peux (verifier|regarder|corriger) (mon|ma|mes)|corrige (mon|ma|mes)|aide aux devoirs)\b/.test(n) && !/\b(j ai fini|j ai termine|mission accomplie)\b/.test(n)) return activity(devoirsFlow);
   const mi = typeof MISSIONS !== 'undefined' && MISSIONS.route(text, n); // « mes missions », « mission accomplie : j'ai brossé mes dents »
   if (mi) return mi();
@@ -1489,6 +1490,33 @@ async function whoFlow() {
 }
 
 // « Qu'est-ce que tu vois ? »
+// ---------- Radio Shadow : l'émission du capitaine (la météo, le mot du jour, une blague, une énigme, ses missions) ----------
+async function radioShadowFlow() {
+  const p = name();
+  const jingle = () => fx.tone([[659, 0.08], [784, 0.08], [988, 0.08], [1319, 0.2]]);
+  const ecran = (titre, sous = '') => showBoard(`<div style="font-family:ui-monospace,monospace;background:radial-gradient(120% 90% at 50% 0%,#1e1b4b,#05030c 70%);border:2px solid #a78bfa;border-radius:18px;padding:16px 20px;color:#ede9fe;text-align:center;min-width:min(520px,86vw)"><style>@keyframes onAir{50%{opacity:.35}}</style><div style="display:flex;justify-content:space-between;font-size:12px;letter-spacing:.22em;color:#c4b5fd"><span>◢ RADIO SHADOW</span><span style="color:#f87171;animation:onAir 1.2s steps(2) infinite">● EN DIRECT</span></div><div style="font:800 clamp(26px,6vmin,46px)/1.15 system-ui,sans-serif;margin:14px 0 6px;color:#fff">${esc(titre)}</div><div style="font-size:clamp(16px,3.6vmin,24px);color:#ddd6fe">${esc(sous)}</div></div>`, 'graphe-board');
+  jingle(); ecran('RADIO SHADOW', 'la radio de l\'espace'); face.set('happy');
+  await say(`Bip bip ! Bonjour ${p} ! Ici Radio Shadow, la radio de l'espace ! Au programme : la météo, le mot du jour, une blague, une énigme et tes missions !`);
+  if (S.settings.ville) { await wait(300); jingle(); ecran('LA MÉTÉO', S.settings.ville.name || ''); await ECRAN.meteo(''); }
+  await wait(300); jingle(); const m = motDuJour(); ecran('LE MOT DU JOUR', m.mot); await say(motDuJourText());
+  await wait(300); jingle(); ecran('LA BLAGUE', 'ha ha ha'); face.set('happy'); await say(pick(JOKES));
+  await wait(300); jingle();
+  const d = pick(JEUX.DEVINETTES); ecran("L'ÉNIGME", d.q);
+  let rep = ''; try { rep = await ask(`${d.q} Tu as une idée ?`, { wait: 15000, retry: 0 }); } catch (e) { rep = ''; }
+  if (rep && d.r.some(x => N(rep).includes(N(x)))) { fx.confetti && fx.confetti(25); await say(`Bravo ! C'était bien ${d.a} !`); } else await say(`C'était ${d.a} !`);
+  try {
+    const r0 = typeof VOIXMAISON !== 'undefined' && VOIXMAISON.root();
+    if (r0) {
+      const e = await (await fetch(`${r0}/maison/missions`, { cache: 'no-store' })).json();
+      const reste = (e.missions || []).filter(x => !(e.faites || []).includes(x.id));
+      if (reste.length) { await wait(300); jingle(); ecran('TES MISSIONS', `${e.grade || ''} · ${e.points || 0} points`); await say(`Tes missions du jour, capitaine : ${reste.slice(0, 4).map(x => x.nom).join(', ')}. Bonne chance !`); }
+    }
+  } catch (e) { /* pas de missions */ }
+  if (typeof MESSAGES !== 'undefined' && MESSAGES._attente && MESSAGES._attente().length) await say("Et il y a un message de papa pour toi ! Dis « papa m'a écrit ? » pour l'écouter.");
+  await wait(300); fx.tone([[1319, 0.1], [988, 0.1], [784, 0.1], [523, 0.3]]); ecran('À DEMAIN !', 'bip bip');
+  await say(`C'était Radio Shadow ! Bonne journée, capitaine ${p} ! Bip bip !`);
+  setTimeout(() => hideBoard(), 8000);
+}
 // ---------- l'aide aux devoirs : il regarde la feuille, il trouve les erreurs, il donne un indice (jamais la réponse) ----------
 async function devoirsFlow() {
   if (!S.settings.mistralKey && !S.settings.key) return say("Pour lire tes devoirs, il me faut mon grand cerveau. Demande à papa de le brancher !");
