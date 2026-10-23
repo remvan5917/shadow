@@ -108,6 +108,33 @@
   #boot div { font: 12px/2 ui-monospace, monospace; letter-spacing: .25em; color: var(--violet); min-width: 320px; }
   #boot p { margin: 0; opacity: 0; transition: opacity .3s; } #boot p.v { opacity: 1; } #boot b { color: var(--ok); font-weight: 400; float: right; }
 
+
+  /* ---------- le téléphone : un onglet à la fois (Missions, Jeux, Lumières, Infos), rien qui dépasse ---------- */
+  .onglets { display: none; }
+  body.tel { padding: 6px 8px; height: 100vh; height: 100dvh; min-height: 0; }
+  body.tel header { flex-wrap: nowrap; gap: 8px; margin-bottom: 6px; }
+  body.tel .marque { font-size: 9px; letter-spacing: .28em; } body.tel .heure { font-size: 24px; } body.tel .date, body.tel .bandeau, body.tel .puce.copilote { display: none; }
+  body.tel .puce { padding: 5px 8px; font-size: 10px; } body.tel .quitter { padding: 7px 10px; font-size: 10px; letter-spacing: .14em; }
+  body.tel main { display: flex; flex-direction: column; align-items: stretch; grid-template-columns: none; gap: 8px; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 4px; } body.tel main::-webkit-scrollbar { display: none; }
+  body.tel main::after { display: none; }
+  body.tel .col { display: contents; }
+  body.tel .carte { display: none; flex: 0 0 auto; padding: 10px 11px; } body.tel .carte.vu { display: flex; } body.tel .carte.grand { flex: 0 0 auto; }
+  body.tel .defile { overflow: visible; }
+  body.tel .onglets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex: 0 0 auto; margin-top: 6px; }
+  .onglet { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 4px; border-radius: 8px; border: 1px solid var(--ligne); background: rgba(167, 139, 250, .05); color: var(--doux); font: 700 10px ui-monospace, monospace; letter-spacing: .12em; cursor: pointer; }
+  .onglet svg.ic { width: 22px; height: 22px; } .onglet.actif { color: var(--texte); border-color: var(--violet); background: rgba(167, 139, 250, .2); box-shadow: 0 0 12px rgba(167, 139, 250, .3); }
+  .onglet.actif svg { color: var(--cyan); }
+  body.tel .activites { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; } body.tel .act { min-height: 72px; gap: 6px; padding: 8px 4px; } body.tel .act svg.ic { width: 28px; height: 28px; } body.tel .act span { font-size: 10.5px; }
+  body.tel .rituels { grid-template-columns: repeat(4, 1fr); gap: 6px; } body.tel .rituels .act { min-height: 64px; }
+  body.tel .mission { padding: 9px 8px; font-size: 15px; } body.tel .grade { margin-bottom: 6px; } body.tel .insigne { width: 42px; height: 42px; }
+  body.tel .appareils { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; } body.tel .app { min-height: 60px; padding: 8px; }
+  /* le téléphone couché (le visage de Shadow) : les onglets sur le côté, les cartes côte à côte */
+  body.tel.couche { display: grid; grid-template-columns: 84px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: 8px; }
+  body.tel.couche header { grid-column: 1 / 3; }
+  body.tel.couche .onglets { grid-row: 2; grid-column: 1; grid-template-columns: 1fr; grid-auto-rows: 1fr; margin: 0 0 4px; }
+  body.tel.couche main { grid-row: 2; grid-column: 2; display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: start; overflow-y: auto; }
+  body.tel.couche main.un { display: flex; flex-direction: column; align-items: stretch; } /* les jeux : les activités, puis les rituels */
+  body.tel.couche .activites { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); } body.tel.couche .act { min-height: 58px; gap: 4px; padding: 6px 3px; } body.tel.couche .act svg.ic { width: 24px; height: 24px; } body.tel.couche .rituels .act { min-height: 52px; }
   /* une tablette un peu étroite en paysage */
   @media (orientation: landscape) and (max-width: 1100px) { main { grid-template-columns: minmax(215px, 1fr) minmax(0, 1.3fr) minmax(215px, 1fr); } .act { min-height: 80px; } }
   /* un téléphone en paysage (pas haut) : les colonnes défilent chacune */
@@ -123,7 +150,7 @@
     .carte, .carte.grand { flex: 0 0 auto; } .defile { overflow: visible; }
     .z-act { order: 1; } .z-missions { order: 2; } .z-chambre { order: 3; } .z-rituels { order: 4; } .z-msg { order: 5; } .z-meteo { order: 6; } .z-dodo { order: 7; } .z-mot { order: 8; } .z-med { order: 9; }
     .rituels { grid-template-columns: repeat(2, 1fr); }
-    main::after { content: ''; order: 10; height: 140px; } /* la place de Shadow, en bas à droite */
+    body:not(.tel) main::after { content: ''; order: 10; height: 140px; } /* la place de Shadow, en bas à droite */
   }
 </style>
 </head>
@@ -135,7 +162,7 @@
     <div class="horloge"><div class="heure mono" id="heure"></div><div class="date" id="date"></div></div>
   </div>
   <div class="etat">
-    <div class="puce"><span class="led"></span>COPILOTE <b>SHADOW</b></div>
+    <div class="puce copilote"><span class="led"></span>COPILOTE <b>SHADOW</b></div>
     <div class="puce" id="p-grade">GRADE <b>—</b></div>
     <div class="puce" id="p-pts">POINTS <b>—</b></div>
     <button class="quitter" id="quitter">RETOUR À SHADOW</button>
@@ -144,21 +171,22 @@
 <div class="bandeau" id="bandeau"><span id="bandeau-t">SYSTÈMES EN LIGNE</span></div>
 <main id="main">
   <div class="col">
-    <section class="carte grand z-missions"><h2><div><i>01</i>MISSIONS DU JOUR</div><span id="mi-res"></span></h2><div class="defile" id="missions"></div></section>
-    <section class="carte z-med"><h2><div><i>02</i>MÉDAILLES DE PAPA</div><span id="me-res"></span></h2><div id="medailles"></div></section>
+    <section class="carte grand z-missions" data-o="missions"><h2><div><i>01</i>MISSIONS DU JOUR</div><span id="mi-res"></span></h2><div class="defile" id="missions"></div></section>
+    <section class="carte z-med" data-o="missions"><h2><div><i>02</i>MÉDAILLES DE PAPA</div><span id="me-res"></span></h2><div id="medailles"></div></section>
   </div>
   <div class="col">
-    <section class="carte grand z-act"><h2><div><i>03</i>ACTIVITÉS</div><span>UN TOUCHER : C'EST PARTI</span></h2><div class="activites defile" id="activites"></div></section>
-    <section class="carte z-rituels"><h2><div><i>04</i>RITUELS</div><span></span></h2><div class="rituels" id="rituels"></div></section>
+    <section class="carte grand z-act" data-o="jeux"><h2><div><i>03</i>ACTIVITÉS</div><span>UN TOUCHER : C'EST PARTI</span></h2><div class="activites defile" id="activites"></div></section>
+    <section class="carte z-rituels" data-o="jeux"><h2><div><i>04</i>RITUELS</div><span></span></h2><div class="rituels" id="rituels"></div></section>
   </div>
   <div class="col liste">
-    <section class="carte z-chambre"><h2><div><i>05</i>MES LUMIÈRES</div><span id="ch-res"></span></h2><div class="appareils" id="chambre"></div></section>
-    <section class="carte z-msg"><h2><div><i>06</i>MESSAGES</div><span></span></h2><div id="messages"></div></section>
-    <section class="carte z-meteo"><h2><div><i>07</i>MÉTÉO</div><span id="me-ville"></span></h2><div id="meteo"></div></section>
-    <section class="carte grand z-dodo"><h2><div><i>08</i>COMPTE À REBOURS</div><span>EN DODOS</span></h2><div class="defile" id="dodos"></div></section>
-    <section class="carte z-mot"><h2><div><i>09</i>MOT DU JOUR</div><span></span></h2><div id="mot"></div></section>
+    <section class="carte z-chambre" data-o="lumieres"><h2><div><i>05</i>MES LUMIÈRES</div><span id="ch-res"></span></h2><div class="appareils" id="chambre"></div></section>
+    <section class="carte z-msg" data-o="lumieres"><h2><div><i>06</i>MESSAGES</div><span></span></h2><div id="messages"></div></section>
+    <section class="carte z-meteo" data-o="infos"><h2><div><i>07</i>MÉTÉO</div><span id="me-ville"></span></h2><div id="meteo"></div></section>
+    <section class="carte grand z-dodo" data-o="infos"><h2><div><i>08</i>COMPTE À REBOURS</div><span>EN DODOS</span></h2><div class="defile" id="dodos"></div></section>
+    <section class="carte z-mot" data-o="infos"><h2><div><i>09</i>MOT DU JOUR</div><span></span></h2><div id="mot"></div></section>
   </div>
 </main>
+<nav class="onglets" id="onglets"></nav>
 <div class="toast" id="toast"></div>
 <script>
 'use strict';
@@ -345,6 +373,25 @@ function bandeauMaj() {
 }
 setInterval(() => { if (!bandeau.length) return; const s = $('#bandeau-t'); s.style.opacity = '0'; setTimeout(() => { s.textContent = bandeau[bi++ % bandeau.length]; s.style.opacity = '1'; }, 500); }, 6000);
 
+
+/* ---------- le téléphone : les onglets ---------- */
+const ONGLETS = [['jeux', 'robot', 'JEUX'], ['missions', 'insigne', 'MISSIONS'], ['lumieres', 'ampoule', 'LUMIÈRES'], ['infos', 'soleil', 'INFOS']];
+let onglet = 'jeux'; try { onglet = sessionStorage.getItem('station-onglet') || 'jeux'; } catch (e) { /* rien */ }
+const petit = matchMedia('(max-width: 640px), (max-height: 540px)'), couche = matchMedia('(orientation: landscape)');
+function montre(o) {
+  onglet = o; try { sessionStorage.setItem('station-onglet', o); } catch (e) { /* rien */ }
+  document.querySelectorAll('.carte').forEach(c => c.classList.toggle('vu', c.dataset.o === o));
+  document.querySelectorAll('.onglet').forEach(b => b.classList.toggle('actif', b.dataset.o === o));
+  $('#main').classList.toggle('un', o === 'jeux');
+  $('#main').scrollTop = 0;
+}
+function disposition() {
+  document.body.classList.toggle('tel', petit.matches); document.body.classList.toggle('couche', petit.matches && couche.matches);
+  if (petit.matches) montre(onglet);
+}
+$('#onglets').innerHTML = ONGLETS.map(([o, i, t]) => `<button class="onglet" data-o="${o}">${ic(i)}${t}</button>`).join('');
+document.querySelectorAll('.onglet').forEach(b => b.onclick = () => montre(b.dataset.o));
+petit.addEventListener('change', disposition); couche.addEventListener('change', disposition); disposition();
 $('#quitter').onclick = () => { try { G('SHADOW_COCKPIT').ferme(); } catch (e) { /* rien */ } };
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tout(); });
 async function tout() { await chargeMissions(); chargeChambre(); chargeMessages(); chargeMeteo(); bandeauMaj(); }
