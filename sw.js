@@ -2,7 +2,7 @@
 // Deux réserves :
 // - « shadow-app-vN » : les fichiers de l'appli (changent à chaque version) ;
 // - « shadow-modeles » : les gros modèles des yeux, la police… (gardés d'une version à l'autre).
-const CACHE = 'shadow-app-v94';
+const CACHE = 'shadow-app-v95';
 const MODELS = 'shadow-modeles';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'orthographe.js', 'cerveau.js', 'jeux.js', 'voix.js', 'oreilles.js', 'vision.js', 'corps.js', 'contenus.js', 'visage.js', 'activites.js', 'ecran.js', 'conscience.js', 'projets.js', 'pokedata.js', 'pokemon.js', 'ensemble.js', 'apprendre.js', 'messages.js', 'lumieres.js', 'missions.js', 'cockpit.js', 'cockpit.html', 'sync.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
@@ -37,11 +37,15 @@ self.addEventListener('fetch', e => {
   const mine = url.origin === location.origin;
   if (!mine && !/fonts\.googleapis\.com/.test(url.hostname)) return;
   const store = mine ? CACHE : MODELS;
+  // nos fichiers : toujours vérifiés auprès du serveur. S'il traîne : la copie de CETTE version (même adresse « ?v= ») ;
+  // une copie d'une autre version, seulement hors ligne (avant, un réseau lent ressortait l'ancienne mise en page).
+  const net = (mine ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req)).then(res => {
+    if (res.ok) { const copy = res.clone(); caches.open(store).then(c => c.put(req, copy)); }
+    return res;
+  });
   e.respondWith(
-    // nos fichiers : toujours vérifiés auprès du serveur (sinon le navigateur ressert une ancienne version pendant 10 min)
-    withTimeout(mine ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req), 3500).then(res => {
-      if (res.ok) { const copy = res.clone(); caches.open(store).then(c => c.put(req, copy)); }
-      return res;
-    }).catch(() => caches.match(req, { ignoreSearch: mine }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : Promise.reject(new Error('hors-ligne')))))
+    withTimeout(net, 3500)
+      .catch(() => caches.match(req).then(r => r || net))
+      .catch(() => caches.match(req, { ignoreSearch: mine }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : Promise.reject(new Error('hors-ligne')))))
   );
 });
