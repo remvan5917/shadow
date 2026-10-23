@@ -31,7 +31,9 @@ const SHADOW_COCKPIT = (() => {
     let f = document.getElementById('station-cadre');
     if (!f) {
       f = document.createElement('iframe'); f.id = 'station-cadre'; f.title = 'La station de pilotage';
-      f.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;border:0;z-index:4;background:#03050d'; // la taille ici aussi : jamais 300 × 150, même avec une vieille feuille de style
+      f.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;border:0;z-index:4;background:#03050d'; // la taille ici aussi : jamais 300 × 150, même avec une vieille feuille de style
+      const taille = () => { if (f.isConnected) { f.style.width = `${innerWidth}px`; f.style.height = `${innerHeight}px`; } }; // la hauteur VISIBLE (sans la barre de Chrome, que 100vh compte)
+      taille(); addEventListener('resize', taille); f.addEventListener('load', taille);
       f.src = `cockpit.html?v=${window.SHADOW_VERSION || ''}`;
       document.body.appendChild(f);
       f.addEventListener('load', () => { try { f.contentDocument.addEventListener('pointerdown', pleinEcran); } catch (e) { /* rien */ } });
