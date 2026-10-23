@@ -2061,7 +2061,7 @@ function bindLock() {
   // fermer l'onglet : le navigateur demande confirmation
   window.addEventListener('beforeunload', e => { if (S.settings.lock) { e.preventDefault(); e.returnValue = ''; } });
   // pas de menu au doigt, pas de zoom
-  document.addEventListener('contextmenu', e => { if (S.settings.lock) e.preventDefault(); });
+  document.addEventListener('contextmenu', e => { if (S.settings.lock && !(e.target && e.target.closest && e.target.closest('input, textarea'))) e.preventDefault(); }); // dans une case à remplir : l'appui long reste permis (« Coller »)
   document.addEventListener('gesturestart', e => { if (S.settings.lock) e.preventDefault(); });
   document.addEventListener('pointerdown', keepFullscreen, true);
   // appui long de 3 s dans le coin secret → coin de papa
