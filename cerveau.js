@@ -236,10 +236,20 @@ const AI = {
   // Vision détaillée (option de papa) : une photo est envoyée à Groq pour la décrire
   VISION_MODEL: 'qwen/qwen3.8-27b', // il comprend aussi les images (vérifié en oct. 2026)
   RETIRED_VISION: ['meta-llama/llama-4-scout-17b-16e-instruct'],
-  async see(dataUrl, question) {
+  async see(dataUrl, question, { maxTokens = 200, temperature = 0.5 } = {}) {
+    // les yeux de Mistral d'abord (bien meilleurs pour lire une écriture d'enfant), Groq en secours
+    if (S.settings.mistralKey && !(this.mistralDownUntil > Date.now()) && this.online()) {
+      try {
+        const j = await this._fetch({ base: this.MISTRAL, key: S.settings.mistralKey }, '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: S.settings.mistralVision || 'mistral-medium-latest', temperature, max_tokens: maxTokens, messages: [{ role: 'user', content: [{ type: 'text', text: question }, { type: 'image_url', image_url: dataUrl }] }] }) }, 30000);
+        if (j.usage && typeof compteMois === 'function') compteMois('mistral', S.settings.mistralVision || 'mistral-medium-latest', j.usage.prompt_tokens, j.usage.completion_tokens);
+        this.dernier = { fournisseur: 'mistral', modele: 'vision' };
+        return cleanReply((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
+      } catch (e) { console.warn('yeux Mistral', e.message); if (!S.settings.key) throw e; }
+    }
     const model = S.settings.visionModel || this.VISION_MODEL;
     const body = {
-      model, temperature: 0.5, max_tokens: 200,
+      model, temperature, max_tokens: maxTokens,
       messages: [{ role: 'user', content: [{ type: 'text', text: question }, { type: 'image_url', image_url: { url: dataUrl } }] }],
     };
     if (model.startsWith('qwen/')) body.reasoning_format = 'hidden';

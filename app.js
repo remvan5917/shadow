@@ -797,6 +797,7 @@ async function handle(text) {
   if (st) return st();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
+  if (/\b(aide moi (pour|a faire|avec|dans) mes devoirs|mes devoirs|regarde mes devoirs|regarde mon (cahier|exercice|travail)|verifie (ma|mon|mes) (dictee|devoirs?|calculs?|exercices?|cahier)|tu peux (verifier|regarder|corriger) (mon|ma|mes)|corrige (mon|ma|mes)|aide aux devoirs)\b/.test(n) && !/\b(j ai fini|j ai termine|mission accomplie)\b/.test(n)) return activity(devoirsFlow);
   const mi = typeof MISSIONS !== 'undefined' && MISSIONS.route(text, n); // « mes missions », « mission accomplie : j'ai brossé mes dents »
   if (mi) return mi();
   const lu = LUMIERES.route(text, n); // « allume ma lampe » (seulement ce que papa lui a confié)
@@ -1488,6 +1489,37 @@ async function whoFlow() {
 }
 
 // « Qu'est-ce que tu vois ? »
+// ---------- l'aide aux devoirs : il regarde la feuille, il trouve les erreurs, il donne un indice (jamais la réponse) ----------
+async function devoirsFlow() {
+  if (!S.settings.mistralKey && !S.settings.key) return say("Pour lire tes devoirs, il me faut mon grand cerveau. Demande à papa de le brancher !");
+  if (!(await needEyes())) return;
+  const p = name();
+  for (let tour = 0; tour < 6; tour++) {
+    face.set('listen');
+    await say(tour ? 'Montre-moi encore ta feuille. Je regarde dans trois secondes !' : `Montre-moi ton devoir devant ma caméra, ${p} : bien à plat, assez près pour que je lise. Je regarde dans trois secondes !`);
+    for (const f of [523, 659, 784]) { fx.tone([[f, 0.12]]); await wait(900); }
+    fx.tone([[1047, 0.08], [1319, 0.12]]); face.set('think');
+    let r = '';
+    try {
+      const photo = VISION.snapshot(1280);
+      const consigne = `Tu es Shadow, un robot gentil qui aide ${p} (7 ans, en CE1) à faire ses devoirs. Voici la photo de sa feuille.
+Étape 1 (pour toi, ne la dis pas) : relis chaque ligne et vérifie CHAQUE mot (orthographe, accords, conjugaison) et CHAQUE calcul, un par un.
+Si tu ne peux pas bien lire (flou, trop loin, trop sombre, pas de devoir sur la photo), réponds seulement : ILLISIBLE.
+INTERDIT : donner la bonne réponse, écrire le bon résultat d'un calcul ou le mot corrigé. S'il n'y a aucune erreur : félicite-le en une phrase précise. Sinon : dis combien d'erreurs tu vois, puis donne UN indice pour la première : la ligne exacte (« la première phrase », « le premier calcul ») et la règle à se rappeler, sans la solution.
+Réponds seulement ce que tu lui dis : deux ou trois phrases courtes, gentilles, tu le tutoies, sans symbole, sans astérisque, sans parenthèse.`;
+      r = await AI.see(photo, consigne, { maxTokens: 260, temperature: 0.2 });
+      // il a laissé échapper la solution (« 7 plus 5 font 12 ») : on redemande un indice, sans la réponse
+      if (/\b(font|fait|égale?|egale?|c'est)\s+\d+|=\s*\d+|\bs'écrit\b|\bil faut écrire\b/i.test(r)) r = await AI.see(photo, `${consigne}\nATTENTION : ta réponse précédente donnait la solution. Recommence : un indice seulement, sans aucun résultat ni mot corrigé.`, { maxTokens: 200, temperature: 0.2 });
+    } catch (e) { face.set('oops'); return say("Oups, mes yeux n'arrivent pas à joindre mon cerveau. Réessaie dans un petit moment !"); }
+    if (!r || /^\W*illisible/i.test(r)) { face.set('oops'); await say("Je n'arrive pas à bien lire. Approche un peu la feuille, et mets-toi près de la lumière."); continue; }
+    face.set('happy');
+    await say(ETHIQUE.safe(r));
+    if (!/\b(erreur|erreurs|regarde|vérifie|attention|indice|presque)\b/i.test(r)) { fx.confetti && fx.confetti(30); return say("Bravo ! Quand tout est fini, dis « mission accomplie, j'ai fini mes devoirs » !"); }
+    const a = await ask('Corrige, puis dis « regarde » quand tu veux que je vérifie. Ou dis « c\'est fini ».', { wait: 120000, retry: 1 });
+    if (/\b(fini|termine|stop|arrete|plus tard)\b/.test(N(a))) return say(pick(['Super travail ! Tu as été courageux.', "D'accord ! Tu as bien travaillé, bravo."]));
+  }
+  return say("On a bien travaillé ! Si tu bloques encore, demande à papa : il connaît plein d'astuces.");
+}
 async function whatFlow() {
   if (!(await needEyes())) return;
   face.set('think');

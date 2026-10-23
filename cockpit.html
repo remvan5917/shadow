@@ -250,6 +250,7 @@ const I = {
   orage: '<path d="M7 15a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 8 3.5 3.5 0 0 1 18 15z"/><path d="M13 13l-3 5h4l-3 4"/>',
   calendrier: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  cahier: '<path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3v18M9 8h7M9 12h5"/><path d="M13 16.5l1.5 1.5 3-3"/>',
 };
 const ic = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[k] || ''}</svg>`;
 
@@ -269,7 +270,7 @@ function boot() {
 }
 
 /* ---------- 03 et 04 : les activités et les rituels, en un toucher ---------- */
-const ACTIVITES = [['livre', 'Une histoire', 'invente une histoire'], ['carte', 'Aventure', 'une aventure dont je suis le héros'], ['question', 'Devinettes', 'on fait des devinettes'],
+const ACTIVITES = [['cahier', 'Mes devoirs', 'aide-moi pour mes devoirs', 'vert'], ['livre', 'Une histoire', 'invente une histoire'], ['carte', 'Aventure', 'une aventure dont je suis le héros'], ['question', 'Devinettes', 'on fait des devinettes'],
   ['calcul', 'Calcul', 'on fait du calcul'], ['etoile', 'Quiz', 'on fait un quiz'], ['crayon', 'Dictée', 'on fait une dictée'], ['oeil', 'Lecture', 'je veux lire'],
   ['globe', 'Anglais', 'on fait de l\'anglais'], ['loupe', 'Chasse au trésor', 'chasse au trésor'], ['robot', 'Robot mystère', 'le robot mystère'], ['couleurs', 'Jeu des couleurs', 'le jeu des couleurs'],
   ['main', 'Jacques a dit', 'jacques a dit'], ['ciseaux', 'Chifoumi', 'pierre feuille ciseaux'], ['note', 'Chansons', 'chante une comptine'], ['horloge', "Lire l'heure", "le jeu de l'heure"],
