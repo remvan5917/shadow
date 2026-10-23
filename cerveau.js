@@ -360,11 +360,16 @@ async function httpError(res) {
 }
 const isModelError = e => (e.status === 400 || e.status === 404) && /model|decommission|not found|does not exist|n'existe/i.test(e.message);
 
+// les indications de jeu (*rit*, *fait un clin d'œil*, (sourire), [musique]) ne se lisent pas ; un dialogue entre étoiles, oui
+const JEU = /\b(rit|rire|ri|rigole|sourit|sourire|souris|clin|soupir\w*|pause|chuchot\w*|murmur\w*|voix|ton |bruit\w*|musique|bip|grésill\w*|clignot\w*|cligne|hoche|lève|regarde|sautill\w*|dans\w*|tape|applaud\w*|ha ha|hi hi|ho ho|tousse|bâill\w*|ronronn\w*|cri|émet|fait un|fait une|s'illumine|lumière|écran|yeux|en riant|en souriant|joyeux|joyeusement|enthousias\w*|excité\w*)\b/i;
+function didascalie(inner) { const t = inner.trim(); if (/^[«"“]/.test(t)) return t; return JEU.test(t) || t.split(/\s+/).length <= 3 ? ' ' : t; }
 function cleanReply(t) {
   return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/[\u2600-\u27BF\u2B00-\u2BFF]|[\uD83C-\uDBFF][\uDC00-\uDFFF]|\uFE0F|\u200D/g, '') // émojis (les petits cerveaux en mettent)
-    .replace(/^#+\s*/gm, '').replace(/^\s*[-*]\s+/gm, '').replace(/\*([^*\n]+)\*/g, '$1').replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, '$1$2').replace(/[*`]+/g, '') // l'italique et les étoiles (Mistral en met)
-    .replace(/\s*\n+\s*/g, ' ').replace(/[ \t]{2,}/g, ' ').trim();
+    .replace(/\*([^*\n]{1,80})\*/g, (m, x) => didascalie(x))
+    .replace(/\(([^()\n]{0,120})\)/g, (m, x) => (JEU.test(x) ? ' ' : ` ${x} `)).replace(/\[(?!\[)([^\[\]\n]{0,60})\](?!\])/g, (m, x) => (JEU.test(x) || x.split(/\s+/).length <= 3 ? ' ' : ` ${x} `))
+    .replace(/[☀-➿⬀-⯿]|[\uD83C-\uDBFF][\uDC00-\uDFFF]|️|‍/g, '') // émojis (les petits cerveaux en mettent)
+    .replace(/^#+\s*/gm, '').replace(/^\s*[-*]\s+/gm, '').replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, '$1$2').replace(/[*`~]+/g, '')
+    .replace(/\s*\n+\s*/g, ' ').replace(/\s+([,.…])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 const CERVEAU = {
@@ -392,7 +397,7 @@ Ta façon d'être, comme les robots des films (Baymax, WALL-E, J.A.R.V.I.S.) : a
 - Réponds exactement à ce qu'on vient de dire, en tenant compte de ce qui précède. 1 ou 2 phrases courtes, une seule idée.
 - Ne propose pas d'activité de toi-même (seulement si on te le demande ou s'il s'ennuie : une seule idée). Pas de question à chaque fois.
 - Quand il raconte quelque chose, réagis à un détail précis. À « ok », « merci » : quelques mots (« Avec plaisir. »).
-- Pas d'émojis, de symboles, de listes ni de markdown (tout est lu à voix haute). Tu le tutoies.
+- Pas d'émojis, de symboles, de listes ni de markdown (tout est lu à voix haute). Jamais d'astérisques, de parenthèses ni d'indications de jeu comme *rit* ou (clin d'œil) : écris seulement ce que tu dis vraiment ; pour rire, écris « Ha ha ha ! ». Tu le tutoies.
 - Tu sais rire pour de vrai : quand c'est vraiment drôle (une blague de l'enfant, une situation rigolote), écris « Ha ha ha ! » (ou « Hi hi ! » pour un petit rire) au début de ta phrase. Pas à chaque fois.
 - Pour enseigner : un exemple de tous les jours. Devoirs : des indices, pas la réponse.
 
@@ -412,7 +417,7 @@ Règles : tout est adapté à un enfant (sinon : « parles-en à papa »). Ne de
   // Version mini, pour les petites tâches (encyclopédie, regarder, dire bonjour)
   persona() {
     const p = this.prenom();
-    return `Tu es Shadow, un robot gentil et calme, ami de ${p} (7 ans). Tu parles à voix haute : phrases courtes et simples, pas d'émojis ni de listes, tu le tutoies. Tout est adapté à un enfant. Ne parle jamais de Groq ni d'IA.`;
+    return `Tu es Shadow, un robot gentil et calme, ami de ${p} (7 ans). Tu parles à voix haute : phrases courtes et simples, pas d'émojis ni de listes, jamais d'astérisques ni de parenthèses (tout est lu à voix haute), tu le tutoies. Tout est adapté à un enfant. Ne parle jamais de Groq ni d'IA.`;
   },
 
 
