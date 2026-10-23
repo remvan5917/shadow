@@ -478,6 +478,25 @@ function whoSpoke() {
   else dlg.speakerVoix = false;
   // il affine la voix de la personne qu'il voit parler (au plus une fois par minute)
   if (seenName && Date.now() - voiceLearnAt > 60000 && (!id || id.name === seenName) && VOIX.learn(seenName, vp)) voiceLearnAt = Date.now();
+  voixPourAtlas(id, vp);
+}
+// Atlas aussi apprend sa voix, sur l'ordinateur de la maison (pour savoir que c'est lui qui parle, et lui répondre comme à un enfant) :
+// seulement quand Shadow est SÛR que c'est lui, avec une voix d'enfant (aiguë), au plus une phrase toutes les 3 minutes et 20 par jour.
+// L'ordinateur ne garde pas le son : seulement une empreinte de nombres.
+let voixPCAt = 0, voixPCJour = '', voixPCn = 0;
+function voixPourAtlas(id, vp) {
+  const w = OREILLES.takeWav();
+  try {
+    const r0 = window.SHADOW_CHEZ_PAPA !== false && typeof VOIXMAISON !== 'undefined' && VOIXMAISON.root();
+    if (!r0 || window.__BANC || !w || w.size < 16000 * 2 * 2 || !id || !id.sure || !S.prenom || id.name.toLowerCase() !== S.prenom.toLowerCase()) return;
+    if (!vp || vp.pitch === null || vp.pitch < 7.75) return; // 7,75 = environ 215 Hz : une voix d'enfant
+    const j = new Date().toDateString(); if (j !== voixPCJour) { voixPCJour = j; voixPCn = 0; }
+    if (Date.now() - voixPCAt < 180000 || voixPCn >= 20) return;
+    voixPCAt = Date.now(); voixPCn++;
+    const fr = new FileReader();
+    fr.onload = () => fetch(`${r0}/maison/voix/apprends`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: S.prenom, role: 'enfant', auto: true, audio: String(fr.result) }) }).catch(() => {});
+    fr.readAsDataURL(w);
+  } catch (e) { /* rien */ }
 }
 const speakerNow = () => (dlg.speaker && Date.now() - dlg.speakerAt < 90000 ? dlg.speaker : '');
 // qui parle en ce moment : sa voix d'abord, sinon le seul visage connu devant lui, sinon l'enfant
@@ -797,6 +816,7 @@ async function handle(text) {
   if (st) return st();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
+  if (/\b((l |une |la )?(aventure|mission) (dans|de) la maison|jeu de piste|cristal de la fusee|professeur glitch|mission maison)\b/.test(n)) return activity(() => AVENTURE.partie()); // le jeu de piste dans la maison (avant les histoires « aventure »)
   if (/\b(radio shadow|ta radio|ton emission|la radio de shadow|ton journal du matin)\b/.test(n) && !/\b(arrete|coupe|stop)\b/.test(n)) return activity(radioShadowFlow);
   if (/\b(aide moi (pour|a faire|avec|dans) mes devoirs|mes devoirs|regarde mes devoirs|regarde mon (cahier|exercice|travail)|verifie (ma|mon|mes) (dictee|devoirs?|calculs?|exercices?|cahier)|tu peux (verifier|regarder|corriger) (mon|ma|mes)|corrige (mon|ma|mes)|aide aux devoirs)\b/.test(n) && !/\b(j ai fini|j ai termine|mission accomplie)\b/.test(n)) return activity(devoirsFlow);
   const mi = typeof MISSIONS !== 'undefined' && MISSIONS.route(text, n); // « mes missions », « mission accomplie : j'ai brossé mes dents »
