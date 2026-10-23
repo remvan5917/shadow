@@ -318,6 +318,7 @@ const AI = {
       t = good.map(s => s.text).join(' ').replace(/\s+/g, ' ').trim();
     }
     if (/amara|sous-titr|merci d'avoir regard|abonnez-vous|^\W*$/i.test(t)) return '';
+    if (/^\W*(yeah|yes|no|nope|oh|ah|huh|hmm+|hum|so|uh+|um+|wow|hey|bye|hi|hello|thanks?|thank you|lors|euh+)\W*$/i.test(t) || /[¿¡]/.test(t)) return ''; // un mot seul venu du bruit (la radio, la télé), ou de l'espagnol
     if (/^(merci( beaucoup)?|au revoir|bon appétit|\.+)[.!]?$/i.test(t) && j.duration && j.duration < 1.2) return ''; // classiques du bruit
     if ((t.match(/[^\u0000-\u024F\s\d.,!?'’«»…-]/g) || []).length > t.length * 0.3) return ''; // pas du français (bruit)
     return t;

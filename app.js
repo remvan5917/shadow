@@ -331,6 +331,8 @@ function say(text) {
   text = anonymize(text);
   lastSaid = text;
   DITS.push(`${new Date().toLocaleTimeString('fr-FR')} ${String(text).replace(/<[^>]+>/g, ' ').slice(0, 160)}`); if (DITS.length > 8) DITS.shift();
+  // chez papa : Atlas est prévenu que c'est Shadow qui parle (sa voix robot ne sera pas prise pour un ordre de papa)
+  try { const r0 = window.SHADOW_CHEZ_PAPA !== false && typeof VOIXMAISON !== 'undefined' && VOIXMAISON.root(); if (r0 && !window.__BANC && text) fetch(`${r0}/maison/shadow/parle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texte: String(text).replace(/<[^>]+>/g, ' ').slice(0, 300), ms: Math.min(30000, 900 + String(text).length * 75) }) }).catch(() => {}); } catch (e) { /* rien */ }
   $('#bubble').classList.remove('alert');
   $('#heard').textContent = '';
   subtitle(esc(String(text).replace(/<[^>]+>/g, ' ')), null);
