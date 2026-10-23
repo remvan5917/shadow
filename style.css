@@ -885,8 +885,10 @@ body.lite .face.hearing .head, body.lite .face.sleep .stars circle { animation: 
 @supports not (width: min(1px, 2px)) { .board .ens { width: 88vw; } }
 
 /* ---------- la station de pilotage : le cockpit en grand, Shadow en petit dans le coin (il écoute et parle toujours) ---------- */
-#station-cadre { position: fixed; top: env(safe-area-inset-top); right: env(safe-area-inset-right); bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left);
-  width: auto; height: auto; border: 0; z-index: 4; background: #03050d; } /* l'encoche et la barre du téléphone : la station s'arrête avant */
+#station-cadre { position: fixed; top: env(safe-area-inset-top); left: env(safe-area-inset-left); border: 0; z-index: 4; background: #03050d;
+  /* un cadre (iframe) ne s'étire pas tout seul : sa taille, moins l'encoche et la barre du téléphone */
+  width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right)); height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 body.cockpit { background: #03050d; }
 body.cockpit #face-wrap, body.robot.cockpit #face-wrap, body.robot.subs.cockpit #face-wrap { position: fixed; right: calc(env(safe-area-inset-right) + 12px); bottom: calc(env(safe-area-inset-bottom) + 12px); width: 128px !important; max-width: none; z-index: 5; }
 body.cockpit #bubble, body.cockpit #hint, body.cockpit .corner, body.cockpit .robot-exit { display: none !important; }
