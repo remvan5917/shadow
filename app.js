@@ -1833,6 +1833,7 @@ setInterval(() => {
 function readSettingsForm() {
   return {
     brain: ($('input[name=s-brain]:checked') || {}).value || 'groq',
+    mistralKey: $('#s-mistral').value.trim(),
     key: $('#s-key').value.trim(),
     model: $('#s-model').value.trim() || AI.DEFAULT_MODEL,
     localUrl: $('#s-local-url').value.trim() || 'http://localhost:11434/v1',
@@ -1959,6 +1960,7 @@ function renderPeople() {
 function openSettings() {
   const s = S.settings;
   $('#s-prenom').value = S.prenom;
+  $('#s-mistral').value = s.mistralKey || '';
   $('#s-key').value = s.key;
   $('#s-model').value = s.model;
   $('#s-local-url').value = s.localUrl;

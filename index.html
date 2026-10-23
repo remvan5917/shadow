@@ -4,7 +4,7 @@
   <!-- Filet de sécurité (écrit à l'ancienne pour marcher partout) : si Shadow ne démarre pas, on affiche pourquoi -->
   <script>
     (function () {
-      window.SHADOW_VERSION = '91';
+      window.SHADOW_VERSION = '92';
       // Banc d'essai (…/shadow/?banc) : on note toutes les vérifications périodiques pour les lancer d'un coup
       if (/[?&]banc\b/.test(location.search)) {
         window.__BANC = true; window.__intervals = [];
@@ -45,7 +45,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=91">
+  <link rel="stylesheet" href="style.css?v=92">
 </head>
 <body class="robot">
   <main id="main">
@@ -250,6 +250,7 @@
         <label class="check"><input type="radio" name="s-brain" value="groq"> IA poussée → WiFi (Groq)</label>
         <label class="check"><input type="radio" name="s-brain" value="local"> Cerveau de la maison (Ollama sur l'ordi) — Groq prend le relais s'il ne répond pas</label>
         <div id="s-groq">
+          <label>Clé Mistral (le cerveau principal si elle est là ; gardée sur cet appareil) <input id="s-mistral" type="password" placeholder="clé de console.mistral.ai" autocomplete="off"></label>
           <label>Clé Groq <input id="s-key" type="password" placeholder="gsk_…" autocomplete="off"></label>
           <label>Modèle <input id="s-model" type="text" list="models" autocomplete="off"></label>
           <datalist id="models">
@@ -459,29 +460,29 @@
 
   <div id="fx" aria-hidden="true"></div>
 
-  <script src="orthographe.js?v=91"></script>
-  <script src="cerveau.js?v=91"></script>
-  <script src="jeux.js?v=91"></script>
-  <script src="voix.js?v=91"></script>
-  <script src="oreilles.js?v=91"></script>
-  <script src="vision.js?v=91"></script>
-  <script src="corps.js?v=91"></script>
-  <script src="contenus.js?v=91"></script>
-  <script src="visage.js?v=91"></script>
-  <script src="app.js?v=91"></script>
-  <script src="activites.js?v=91"></script>
-  <script src="ecran.js?v=91"></script>
-  <script src="conscience.js?v=91"></script>
-  <script src="projets.js?v=91"></script>
-  <script src="pokedata.js?v=91"></script>
-  <script src="pokemon.js?v=91"></script>
-  <script src="ensemble.js?v=91"></script>
-  <script src="apprendre.js?v=91"></script>
-  <script src="messages.js?v=91"></script>
-  <script src="lumieres.js?v=91"></script>
-  <script src="missions.js?v=91"></script>
-  <script src="cockpit.js?v=91"></script>
-  <script src="sync.js?v=91"></script>
+  <script src="orthographe.js?v=92"></script>
+  <script src="cerveau.js?v=92"></script>
+  <script src="jeux.js?v=92"></script>
+  <script src="voix.js?v=92"></script>
+  <script src="oreilles.js?v=92"></script>
+  <script src="vision.js?v=92"></script>
+  <script src="corps.js?v=92"></script>
+  <script src="contenus.js?v=92"></script>
+  <script src="visage.js?v=92"></script>
+  <script src="app.js?v=92"></script>
+  <script src="activites.js?v=92"></script>
+  <script src="ecran.js?v=92"></script>
+  <script src="conscience.js?v=92"></script>
+  <script src="projets.js?v=92"></script>
+  <script src="pokedata.js?v=92"></script>
+  <script src="pokemon.js?v=92"></script>
+  <script src="ensemble.js?v=92"></script>
+  <script src="apprendre.js?v=92"></script>
+  <script src="messages.js?v=92"></script>
+  <script src="lumieres.js?v=92"></script>
+  <script src="missions.js?v=92"></script>
+  <script src="cockpit.js?v=92"></script>
+  <script src="sync.js?v=92"></script>
   <script>if (window.__BANC) { var b = document.createElement('script'); b.src = 'banc.js'; document.body.appendChild(b); }</script>
 </body>
 </html>

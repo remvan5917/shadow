@@ -26,6 +26,9 @@ const MESSAGES = (() => {
     try { const j = await appel('/maison/messages?pour=enfant'); attente = (j.messages || []).filter(m => !attente.some(x => x.id === m.id && x.dit)); } catch (e) { /* plus tard */ }
   }
   setTimeout(releve, 8000); setInterval(releve, 30000);
+  // la facture : ce que Shadow consomme sur le cerveau (papa la voit avec « Atlas, ma facture »)
+  const envoieFacture = () => { if (S.facture && root() && !window.__BANC) appel('/atlas/facture', { id: 'shadow', role: 'shadow', facture: S.facture }).catch(() => {}); };
+  setInterval(envoieFacture, 10 * 60000); setTimeout(envoieFacture, 30000);
   const lu = m => appel('/maison/messages', { lu: m.id }).catch(() => {});
 
   // le message de papa s'affiche aussi en hologramme : les lettres bleues apparaissent pendant que Shadow le lit
@@ -107,7 +110,7 @@ const MESSAGES = (() => {
     const r0 = root(); if (!r0 || window.__BANC) return;
     const vu = typeof VISION !== 'undefined' && VISION.isOn() && VISION.state.faces.some(f => f.name && S.prenom && f.name === S.prenom);
     const d = { appareil: `shadow (${/Android/i.test(navigator.userAgent) ? 'téléphone' : 'ordinateur'})`, v: window.SHADOW_VERSION, demarre: dlg.started, etat: dlg.state, occupe: dlg.busy,
-      cache: document.hidden, ecran: `${innerWidth}x${innerHeight}`, cameraAllumee: typeof VISION !== 'undefined' && VISION.isOn(), enfantVu: vu, parleIlYa: dlg.lastTalk ? Math.round((Date.now() - dlg.lastTalk) / 1000) : null,
+      cache: document.hidden, cerveau: typeof AI !== 'undefined' && AI.dernier ? `${AI.dernier.fournisseur} ${AI.dernier.modele}` : '', mistral: !!(S.settings && S.settings.mistralKey), mistralErreur: typeof AI !== 'undefined' && AI.mistralErreur ? String(AI.mistralErreur).slice(0, 140) : '', ecran: `${innerWidth}x${innerHeight}`, cameraAllumee: typeof VISION !== 'undefined' && VISION.isOn(), enfantVu: vu, parleIlYa: dlg.lastTalk ? Math.round((Date.now() - dlg.lastTalk) / 1000) : null,
       entendus: window.SHADOW_CHEZ_PAPA !== false && typeof OREILLES !== 'undefined' && OREILLES.entendus ? OREILLES.entendus() : [], chezPapa: window.SHADOW_CHEZ_PAPA !== false, // chez maman : rien de ce qu'il entend niveau: typeof OREILLES !== 'undefined' && OREILLES.meter ? +OREILLES.meter().level.toFixed(4) : null, seuil: typeof OREILLES !== 'undefined' && OREILLES.meter ? +OREILLES.meter().threshold.toFixed(4) : null, micSens: S.settings.micSens || 'haute', maisonDabord: !!S.settings.earsMaisonFirst,
       maison: window.SHADOW_CHEZ_PAPA !== false && typeof LUMIERES !== 'undefined' && LUMIERES.journal ? LUMIERES.journal() : [], messagesEnAttente: attente.length, oreilles: typeof OREILLES !== 'undefined' && OREILLES.engine ? OREILLES.engine() : '' };
     try { await fetch(`${r0}/atlas/diag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d), keepalive: true }); } catch (e) { /* plus tard */ }
