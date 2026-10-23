@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Station Shadow</title>
+<style>
+  :root { --bg: #03050d; --carte: rgba(9, 13, 30, .94); --violet: #a78bfa; --violet2: #ddd6fe; --cyan: #5fd3ff; --ambre: #ffb547; --texte: #eef2ff; --doux: rgba(199, 210, 254, .6);
+    --ligne: rgba(167, 139, 250, .2); --ok: #6ef0b8; --alerte: #ff6b4a; color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--texte); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  body { padding: 10px 14px 12px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden;
+    background: radial-gradient(55% 45% at 50% -5%, rgba(167, 139, 250, .14), transparent 70%), radial-gradient(45% 40% at 100% 100%, rgba(95, 211, 255, .07), transparent 70%), var(--bg); }
+  body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 7; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 3px); }
+  svg.ic { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+  .mono { font-family: ui-monospace, 'DejaVu Sans Mono', 'Roboto Mono', monospace; }
+
+  /* l'en-tête */
+  header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .marque { font: 600 11px ui-monospace, monospace; letter-spacing: .38em; color: var(--violet); }
+  .marque b { color: var(--cyan); font-weight: 600; }
+  .horloge { display: flex; align-items: baseline; gap: 12px; margin-top: 2px; }
+  .heure { font: 200 clamp(32px, 4.4vw, 52px)/1 ui-monospace, monospace; color: #fff; text-shadow: 0 0 18px rgba(167, 139, 250, .5); }
+  .heure small { font-size: .42em; color: var(--violet); margin-left: 2px; }
+  .date { font: 12px ui-monospace, monospace; letter-spacing: .2em; color: var(--doux); text-transform: uppercase; }
+  .etat { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .puce { display: flex; align-items: center; gap: 8px; border: 1px solid var(--ligne); border-radius: 10px; padding: 7px 11px; font: 11px ui-monospace, monospace; letter-spacing: .1em; color: var(--doux); text-transform: uppercase; white-space: nowrap; }
+  .puce b { color: var(--texte); font-weight: 600; }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: respire 2.4s ease-in-out infinite; }
+  @keyframes respire { 50% { opacity: .35; } }
+  .quitter { border: 1px solid var(--ligne); background: rgba(167, 139, 250, .08); color: var(--violet2); border-radius: 10px; padding: 9px 14px; font: 600 11px ui-monospace, monospace; letter-spacing: .2em; cursor: pointer; }
+  .bandeau { flex: 0 0 auto; border: 1px solid var(--ligne); border-radius: 6px; padding: 6px 12px; margin-bottom: 8px; font: 12px ui-monospace, monospace; letter-spacing: .14em; color: var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(167, 139, 250, .05); text-transform: uppercase; }
+  .bandeau::before { content: '▸ '; color: var(--violet); }
+  .bandeau span { transition: opacity .5s; }
+
+  /* la grille : trois colonnes */
+  main { flex: 1 1 auto; min-height: 0; display: grid; gap: 10px; grid-template-columns: minmax(250px, 1fr) minmax(0, 1.35fr) minmax(250px, 1fr); }
+  .col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .col.liste { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(167, 139, 250, .4) transparent; padding-right: 2px; } .col.liste .carte { flex: 0 0 auto; } /* la colonne de droite défile d'un bloc */
+  .carte { position: relative; background: var(--carte); border: 1px solid var(--ligne); border-radius: 8px; padding: 12px 13px 13px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .carte::before, .carte::after { content: ''; position: absolute; width: 14px; height: 14px; border-color: var(--violet); border-style: solid; opacity: .85; pointer-events: none; }
+  .carte::before { left: -1px; top: -1px; border-width: 2px 0 0 2px; border-top-left-radius: 8px; }
+  .carte::after { right: -1px; bottom: -1px; border-width: 0 2px 2px 0; border-bottom-right-radius: 8px; }
+  .carte.grand { flex: 1 1 auto; }
+  .carte h2 { margin: 0 0 10px; font: 600 11px ui-monospace, monospace; letter-spacing: .3em; color: var(--violet); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .carte h2 i { font-style: normal; color: var(--cyan); margin-right: 8px; }
+  .carte h2 span { color: var(--doux); letter-spacing: .12em; font-weight: 400; font-size: 10px; }
+  .defile { overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(167, 139, 250, .4) transparent; }
+  .defile::-webkit-scrollbar { width: 3px; } .defile::-webkit-scrollbar-thumb { background: rgba(167, 139, 250, .4); border-radius: 2px; }
+  .muted { color: var(--doux); font-size: 13px; }
+
+  /* missions */
+  .grade { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .insigne { width: 54px; height: 54px; flex: 0 0 auto; color: var(--ambre); filter: drop-shadow(0 0 8px rgba(255, 181, 71, .45)); }
+  .grade .nom { font: 700 18px/1.1 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #fff; }
+  .grade .pts { font: 12px ui-monospace, monospace; letter-spacing: .14em; color: var(--doux); margin-top: 4px; }
+  .jauge { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .07); overflow: hidden; margin: 2px 0 12px; }
+  .jauge i { display: block; height: 100%; background: linear-gradient(90deg, var(--violet), var(--cyan)); box-shadow: 0 0 10px var(--violet); transition: width .8s; }
+  .mission { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 11px 10px; margin-bottom: 6px; border-radius: 8px; border: 1px solid var(--ligne); background: rgba(167, 139, 250, .05); color: var(--texte); font: 600 16px/1.25 system-ui, sans-serif; cursor: pointer; }
+  .mission .case { width: 26px; height: 26px; border-radius: 6px; border: 2px solid var(--violet); flex: 0 0 auto; display: grid; place-items: center; }
+  .mission.fait { opacity: .75; border-color: rgba(110, 240, 184, .4); background: rgba(110, 240, 184, .07); }
+  .mission.fait .case { border-color: var(--ok); background: var(--ok); color: #03140c; }
+  .mission .p { margin-left: auto; font: 600 12px ui-monospace, monospace; color: var(--ambre); }
+  .mission:active { transform: scale(.98); }
+  .medaille { display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px dashed var(--ligne); }
+  .medaille svg { color: var(--ambre); width: 24px; height: 24px; }
+
+  /* les activités : de grands boutons */
+  .activites { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+  .act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 92px; padding: 10px 6px; border-radius: 8px; border: 1px solid var(--ligne);
+    background: linear-gradient(180deg, rgba(167, 139, 250, .1), rgba(167, 139, 250, .02)); color: var(--cyan); cursor: pointer; transition: background .15s, transform .1s; }
+  .act svg.ic { width: 34px; height: 34px; }
+  .act span { font: 700 12px/1.2 ui-monospace, monospace; letter-spacing: .1em; color: var(--texte); text-transform: uppercase; text-align: center; }
+  .act:active { transform: scale(.95); background: rgba(167, 139, 250, .25); }
+  .act.ambre { color: var(--ambre); } .act.vert { color: var(--ok); }
+  .rituels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .rituels .act { min-height: 78px; }
+
+  /* la chambre */
+  .appareils { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 7px; }
+  .app { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 9px 10px; min-height: 68px; border-radius: 8px; border: 1px solid var(--ligne); background: rgba(255, 255, 255, .02); color: var(--doux); cursor: pointer; text-align: left; }
+  .app b { font: 600 14px/1.2 system-ui, sans-serif; color: var(--texte); }
+  .app small { font: 11px ui-monospace, monospace; letter-spacing: .14em; }
+  .app.on { border-color: rgba(255, 181, 71, .6); background: linear-gradient(160deg, rgba(255, 181, 71, .2), rgba(255, 181, 71, .04)); color: var(--ambre); box-shadow: 0 0 16px rgba(255, 181, 71, .2); }
+  .app:active { transform: scale(.97); }
+
+  /* météo, messages, compte à rebours, mot du jour */
+  .meteo { display: flex; align-items: center; gap: 14px; }
+  .meteo svg { width: 56px; height: 56px; color: var(--ambre); stroke-width: 1.4; }
+  .meteo .t { font: 200 38px/1 ui-monospace, monospace; color: #fff; }
+  .meteo .c { font-size: 14px; margin-top: 8px; color: var(--violet2); line-height: 1.35; }
+  .msg { display: flex; align-items: center; gap: 12px; }
+  .msg svg { width: 34px; height: 34px; color: var(--cyan); }
+  .msg.nouveau svg { color: var(--ambre); animation: respire 1.4s ease-in-out infinite; }
+  .boutons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .bt { flex: 1 1 auto; border: 1px solid var(--ligne); background: rgba(167, 139, 250, .1); color: var(--texte); border-radius: 8px; padding: 11px 12px; font: 700 12px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  .bt.ambre { border-color: rgba(255, 181, 71, .55); color: var(--ambre); }
+  .bt:active { transform: scale(.97); }
+  .dodo { display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--ligne); }
+  .dodo .n { font: 300 28px/1 ui-monospace, monospace; color: var(--cyan); text-align: center; }
+  .dodo .n small { display: block; font-size: 9px; letter-spacing: .2em; color: var(--doux); margin-top: 3px; }
+  .dodo .x { font-size: 15px; }
+  .mot { font: 700 22px/1.2 system-ui, sans-serif; color: #fff; text-transform: capitalize; }
+  .mot + p { margin: 6px 0 0; font-size: 14px; color: var(--violet2); line-height: 1.35; }
+
+  .toast { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 9; padding: 10px 18px; border-radius: 8px; background: rgba(3, 5, 13, .96); border: 1px solid var(--violet); color: var(--violet2); font: 12px ui-monospace, monospace; letter-spacing: .14em; opacity: 0; transition: opacity .3s; pointer-events: none; text-transform: uppercase; }
+  #boot { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: grid; place-items: center; transition: opacity .6s; }
+  #boot div { font: 12px/2 ui-monospace, monospace; letter-spacing: .25em; color: var(--violet); min-width: 320px; }
+  #boot p { margin: 0; opacity: 0; transition: opacity .3s; } #boot p.v { opacity: 1; } #boot b { color: var(--ok); font-weight: 400; float: right; }
+
+  /* une tablette un peu étroite en paysage */
+  @media (orientation: landscape) and (max-width: 1100px) { main { grid-template-columns: minmax(215px, 1fr) minmax(0, 1.3fr) minmax(215px, 1fr); } .act { min-height: 80px; } }
+  /* un téléphone en paysage (pas haut) : les colonnes défilent chacune */
+  @media (orientation: landscape) and (max-height: 520px) {
+    body { padding: 6px 10px; } .bandeau { display: none; } .heure { font-size: 28px; } header { margin-bottom: 6px; }
+    .col { overflow-y: auto; scrollbar-width: none; } .col::-webkit-scrollbar { display: none; } .carte, .carte.grand { flex: 0 0 auto; } .defile { overflow: visible; }
+    main { grid-template-columns: minmax(200px, 1fr) minmax(0, 1.3fr) minmax(200px, 1fr); }
+  }
+  /* en portrait : une colonne qui défile, les activités en premier */
+  @media (orientation: portrait) {
+    body { height: auto; min-height: 100vh; }
+    main { grid-template-columns: 1fr; } .col { display: contents; }
+    .carte, .carte.grand { flex: 0 0 auto; } .defile { overflow: visible; }
+    .z-act { order: 1; } .z-missions { order: 2; } .z-chambre { order: 3; } .z-rituels { order: 4; } .z-msg { order: 5; } .z-meteo { order: 6; } .z-dodo { order: 7; } .z-mot { order: 8; } .z-med { order: 9; }
+    .rituels { grid-template-columns: repeat(2, 1fr); }
+    main::after { content: ''; order: 10; height: 140px; } /* la place de Shadow, en bas à droite */
+  }
+</style>
+</head>
+<body>
+<div id="boot"><div id="boot-l"></div></div>
+<header>
+  <div>
+    <div class="marque">SHADOW <b>//</b> STATION DE PILOTAGE</div>
+    <div class="horloge"><div class="heure mono" id="heure"></div><div class="date" id="date"></div></div>
+  </div>
+  <div class="etat">
+    <div class="puce"><span class="led"></span>COPILOTE <b>SHADOW</b></div>
+    <div class="puce" id="p-grade">GRADE <b>—</b></div>
+    <div class="puce" id="p-pts">POINTS <b>—</b></div>
+    <button class="quitter" id="quitter">RETOUR À SHADOW</button>
+  </div>
+</header>
+<div class="bandeau" id="bandeau"><span id="bandeau-t">SYSTÈMES EN LIGNE</span></div>
+<main id="main">
+  <div class="col">
+    <section class="carte grand z-missions"><h2><div><i>01</i>MISSIONS DU JOUR</div><span id="mi-res"></span></h2><div class="defile" id="missions"></div></section>
+    <section class="carte z-med"><h2><div><i>02</i>MÉDAILLES DE PAPA</div><span id="me-res"></span></h2><div id="medailles"></div></section>
+  </div>
+  <div class="col">
+    <section class="carte grand z-act"><h2><div><i>03</i>ACTIVITÉS</div><span>UN TOUCHER : C'EST PARTI</span></h2><div class="activites defile" id="activites"></div></section>
+    <section class="carte z-rituels"><h2><div><i>04</i>RITUELS</div><span></span></h2><div class="rituels" id="rituels"></div></section>
+  </div>
+  <div class="col liste">
+    <section class="carte z-chambre"><h2><div><i>05</i>MES LUMIÈRES</div><span id="ch-res"></span></h2><div class="appareils" id="chambre"></div></section>
+    <section class="carte z-msg"><h2><div><i>06</i>MESSAGES</div><span></span></h2><div id="messages"></div></section>
+    <section class="carte z-meteo"><h2><div><i>07</i>MÉTÉO</div><span id="me-ville"></span></h2><div id="meteo"></div></section>
+    <section class="carte grand z-dodo"><h2><div><i>08</i>COMPTE À REBOURS</div><span>EN DODOS</span></h2><div class="defile" id="dodos"></div></section>
+    <section class="carte z-mot"><h2><div><i>09</i>MOT DU JOUR</div><span></span></h2><div id="mot"></div></section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+/* La station de pilotage de Shadow : le cockpit de l'enfant, dans le même style que celui de papa (salle de contrôle, sans émoji),
+   avec ce que Shadow sait faire : ses missions et son grade, les médailles de papa, les activités en un toucher, les rituels,
+   les lumières de sa chambre (seulement ce que papa lui a confié), les messages de papa, la météo pour s'habiller,
+   le compte à rebours en dodos et le mot du jour. Rien de la sécurité de la maison (ni caméras, ni alertes).
+   Shadow reste en petit dans le coin : il écoute et parle toujours. */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const P = (() => { try { return window.parent !== window ? window.parent : null; } catch (e) { return null; } })();
+const G = k => { try { return P && P[k]; } catch (e) { return undefined; } };
+const S = G('S') || { settings: {} };
+const root = () => { try { const v = G('VOIXMAISON'); return v ? v.root() : ''; } catch (e) { return ''; } };
+async function appel(chemin, corps, ms = 12000) {
+  const r0 = root(); if (!r0) throw new Error('pas de maison');
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(`${r0}${chemin}`, { method: corps ? 'POST' : 'GET', headers: corps ? { 'Content-Type': 'application/json' } : {}, body: corps ? JSON.stringify(corps) : undefined, cache: 'no-store', signal: ctl.signal });
+    if (!r.ok) throw new Error(`maison ${r.status}`);
+    return r.json();
+  } finally { clearTimeout(tm); }
+}
+function toast(t) { const el = $('#toast'); el.textContent = t; el.style.opacity = '1'; clearTimeout(toast.t); toast.t = setTimeout(() => { el.style.opacity = '0'; }, 2200); }
+// dire à Shadow (comme si on lui parlait) ; « lance » : on revient sur son visage pour jouer
+const dis = t => { try { G('handle')(t); } catch (e) { /* rien */ } };
+const lance = t => { try { G('SHADOW_COCKPIT').lance(t); } catch (e) { dis(t); } };
+
+/* ---------- les icônes (des traits, comme le cockpit de papa) ---------- */
+const I = {
+  livre: '<path d="M4 5c3-1.5 5.5-1.5 8 0v14c-2.5-1.5-5-1.5-8 0z"/><path d="M12 5c2.5-1.5 5-1.5 8 0v14c-3-1.5-5.5-1.5-8 0"/>',
+  carte: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
+  question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><path d="M12 17h.01"/>',
+  calcul: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2"/>',
+  etoile: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  crayon: '<path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/>',
+  oeil: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
+  loupe: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>',
+  main: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-.5a6 6 0 0 1-5-2.7L3.3 14a1.5 1.5 0 0 1 2.5-1.7L8 15"/>',
+  ciseaux: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5L20 18M8.5 16.5L20 6"/>',
+  note: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  horloge: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  sourire: '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2.5 4 2.5 4-2.5 4-2.5"/><path d="M9 9.5h.01M15 9.5h.01"/>',
+  fusee: '<path d="M12 2c3 2.5 4.5 6 4.5 10l-2 4h-5l-2-4C7.5 8 9 4.5 12 2z"/><circle cx="12" cy="9" r="1.8"/><path d="M9.5 16l-3 3 1-4M14.5 16l3 3-1-4M10.5 19l1.5 3 1.5-3"/>',
+  dent: '<path d="M7 3c-2.5 0-4 2-4 4.5 0 3 1.5 4.5 2 7.5.4 2.5 1 6 2.5 6s1.7-3.5 2.5-5.5c.5-1.2 1.5-1.2 2 0 .8 2 1 5.5 2.5 5.5s2.1-3.5 2.5-6c.5-3 2-4.5 2-7.5C21 5 19.5 3 17 3c-2 0-3 1-5 1S9 3 7 3z"/>',
+  vent: '<path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',
+  lune: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
+  ampoule: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  prise: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9.5 9v3M14.5 9v3M12 15v2"/>',
+  medaille: '<circle cx="12" cy="15" r="5"/><path d="M8.5 11L6 3h4l2 5 2-5h4l-2.5 8"/><path d="M12 13v4M10.5 15h3"/>',
+  enveloppe: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  envoi: '<path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/>',
+  robot: '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/><circle cx="12" cy="3.5" r="1"/>',
+  couleurs: '<circle cx="8" cy="9" r="4"/><circle cx="16" cy="9" r="4"/><circle cx="12" cy="16" r="4"/>',
+  insigne: '<path d="M12 2l7 3v6c0 5-3 8.5-7 11-4-2.5-7-6-7-11V5z"/><path d="M12 7l1.5 3 3.3.5-2.4 2.3.6 3.2-3-1.6-3 1.6.6-3.2-2.4-2.3 3.3-.5z"/>',
+  soleil: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+  nuage: '<path d="M7 18a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 11 3.5 3.5 0 0 1 18 18z"/>',
+  pluie: '<path d="M7 15a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 8 3.5 3.5 0 0 1 18 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/>',
+  neige: '<path d="M7 14a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 7 3.5 3.5 0 0 1 18 14z"/><path d="M8 18h.01M12 20h.01M16 18h.01M10 22h.01M14 22h.01"/>',
+  orage: '<path d="M7 15a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 8 3.5 3.5 0 0 1 18 15z"/><path d="M13 13l-3 5h4l-3 4"/>',
+  calendrier: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+};
+const ic = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[k] || ''}</svg>`;
+
+/* ---------- l'horloge, la séquence de démarrage ---------- */
+function horloge() {
+  const d = new Date();
+  $('#heure').innerHTML = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}<small>:${String(d.getSeconds()).padStart(2, '0')}</small>`;
+  $('#date').textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+setInterval(horloge, 1000); horloge();
+function boot() {
+  const qui = S.prenom ? `BIENVENUE, CAPITAINE ${S.prenom.toUpperCase()}` : 'BIENVENUE, CAPITAINE';
+  const el = $('#boot-l');
+  el.innerHTML = ['LIAISON AVEC LA BASE', 'MISSIONS', 'MÉDAILLES', 'MA CHAMBRE', 'MÉTÉO', 'COPILOTE SHADOW', qui].map((t, i, a) => `<p>${esc(t)}${i < a.length - 1 ? '<b>OK</b>' : ''}</p>`).join('');
+  el.querySelectorAll('p').forEach((p, i) => setTimeout(() => p.classList.add('v'), 160 + i * 220));
+  setTimeout(() => { const b = $('#boot'); if (!b) return; b.style.opacity = '0'; setTimeout(() => b.remove(), 700); }, 160 + 7 * 220 + 700);
+}
+
+/* ---------- 03 et 04 : les activités et les rituels, en un toucher ---------- */
+const ACTIVITES = [['livre', 'Une histoire', 'invente une histoire'], ['carte', 'Aventure', 'une aventure dont je suis le héros'], ['question', 'Devinettes', 'on fait des devinettes'],
+  ['calcul', 'Calcul', 'on fait du calcul'], ['etoile', 'Quiz', 'on fait un quiz'], ['crayon', 'Dictée', 'on fait une dictée'], ['oeil', 'Lecture', 'je veux lire'],
+  ['globe', 'Anglais', 'on fait de l\'anglais'], ['loupe', 'Chasse au trésor', 'chasse au trésor'], ['robot', 'Robot mystère', 'le robot mystère'], ['couleurs', 'Jeu des couleurs', 'le jeu des couleurs'],
+  ['main', 'Jacques a dit', 'jacques a dit'], ['ciseaux', 'Chifoumi', 'pierre feuille ciseaux'], ['note', 'Chansons', 'chante une comptine'], ['horloge', "Lire l'heure", "le jeu de l'heure"],
+  ['sourire', 'Une blague', 'raconte une blague'], ['fusee', 'La fusée', 'lance la fusée', 'ambre']];
+const RITUELS = [['dent', 'Les dents', 'je vais me brosser les dents', 'vert'], ['vent', 'On respire', 'on respire', 'vert'], ['livre', 'Histoire du soir', 'une histoire pour dormir', 'ambre'], ['lune', 'Bonne nuit', 'bonne nuit', 'ambre']];
+function boutons(id, l) {
+  $(id).innerHTML = l.map(([i, t, , c], k) => `<button class="act ${c || ''}" data-k="${k}">${ic(i)}<span>${esc(t)}</span></button>`).join('');
+  $(id).querySelectorAll('.act').forEach(b => b.onclick = () => { const x = l[+b.dataset.k]; toast(x[1]); lance(x[2]); });
+}
+
+/* ---------- 01 et 02 : les missions, le grade, les médailles ---------- */
+let mi = null;
+async function chargeMissions() {
+  try { mi = await appel('/maison/missions'); } catch (e) { $('#missions').innerHTML = '<div class="muted">LA BASE NE RÉPOND PAS.</div>'; return; }
+  const faites = mi.faites || [], l = mi.missions || [];
+  $('#p-grade').innerHTML = `GRADE <b>${esc(String(mi.grade || '').toUpperCase())}</b>`;
+  $('#p-pts').innerHTML = `POINTS <b>${mi.points || 0}</b>`;
+  $('#mi-res').textContent = `${l.filter(m => faites.includes(m.id)).length} / ${l.length}`;
+  const pct = mi.prochain ? Math.min(100, Math.round((mi.points || 0) / mi.prochain.points * 100)) : 100;
+  $('#missions').innerHTML = `<div class="grade"><svg class="ic insigne" viewBox="0 0 24 24">${I.insigne}</svg><div><div class="nom">${esc(mi.grade || '')}</div>
+      <div class="pts">${mi.points || 0} POINTS${mi.prochain ? ` · ${mi.prochain.points - (mi.points || 0)} AVANT ${esc(mi.prochain.grade.toUpperCase())}` : ' · LE PLUS HAUT GRADE'}</div></div></div>
+    <div class="jauge"><i style="width:${pct}%"></i></div>
+    ${l.map(m => `<button class="mission ${faites.includes(m.id) ? 'fait' : ''}" data-id="${esc(m.id)}"><span class="case">${faites.includes(m.id) ? ic('check') : ''}</span>${esc(m.nom)}<span class="p">+${m.points}</span></button>`).join('') || '<div class="muted">AUCUNE MISSION AUJOURD\'HUI. PAPA LES RÈGLE AVEC ATLAS.</div>'}`;
+  $('#missions').querySelectorAll('.mission:not(.fait)').forEach(b => b.onclick = () => { const m = l.find(x => x.id === b.dataset.id); if (!m) return; dis(`mission accomplie : ${m.nom}`); setTimeout(chargeMissions, 5000); });
+  const md = (mi.medailles || []).slice().reverse();
+  $('#me-res').textContent = md.length ? `${md.length}` : '';
+  $('#medailles').innerHTML = md.length ? md.slice(0, 3).map(x => `<div class="medaille">${ic('medaille')}<div>${esc(x.texte || 'Médaille')}<div class="muted">${new Date(x.at * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</div></div></div>`).join('') : '<div class="muted">PAS ENCORE DE MÉDAILLE. PAPA PEUT T\'EN DÉCERNER UNE.</div>';
+}
+
+/* ---------- 05 : ma chambre (seulement ce que papa lui a confié) ---------- */
+let chambre = [];
+async function chargeChambre() {
+  let r; try { r = await appel('/maison/shadow'); } catch (e) { $('#chambre').innerHTML = '<div class="muted">LA MAISON NE RÉPOND PAS.</div>'; return; }
+  if (r.a_la_maison === false) { $('#ch-res').textContent = 'HORS DE PORTÉE'; $('#chambre').innerHTML = '<div class="muted">ON N\'EST PAS CHEZ PAPA : SES LUMIÈRES SONT TROP LOIN.</div>'; return; }
+  if (!r.actif) { $('#ch-res').textContent = 'EN PAUSE'; $('#chambre').innerHTML = '<div class="muted">PAPA A MIS LA MAISON EN PAUSE.</div>'; return; }
+  const moi = String(S.prenom || '').toLowerCase();
+  chambre = (r.appareils || []).filter(a => !/fus[ée]e/i.test(a.nom)).sort((a, b) => (moi && b.nom.toLowerCase().includes(moi)) - (moi && a.nom.toLowerCase().includes(moi))); // sa lampe à lui d'abord
+  $('#ch-res').textContent = chambre.length ? `${chambre.filter(a => a.allume).length} / ${chambre.length} ALLUMÉ${chambre.filter(a => a.allume).length > 1 ? 'S' : ''}` : '';
+  $('#chambre').innerHTML = chambre.map((a, i) => `<button class="app ${a.allume ? 'on' : ''}" data-i="${i}">${ic(a.type === 'lampe' ? 'ampoule' : 'prise')}<b>${esc(a.nom)}</b><small>${a.allume ? 'ALLUMÉ' : 'ÉTEINT'}</small></button>`).join('') || '<div class="muted">PAPA NE M\'A ENCORE RIEN CONFIÉ.</div>';
+  $('#chambre').querySelectorAll('.app').forEach(b => b.onclick = async () => {
+    const a = chambre[+b.dataset.i]; if (!a) return;
+    b.classList.toggle('on'); b.querySelector('small').textContent = b.classList.contains('on') ? 'ALLUMÉ' : 'ÉTEINT';
+    try {
+      const res = await appel('/maison/shadow/commande', { ids: [a.id], allume: !a.allume });
+      if (res.refus) toast(res.refus === 'trop' ? 'ON A ASSEZ JOUÉ AVEC LES BOUTONS' : 'PAS MAINTENANT');
+    } catch (e) { toast('ÇA N\'A PAS MARCHÉ'); }
+    setTimeout(chargeChambre, 1200);
+  });
+}
+
+/* ---------- 06 : les messages de papa (Shadow les lit à voix haute) ---------- */
+async function chargeMessages() {
+  let n = 0; try { n = ((await appel('/maison/messages?pour=enfant')).messages || []).length; } catch (e) { n = -1; }
+  $('#messages').innerHTML = `<div class="msg ${n > 0 ? 'nouveau' : ''}">${ic('enveloppe')}<div><b>${n > 0 ? `${n} NOUVEAU${n > 1 ? 'X' : ''} MESSAGE${n > 1 ? 'S' : ''} DE PAPA` : n < 0 ? 'LA BASE NE RÉPOND PAS' : 'PAS DE NOUVEAU MESSAGE'}</b></div></div>
+    <div class="boutons">${n > 0 ? '<button class="bt ambre" id="m-lire">ÉCOUTER</button>' : ''}<button class="bt" id="m-env">${ic('envoi', '').replace('class="ic ', 'style="width:16px;height:16px;vertical-align:-3px;margin-right:6px" class="ic ')}MESSAGE À PAPA</button></div>`;
+  const l = $('#m-lire'); if (l) l.onclick = () => lance("papa m'a écrit ?");
+  $('#m-env').onclick = () => lance('envoie un message à papa');
+}
+
+/* ---------- 07 : la météo, pour s'habiller ---------- */
+const ciel = c => c === 0 ? 'soleil' : c <= 3 ? 'nuage' : c <= 48 ? 'nuage' : c <= 67 || (c >= 80 && c <= 82) ? 'pluie' : c <= 77 || c === 85 || c === 86 ? 'neige' : 'orage';
+const motCiel = c => c === 0 ? 'Ciel tout bleu' : c <= 2 ? 'Quelques nuages' : c === 3 ? 'Nuageux' : c <= 48 ? 'Brouillard' : c <= 57 ? 'Bruine' : c <= 67 ? 'Pluie' : c <= 77 ? 'Neige' : c <= 82 ? 'Averses' : c <= 86 ? 'Averses de neige' : 'Orage';
+function conseil(max, pluie, code) {
+  let c = max < 6 ? 'Manteau, bonnet et gants !' : max < 13 ? 'Prends bien ton manteau.' : max < 19 ? 'Un pull ou une veste.' : 'Un tee-shirt suffit.';
+  if (code >= 71 && code <= 77 || code === 85 || code === 86) c += ' Il neige !'; else if (pluie >= 50 || (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) c += ' Parapluie ou bottes !';
+  return c;
+}
+async function chargeMeteo() {
+  const v = S.settings && S.settings.ville;
+  if (!v) { $('#meteo').innerHTML = '<div class="muted">PAPA N\'A PAS ENCORE RÉGLÉ LA VILLE.</div>'; return; }
+  $('#me-ville').textContent = String(v.name || '').toUpperCase();
+  try {
+    const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${v.lat}&longitude=${v.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`)).json();
+    const code = w.current.weather_code, t = Math.round(w.current.temperature_2m), mx = Math.round(w.daily.temperature_2m_max[0]), mn = Math.round(w.daily.temperature_2m_min[0]);
+    $('#meteo').innerHTML = `<div class="meteo">${ic(ciel(code))}<div><div class="t">${t}°</div><div class="muted">${esc(motCiel(code).toUpperCase())} · ${mn}° / ${mx}°</div></div></div><div class="c">${esc(conseil(mx, w.daily.precipitation_probability_max[0], code))}</div>`;
+  } catch (e) { $('#meteo').innerHTML = '<div class="muted">LA MÉTÉO NE RÉPOND PAS.</div>'; }
+}
+
+/* ---------- 08 et 09 : le compte à rebours en dodos, le mot du jour ---------- */
+function chargeDodos() {
+  let l = []; try { l = (G('upcoming') ? G('upcoming')(400) : []).slice(0, 6); } catch (e) { l = []; }
+  $('#dodos').innerHTML = l.length ? l.map(x => `<div class="dodo"><div class="n">${x.days === 0 ? 'J' : x.days}<small>${x.days === 0 ? "AUJOURD'HUI" : x.days === 1 ? 'DODO' : 'DODOS'}</small></div><div class="x">${esc(x.e.text)}</div></div>`).join('') : '<div class="muted">LE CALENDRIER EST VIDE. PAPA PEUT Y METTRE LES GRANDS JOURS.</div>';
+  return l;
+}
+function chargeMot() {
+  let m = null; try { m = G('motDuJour') ? G('motDuJour')() : null; } catch (e) { m = null; }
+  $('#mot').innerHTML = m ? `<div class="mot">${esc(m.mot)}</div><p>${esc(m.def)}</p><div class="boutons"><button class="bt" id="mot-b">EN SAVOIR PLUS</button></div>` : '<div class="muted">—</div>';
+  const b = $('#mot-b'); if (b) b.onclick = () => lance('le mot du jour');
+  return m;
+}
+
+/* ---------- le bandeau qui défile ---------- */
+let bandeau = [], bi = 0;
+function bandeauMaj() {
+  const l = [];
+  if (mi) { const reste = (mi.missions || []).filter(m => !(mi.faites || []).includes(m.id)); l.push(reste.length ? `${reste.length} MISSION${reste.length > 1 ? 'S' : ''} À ACCOMPLIR AUJOURD'HUI` : "TOUTES LES MISSIONS DU JOUR SONT ACCOMPLIES. BRAVO, CAPITAINE"); if (mi.prochain) l.push(`ENCORE ${mi.prochain.points - mi.points} POINTS POUR DEVENIR ${mi.prochain.grade}`); }
+  const d = chargeDodos()[0]; if (d) l.push(d.days === 0 ? `AUJOURD'HUI : ${d.e.text}` : `PLUS QUE ${d.days} DODO${d.days > 1 ? 'S' : ''} AVANT ${d.e.text}`);
+  const m = chargeMot(); if (m) l.push(`MOT DU JOUR : ${m.mot}`);
+  l.push('DIS « SHADOW » : TON COPILOTE T\'ÉCOUTE');
+  bandeau = l;
+}
+setInterval(() => { if (!bandeau.length) return; const s = $('#bandeau-t'); s.style.opacity = '0'; setTimeout(() => { s.textContent = bandeau[bi++ % bandeau.length]; s.style.opacity = '1'; }, 500); }, 6000);
+
+$('#quitter').onclick = () => { try { G('SHADOW_COCKPIT').ferme(); } catch (e) { /* rien */ } };
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tout(); });
+async function tout() { await chargeMissions(); chargeChambre(); chargeMessages(); chargeMeteo(); bandeauMaj(); }
+boot(); boutons('#activites', ACTIVITES); boutons('#rituels', RITUELS); tout();
+setInterval(chargeMissions, 60000); setInterval(chargeChambre, 20000); setInterval(chargeMessages, 30000); setInterval(chargeMeteo, 30 * 60000); setInterval(bandeauMaj, 5 * 60000);
+</script>
+</body>
+</html>

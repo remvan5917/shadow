@@ -786,6 +786,8 @@ async function handle(text) {
   }
   const early = ECRAN.routeEarly(n); // « arrête le minuteur » (avant le « stop » général)
   if (early) return early();
+  const st = typeof SHADOW_COCKPIT !== 'undefined' && SHADOW_COCKPIT.route(text, n); // « ouvre ma station », « ferme le cockpit »
+  if (st) return st();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
   const mi = typeof MISSIONS !== 'undefined' && MISSIONS.route(text, n); // « mes missions », « mission accomplie : j'ai brossé mes dents »
