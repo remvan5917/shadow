@@ -694,6 +694,19 @@ async function life() {
   }
 }
 
+// le film du mois : une photo-souvenir des beaux moments (une mission réussie, l'aventure, « prends une photo souvenir »),
+// gardée sur l'ordinateur de la maison (jamais ailleurs) ; papa la verra dans « le film du mois » d'Atlas
+async function souvenir(texte, type, demande) {
+  try {
+    const r0 = window.SHADOW_CHEZ_PAPA !== false && VOIXMAISON.root();
+    if (!r0 || window.__BANC) return false;
+    if (!VISION.isOn()) { if (!demande || !(await needEyes())) return false; }
+    if (demande) { face.set('happy'); await say('Souris ! Trois, deux, un…'); for (const f of [523, 659, 784]) { fx.tone([[f, 0.1]]); await wait(700); } fx.tone([[1319, 0.15]]); }
+    const img = VISION.snapshot(1024); if (!img) return false;
+    const r = await fetch(`${r0}/maison/souvenirs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: img, texte: String(texte).slice(0, 160), type }) });
+    return !!(await r.json()).ok;
+  } catch (e) { return false; }
+}
 // Sans son nom, cette phrase est-elle pour lui ? 'oui' | 'adulte' (une voix grave : papa qui parle à son fils) | 'non'
 function pourMoi(t, n) {
   const adulte = !S.settings.video && lastPrint && lastPrint.pitch != null && lastPrint.pitch < 7.4 && !(dlg.speaker && S.prenom && dlg.speaker.toLowerCase() === S.prenom.toLowerCase());
@@ -758,7 +771,27 @@ async function dailyNews() {
     const up = upcoming(14)[0];
     if (up) { if (!up.days) { face.set('happy'); fx.confetti(60); } await say(dodos(up)); }
   }
+  // le précepteur : une fois par jour (après l'école ou le week-end), il propose de réviser là où il a du mal
+  const rev = revisionDuJour();
+  if (rev && d.revision !== k) {
+    d.revision = k; save();
+    let oui = false; try { oui = await askYesNo(rev.question); } catch (e) { oui = false; }
+    if (oui) { await say(pick(['Super, on y va !', 'Génial, mission révision !'])); try { await handle(rev.phrase); } catch (e) { /* rien */ } return; }
+    await say(pick(["D'accord, une autre fois !", 'Pas de souci, on verra plus tard !']));
+  }
   if (moodQuestionDue()) { dlg.moodPending = true; await say("Au fait, comment s'est passée ta journée ?"); }
+}
+// la matière où il bute le plus (ses deux dernières semaines d'exercices), et ce qu'il faut revoir
+function revisionDuJour() {
+  const h = new Date().getHours(), we = [0, 6].includes(new Date().getDay());
+  if (!(we || h >= 16) || h >= 20) return null;
+  const SUJ = { calc: ['le calcul', 'on fait du calcul'], dictee: ['la dictée', 'on fait une dictée'], lecture: ['la lecture', 'je veux lire'], anglais: ["l'anglais", "on fait de l'anglais"], heure: ["l'heure", "le jeu de l'heure"] };
+  const t0 = Date.now() - 14 * 86400000, g = {};
+  for (const x of S.log || []) if (x.at >= t0 && SUJ[x.type] && x.n) { const v = g[x.type] = g[x.type] || { s: 0, n: 0, mots: [] }; v.s += x.s || 0; v.n += x.n; if ((x.s || 0) < x.n && x.d) v.mots.push(...String(x.d).split(',').map(w => w.trim()).filter(Boolean)); }
+  const pire = Object.entries(g).map(([k, v]) => [k, v.s / v.n, v.mots]).filter(([, r]) => r < 0.7).sort((a, b) => a[1] - b[1])[0];
+  if (!pire) return null;
+  const [k, , mots] = pire, m = [...new Set(mots)].slice(0, 3);
+  return { question: `${name()}, et si on s'entraînait un peu à ${SUJ[k][0]} ? ${m.length ? `On reverra ${m.join(', ')}. ` : ''}Tu veux ?`, phrase: SUJ[k][1] };
 }
 function goSleep(withWords = true) {
   memorize(true);
@@ -846,6 +879,7 @@ async function handle(text) {
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
   if (/\b((l |une |la )?(aventure|mission) (dans|de) la maison|jeu de piste|cristal de la fusee|professeur glitch|mission maison)\b/.test(n)) return activity(() => AVENTURE.partie()); // le jeu de piste dans la maison (avant les histoires « aventure »)
+  if (/\b(photo souvenir|prends (une|moi en|nous en) photo|prends nous en photo|regarde mon dessin|garde ce moment|pour l album)\b/.test(n)) return (async () => { const ok = await souvenir(/dessin/.test(n) ? 'Mon dessin' : 'Une photo souvenir', /dessin/.test(n) ? 'dessin' : 'photo', true); fx.confetti && fx.confetti(20); return say(ok ? pick(["Clic ! C'est dans l'album du mois. Papa le verra dans le film !", 'Clic ! Souvenir enregistré dans mes circuits !']) : "Oups, je n'ai pas pu garder la photo. On réessaiera !"); })();
   if (/\b(radio shadow|ta radio|ton emission|la radio de shadow|ton journal du matin)\b/.test(n) && !/\b(arrete|coupe|stop)\b/.test(n)) return activity(radioShadowFlow);
   if (/\b(aide moi (pour|a faire|avec|dans) mes devoirs|mes devoirs|regarde mes devoirs|regarde mon (cahier|exercice|travail)|verifie (ma|mon|mes) (dictee|devoirs?|calculs?|exercices?|cahier)|tu peux (verifier|regarder|corriger) (mon|ma|mes)|corrige (mon|ma|mes)|aide aux devoirs)\b/.test(n) && !/\b(j ai fini|j ai termine|mission accomplie)\b/.test(n)) return activity(devoirsFlow);
   const mi = typeof MISSIONS !== 'undefined' && MISSIONS.route(text, n); // « mes missions », « mission accomplie : j'ai brossé mes dents »

@@ -60,6 +60,7 @@ const MISSIONS = (() => {
     if (promu) { ceremonie(r.grade, 'PROMOTION !', '#a78bfa'); await say(`Mission accomplie ! Plus ${r.gagne} points. Et… alerte ! Promotion ! ${name()}, tu es maintenant ${r.grade} !`); }
     else { try { fx.confetti(30); } catch (er) { /* rien */ } await say(pick([`Mission accomplie ! Plus ${r.gagne} points. Tu as ${r.points} points.`, `Bip bip ! Mission « ${m.nom} » réussie ! Plus ${r.gagne} points !`])); }
     const reste = r.missions.filter(x => !r.faites.includes(x.id));
+    if (typeof souvenir === 'function') souvenir(`Mission « ${m.nom} » réussie`, 'mission'); // (une photo pour le film du mois, si sa caméra est déjà allumée)
     if (!reste.length) await say('Toutes les missions du jour sont accomplies ! Papa va être fier de toi !');
   }
   async function grade() {

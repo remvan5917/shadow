@@ -300,6 +300,14 @@ const LUMIERES = (() => {
           if (m.type === 'fusee' && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
           else if (m.type === 'lien') lienAttente = { mot: m.texte || '' };
+          else if (m.type === 'annonce' && window.SHADOW_CHEZ_PAPA !== false && dlg.started) { // l'interphone : un message de papa, dit tout de suite
+            for (let k = 0; k < 40 && (voice.speaking || dlg.busy && dlg.state !== 'activity'); k++) await wait(500); // il finit sa phrase d'abord
+            face.flash('happy'); fx.tone([[784, 0.1], [1047, 0.1], [1319, 0.2]]);
+            const tx = String(m.texte || '').replace(/^(que |qu')/i, '');
+            await say(/^papa\b/i.test(tx) ? tx : `Message de papa : ${tx}`); // (« Papa te demande de descendre » se dit tel quel)
+            const id = Number(String(m.de || '').split('#')[1]); // (déjà dit : il ne reviendra pas dans sa boîte aux lettres)
+            if (id) { try { await fetch(`${r0}/maison/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lu: id }) }); } catch (e) { /* rien */ } }
+          }
           else if (m.type === 'mission-matin' && typeof MISSIONS !== 'undefined' && dlg.started && !dlg.busy) await MISSIONS.briefing(); // après le lever de soleil de sa lampe
           else if (m.type === 'medaille' && typeof MISSIONS !== 'undefined') await MISSIONS.medaille(m.texte);
           // le duo avec Atlas : il se tait et n'écoute plus pendant le sketch ; il dit ses répliques, puis répond « fini »

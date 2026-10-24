@@ -124,6 +124,7 @@ const AVENTURE = (() => {
       await wait(2500);
       await say(`Mission accomplie, capitaine ${c} ! La Fusée est rechargée, et le Professeur Glitch est vaincu ! Tu as tout réussi en ${min} minute${min > 1 ? 's' : ''}. Tu es un vrai héros !`);
       logAct('aventure', `les 3 cristaux en ${min} min`, trouves, 3);
+      if (typeof souvenir === 'function') souvenir('La mission maison : le cristal de la Fusée retrouvé', 'aventure');
     } finally {
       try { await maison({ action: 'fin', fusee_allumee: fusee }); } catch (e) { /* l'ordinateur remettra tout seul dans 40 minutes */ }
       setTimeout(() => hideBoard(), 9000);
