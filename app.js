@@ -329,6 +329,9 @@ const DITS = []; // ses dernières phrases (le diagnostic de papa, chez papa seu
 function say(text) {
   if (dlg.interrupt) return Promise.resolve(); // on vient de lui parler : il se tait et écoute
   text = anonymize(text);
+  // la même phrase qu'il vient de dire (en conversation) : il ne la répète pas
+  if (dlg.state === 'talk' && text && N(text) === N(lastSaid || '') && Date.now() - (voice.endedAt || 0) < 60000 && !RE.repeat.test(N(dlg.lastHeardN || ''))) return Promise.resolve();
+  dlg.lastSayAt = Date.now();
   lastSaid = text;
   DITS.push(`${new Date().toLocaleTimeString('fr-FR')} ${String(text).replace(/<[^>]+>/g, ' ').slice(0, 160)}`); if (DITS.length > 8) DITS.shift();
   // chez papa : Atlas est prévenu que c'est Shadow qui parle (sa voix robot ne sera pas prise pour un ordre de papa)
@@ -591,14 +594,17 @@ async function ask(text, { prompt = '', wait: w = 20000, retry = 1 } = {}) {
   let line = text, misses = 0;
   for (;;) {
     await say(line);
-    const a = await hear({ prompt, maxWait: w });
+    let a = await hear({ prompt, maxWait: w });
+    // une voix d'adulte (papa qui parle à côté) n'est pas la réponse de l'enfant : il continue d'écouter, sans reposer la question
+    for (let k = 0; k < 3 && typeof a === 'string' && a && !RE.wake.test(N(a)) && pourMoi(a, N(a)) === 'adulte'; k++) { OREILLES.note(a, '→ une voix d\'adulte : pas la réponse, il attend'); a = await hear({ prompt, maxWait: w }); }
     if (a === null) {
       if (dlg.state === 'activity') { line = text; continue; } // on a touché l'écran : il répète
       throw new Stop('cancel');
     }
     if (!a) {
       if (++misses > retry) throw new Stop('silence');
-      line = `Tu es là, ${name()} ? ${text}`;
+      line = misses === 1 && Date.now() - (dlg.tuEsLaAt || 0) > 120000 ? `Tu es là, ${name()} ? ${text}` : text; // « Tu es là ? » une fois seulement (sinon il le répétait sans arrêt)
+      if (line !== text) dlg.tuEsLaAt = Date.now();
       continue;
     }
     if (RE.stop.test(N(a))) throw new Stop('stop');
@@ -667,7 +673,16 @@ async function life() {
     } else if (m && m.index === 0) {
       // le nom au début de la phrase ne compte pas : « Shadow, on joue ? »
       text = n.slice(m[0].length).trim() || text;
+      dlg.suites = 0;
+    } else if (!m) {
+      // sans son nom, il ne répond qu'à ce qui lui est adressé : juste après lui avoir parlé (20 s, 4 échanges au plus),
+      // ou une phrase qui lui parle (« tu… », une question) — jamais à une voix d'adulte (papa qui parle à son fils),
+      // ni à la télé : avant, il répondait à TOUT ce qu'il entendait, et parlait par-dessus tout le monde
+      const pm = pourMoi(t, n);
+      if (pm !== 'oui') { OREILLES.note(t, pm === 'adulte' ? '→ une voix d\'adulte, sans son nom : il écoute' : '→ pas pour lui : il écoute'); if (++dlg.silence >= 3) toStandby(); continue; }
+      dlg.suites = (dlg.suites || 0) + 1;
     }
+    dlg.lastHeardN = n;
     dlg.silence = 0;
     dlg.lastActive = Date.now();
     dlg.lastTalk = Date.now();
@@ -676,6 +691,15 @@ async function life() {
   }
 }
 
+// Sans son nom, cette phrase est-elle pour lui ? 'oui' | 'adulte' (une voix grave : papa qui parle à son fils) | 'non'
+function pourMoi(t, n) {
+  const adulte = !S.settings.video && lastPrint && lastPrint.pitch != null && lastPrint.pitch < 7.4 && !(dlg.speaker && S.prenom && dlg.speaker.toLowerCase() === S.prenom.toLowerCase());
+  if (adulte) return 'adulte';
+  const suite = Date.now() - (dlg.lastSayAt || 0) < 20000 && (dlg.suites || 0) < 4;
+  if (/\b(papa|maman|papi|mamie|papy|tonton|tata)\b/.test(n)) return 'non'; // il parle à quelqu'un de la famille, pas à Shadow
+  const adresse = /\?\s*$/.test(t) || /\b(tu|toi|t es|dis moi|raconte|on joue|on fait|je veux|je peux)\b/.test(n);
+  return suite || adresse ? 'oui' : 'non';
+}
 // Range la conversation récente dans la mémoire à long terme (en arrière-plan)
 function memorize(force) {
   if (S.memPos > S.chat.length) S.memPos = 0;
@@ -703,6 +727,10 @@ function wake(who) {
   warmBrain(); // le cerveau de la maison se prépare pendant qu'il dit bonjour
   dlg.state = 'talk'; dlg.silence = 0; dlg.lastActive = Date.now();
   fx.wake(); face.set('happy');
+  // le grand bonjour (et les nouvelles) au plus une fois par heure : sinon il est juste là, et il écoute
+  const recent_ = Date.now() - (S.bonjourAt || 0) < 3600000;
+  if (recent_) { dlg.sayNext = () => say(pick([`Oui ${who || name()} ? Je t'écoute !`, 'Bip ! Je suis là.', 'Oui ? Dis-moi !'])); OREILLES.cancel(); return; }
+  S.bonjourAt = Date.now(); save();
   dlg.sayNext = async () => {
     await memoryGreeting(who); await updateNews();
     // il reparle d'abord de ce que l'enfant lui avait annoncé (« alors, la piscine ? »), sinon les nouvelles du jour
@@ -717,9 +745,7 @@ async function updateNews() {
   if (S.seenVersion === v) return;
   const first = !S.seenVersion;
   S.seenVersion = v; save();
-  if (first) return;
-  face.set('happy'); fx.wake();
-  await say(`Bip bip ! Mes circuits viennent d'être mis à jour : je suis maintenant la version ${v} !`);
+  void first; // (avant : « Mes circuits viennent d'être mis à jour » à chaque version — trop souvent, ça lassait)
 }
 // Les nouvelles du jour, une fois par jour : mot du jour, calendrier, humeur
 async function dailyNews() {
