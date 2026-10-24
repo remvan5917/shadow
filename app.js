@@ -321,7 +321,10 @@ function subtitle(html, heard) {
   if (html !== null) $('#bubble-text').innerHTML = html;
   const empty = !$('#bubble-text').textContent.trim() && !$('#heard').textContent.trim();
   const demo = typeof ECRAN !== 'undefined' && ECRAN.DEMO; // la vidéo de démo se regarde sans sous-titres
-  $('#bubble').hidden = empty || demo || !(S.settings.subtitles || !voice.ok || !S.settings.sound || mustShow);
+  // les bulles écrites : seulement si papa a activé les sous-titres, si le son est coupé, ou si Shadow n'a vraiment aucune voix
+  // (ni celle de la maison, ni une voix française du téléphone) — avant, elles apparaissaient à l'ouverture sans raison
+  const sansVoix = !voice.ok && !VOIXMAISON.usable();
+  $('#bubble').hidden = empty || demo || !(S.settings.subtitles || sansVoix || !S.settings.sound || mustShow);
   document.body.classList.toggle('subs', !$('#bubble').hidden);
 }
 // Shadow parle (et affiche des sous-titres si papa les a activés)
