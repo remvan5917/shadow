@@ -487,6 +487,16 @@ async function histoireSoirFlow() {
   const lampes = await LUMIERES.lampeHistoire();
   await say(`D'accord ${name()}, je te raconte une histoire pour dormir. Installe-toi bien…${lampes.length ? ' Regarde ta lampe : elle va jouer l\'histoire avec moi.' : ''}`);
   if (lampes.length) LUMIERES.effet(lampes, 'nuit');
+  // l'histoire illustrée de ce soir (préparée pendant le dîner, dessinée par l'ordinateur de la maison)
+  if (typeof CONTES !== 'undefined' && CONTES.pret() && !S.conte.lu) {
+    const avant = S.settings.slow; S.settings.slow = true; face.el.classList.add('drowsy');
+    try { await CONTES.lit(); } catch (e) { /* tant pis */ }
+    if (lampes.length) LUMIERES.effet(lampes, 'dodo');
+    S.settings.slow = avant; face.el.classList.remove('drowsy');
+    await say(`Fais de beaux rêves, ${name()}. Bip… bip… zzz.`);
+    LUMIERES.coucher(); pauseUntil = Date.now() + 60 * 60000; logAct('soir', 'illustrée', null, null); goSleep(false);
+    return;
+  }
   let story = '';
   if (AI.ready()) {
     try {
