@@ -125,7 +125,35 @@ const MISSIONS = (() => {
     if (h >= 18.5 && h < 19.75 && (la || Date.now() - (dlg.lastTalk || 0) < 10 * 60000)) bilan();
   }, 60000);
 
+  /* ---------- le soigneur des cochons d'Inde (le carnet du vivant, partagé avec Atlas) ---------- */
+  let nomsAnimaux = [];
+  setTimeout(async () => { try { nomsAnimaux = ((await appel('/maison/vivant')).animaux || {}).noms || []; } catch (e) { /* plus tard */ } }, 9000);
+  const SOINS_E = [['foin', /\bfoin\b/], ['eau', /\b(eau|biberon|a boire)\b/], ['legumes', /\b(legumes?|salade|carottes?|concombre|poivron|persil|endive|pomme|fruits?)\b/], ['granules', /\b(granules?|croquettes?)\b/], ['cage', /\b(cage|litiere|maison des cochons)\b/]];
+  async function soigneur(n) {
+    const quoi = SOINS_E.filter(([, re]) => re.test(n)).map(([k]) => k); if (!quoi.length) quoi.push('nourri');
+    try { for (const q of quoi) await appel('/maison/vivant', { action: 'soin', quoi: q, de: 'enfant' }); } catch (e) { return say("Oh, je n'arrive pas à joindre la base. Mais bravo quand même !"); }
+    const qui = nomsAnimaux.length ? liste(nomsAnimaux) : "les cochons d'Inde";
+    face.flash('happy'); fx.tone([[784, 0.08], [988, 0.08], [1319, 0.16]]);
+    let e = null; try { e = await etat(); } catch (er) { /* rien */ }
+    const m = e && e.missions.find(x => /cochon/i.test(x.nom) && !e.faites.includes(x.id));
+    if (m) return accomplie(`${n} cochons inde soigneur`);
+    return say(pick([`Super soigneur ! ${qui} te disent merci, cui cui !`, `Bravo ! ${qui} sont bien gâtés grâce à toi, capitaine soigneur !`]));
+  }
+  async function ontMange() {
+    let v; try { v = await appel('/maison/vivant'); } catch (e) { return say("Je n'arrive pas à joindre la base."); }
+    const a = v.animaux || {}, auj = new Date().toDateString(), so = (a.soins || []).filter(x => new Date(x.at * 1000).toDateString() === auj), qui = (a.noms || []).length ? liste(a.noms) : "Les cochons d'Inde";
+    const faits = [...new Set(so.map(x => ({ foin: 'du foin', eau: "de l'eau fraîche", legumes: 'des légumes', granules: 'des granulés', cage: 'une cage propre', nourri: 'à manger' })[x.quoi] || x.quoi))];
+    return say(faits.length ? `Aujourd'hui, ${qui} ont eu ${liste(faits)}. ${faits.length < 3 ? 'Tu peux encore les gâter !' : 'Ils sont super bien soignés !'}` : `${qui} n'ont encore rien eu aujourd'hui. Tu veux t'en occuper, soigneur ? Un peu de foin et des légumes !`);
+  }
+  async function arrose(n) {
+    try { await appel('/maison/vivant', { action: 'arrose', lieu: /\bserre\b/.test(n) ? 'serre' : /\b(cour|dehors|grand carre)\b/.test(n) ? 'grand carre' : 'tout', de: 'enfant' }); } catch (e) { return say("Je n'arrive pas à joindre la base, mais bravo jardinier !"); }
+    face.flash('happy'); return say(pick(['Bravo jardinier ! Les plantes vont pousser grâce à toi !', 'Super ! Le potager a bien bu. Bip bip, mission jardin réussie !']));
+  }
   function route(text, n) {
+    const ANIM = nomsAnimaux.length ? new RegExp(`\\b(cochons? d ?indes?|${nomsAnimaux.map(N).join('|')})\\b`) : /\bcochons? d ?indes?\b/;
+    if (ANIM.test(n) && /\b(ont mange|a mange|ils ont eu|ont eu a manger|faim)\b/.test(n) && /\?|\best ce que\b/.test(text + ' ' + n)) return ontMange;
+    if (/\b(j ai|on a|je viens de|j ai fini de)\s+(donne|mis|change|nettoye|nourri|rempli|remis|soigne)\b/.test(n) && (ANIM.test(n) || /\b(foin|biberon|cage|litiere|granules)\b/.test(n))) return () => soigneur(n);
+    if (/\b(j ai|on a)\s+arrose\b/.test(n) && /\b(potager|serre|plantes?|jardin|carre|legumes|tomates|fleurs)\b/.test(n)) return () => arrose(n);
     if (/\b(mes missions|quelles sont mes missions|missions du jour|ma mission|mes missions galactiques)\b/.test(n) && !/\baccompli/.test(n)) return mesMissions;
     if (/\b(mission accomplie|mission reussie|j ai fini|j ai termine|j ai fait|j ai brosse|je me suis brosse|je me suis habille|j ai range|j ai lu|j ai aide|c est fait)\b/.test(n) && /\b(dents?|devoirs|chambre|lu|lire|lecture|livre|habille|aide|mission)\b/.test(n)) return () => accomplie(n);
     if (/\b(mon grade|quel est mon grade|mes points|combien j ai de points|mes medailles)\b/.test(n)) return grade;
