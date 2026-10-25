@@ -876,6 +876,8 @@ async function handle(text) {
   if (early) return early();
   const st = typeof SHADOW_COCKPIT !== 'undefined' && SHADOW_COCKPIT.route(text, n); // « ouvre ma station », « ferme le cockpit »
   if (st) return st();
+  const dv = typeof DEVOIRS !== 'undefined' && DEVOIRS.route(text, n); // « mes devoirs », « révise mes mots »
+  if (dv) return dv();
   const mg = MESSAGES.route(text, n); // « dis à papa que… », « papa m'a répondu ? »
   if (mg) return mg();
   if (/\b((l |une |la )?(aventure|mission) (dans|de) la maison|jeu de piste|cristal de la fusee|professeur glitch|mission maison)\b/.test(n)) return activity(() => AVENTURE.partie()); // le jeu de piste dans la maison (avant les histoires « aventure »)
@@ -905,7 +907,7 @@ async function handle(text) {
   if (RE.help.test(n)) return say("Je sais plein de choses ! Discuter, écrire ton journal, faire une dictée, t'écouter lire, apprendre l'heure, l'anglais, les tables et le calcul, des quiz, des devinettes, les cris d'animaux, Jacques a dit, pierre-feuille-ciseaux, compter avec tes doigts, le jeu des émotions, dire les couleurs, chanter des comptines et raconter des histoires. Avec mon écran, je peux aussi chercher dans mon encyclopédie et te montrer des images, dire la météo, lancer un minuteur, t'accompagner pour le brossage des dents, respirer avec toi pour te calmer, jouer au robot mystère et au jeu des couleurs. Et on peut jouer à plusieurs, toute la famille : dis « on joue à plusieurs » ! Et vous pouvez m'apprendre de nouveaux jeux et des devinettes : dis « je vais t'apprendre un jeu » ! Dis-moi ce que tu veux !");
   if (RE.motJour.test(n)) return say(motDuJourText());
   if (RE.medailles.test(n)) return medaillesAnswer();
-  if (RE.dicteeMots.test(n)) return activity(dicteeMotsFlow);
+  if (RE.dicteeMots.test(n)) return activity(typeof DEVOIRS !== 'undefined' && DEVOIRS.fraiche() ? DEVOIRS.dictee : dicteeMotsFlow); // les mots de la semaine (papa les a donnés) d'abord
   if (RE.lecture.test(n)) return activity(lectureFlow);
   if (RE.heureJeu.test(n)) return activity(heureFlow);
   if (RE.anglais.test(n)) return activity(anglaisFlow);

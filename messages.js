@@ -76,6 +76,8 @@ const MESSAGES = (() => {
     if (ETHIQUE.BAD.test(ORTHO.bare(t))) return say("Hum, ce message-là, je ne le transmets pas.");
     try { await appel('/maison/messages', { de: 'enfant', pour: 'papa', texte: t.charAt(0).toUpperCase() + t.slice(1) }); } catch (e) { return say("Oh, je n'arrive pas à joindre l'ordinateur de la maison. Réessaie tout à l'heure !"); }
     face.flash('happy'); fx.tone([[1047, 0.06], [1568, 0.1]]);
+    let occ = null; try { occ = await appel('/maison/concentration'); } catch (e) { occ = null; }
+    if (occ && occ.actif) { const h = new Date(occ.jusqua * 1000); return say(`C'est envoyé ! Papa ${occ.raison === 'trading' ? 'pilote ses marchés' : 'travaille'} jusqu'à ${h.getHours()} heures${h.getMinutes() ? ` ${h.getMinutes()}` : ''} : il aura ton message juste après. Sauf si c'est urgent : alors va le voir !`); }
     return say(pick(["C'est envoyé à papa ! Atlas va le lui dire.", 'Message envoyé ! Papa va le recevoir.', 'Bip bip, message parti pour papa !']));
   }
   async function reponse() {
