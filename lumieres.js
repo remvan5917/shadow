@@ -290,6 +290,82 @@ const LUMIERES = (() => {
   }
 
   // il écoute le canal direct : Atlas peut lui demander de faire le compte à rebours
+  // l'appel holographique en direct : papa appelle (depuis Atlas) ; ça sonne ; l'enfant touche l'écran pour décrocher ;
+  // papa apparaît en hologramme bleu, et papa le voit en vidéo. La vidéo va directement d'un appareil à l'autre.
+  let enAppel = false;
+  async function appelEntrant(id) {
+    const r0 = root(); if (!r0 || !id) return;
+    const post = (type, data) => fetch(`${r0}/maison/appel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pour: 'papa', id, type, data: data || null }), cache: 'no-store' }).catch(() => {});
+    if (enAppel) { post('occupe'); return; }
+    if (!dlg.started) { post('refus', { raison: 'eteint' }); return; }
+    enAppel = true;
+    for (let k = 0; k < 20 && voice.speaking; k++) await new Promise(r => setTimeout(r, 300));
+    dlg.busy = true;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:62;background:radial-gradient(60% 55% at 50% 55%,#06223a,#000 75%);display:grid;place-items:center;color:#e0f2fe;font-family:ui-monospace,monospace;overflow:hidden';
+    el.innerHTML = `<style>@keyframes apS{0%,100%{transform:scale(1);opacity:.95}50%{transform:scale(1.2);opacity:.4}}@keyframes holoClig{0%,100%{opacity:.92}47%{opacity:.78}50%{opacity:.45}53%{opacity:.88}}@keyframes holoBal{from{background-position:0 0}to{background-position:0 40px}}</style>
+      <div data-sonne style="display:grid;place-items:center;gap:22px;text-align:center">
+        <div style="width:170px;height:170px;border-radius:50%;border:3px solid #38bdf8;box-shadow:0 0 50px #38bdf8;display:grid;place-items:center;font-size:64px;animation:apS 1.4s ease-in-out infinite">📡</div>
+        <div style="font-size:15px;letter-spacing:.32em">◢ APPEL HOLOGRAPHIQUE · PAPA</div>
+        <div style="font:600 22px system-ui;color:#fff">Touche l'écran pour décrocher !</div></div>
+      <div data-holo style="position:relative;width:min(88vw,760px);display:none;animation:holoClig 3.2s infinite">
+        <video data-d playsinline autoplay style="width:100%;display:block;border-radius:10px;filter:sepia(1) hue-rotate(165deg) saturate(3) brightness(1.25) contrast(1.15);mix-blend-mode:screen;-webkit-mask-image:radial-gradient(70% 72% at 50% 48%,#000 60%,transparent 100%);mask-image:radial-gradient(70% 72% at 50% 48%,#000 60%,transparent 100%)"></video>
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(125,211,252,.12) 0 2px,transparent 2px 6px);animation:holoBal 2s linear infinite;pointer-events:none"></div>
+        <div style="position:absolute;left:50%;bottom:-70px;transform:translateX(-50%);width:72%;height:70px;background:radial-gradient(50% 100% at 50% 100%,rgba(125,211,252,.4),transparent 70%)"></div></div>
+      <div data-lab style="position:fixed;top:14px;left:0;right:0;text-align:center;font-size:13px;letter-spacing:.35em;color:#7dd3fc;display:none">◢ EN DIRECT · PAPA</div>
+      <button data-x style="position:fixed;right:22px;bottom:22px;display:none;width:84px;height:84px;border-radius:50%;border:0;background:#ef4444;color:#fff;font:700 14px system-ui;box-shadow:0 0 26px rgba(239,68,68,.6)">Raccrocher</button>`;
+    document.body.appendChild(el);
+    let audio = null, propre = null, pc = null, fini = false, sonnerie = null, quoi = '';
+    // un seul lecteur de la boîte aux lettres : il range tout ce qui arrive ; chaque étape y prend ce qu'elle attend
+    const recus = [];
+    (async () => { while (!fini) { try { recus.push(...((await (await fetch(`${r0}/maison/appel?pour=enfant&id=${id}&attente=20`, { cache: 'no-store' })).json()).messages || [])); } catch (e) { await new Promise(r => setTimeout(r, 1500)); } } })();
+    const attend = (types, ms, garde) => new Promise(res => { const t0 = Date.now(); const tic = () => { if (garde && !garde()) return res(null); const i = recus.findIndex(x => types.includes(x.type)); if (i >= 0) return res(recus.splice(i, 1)[0]); if (fini || Date.now() - t0 > ms) return res(null); setTimeout(tic, 250); }; tic(); });
+    const recolte = c => new Promise(res => { if (c.iceGatheringState === 'complete') return res(); const t = setTimeout(res, 3000); c.addEventListener('icegatheringstatechange', () => { if (c.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
+    try {
+      face.flash('happy'); fx.tone([[523, 0.12], [784, 0.12], [1047, 0.25]]);
+      await say(pick([`Bip bip ! ${name()}, papa t'appelle en hologramme ! Touche mon écran pour décrocher !`, 'Appel holographique entrant ! C\'est papa ! Touche mon écran pour répondre !']));
+      OREILLES.mute(true);
+      sonnerie = setInterval(() => fx.tone([[880, 0.12], [1175, 0.18], [880, 0.12], [1175, 0.18]]), 2600);
+      // décrocher : toucher l'écran (40 secondes) ; papa peut aussi raccrocher avant
+      const decroche = await Promise.race([new Promise(r => { el.onclick = () => r(true); }), new Promise(r => setTimeout(() => r(false), 40000)), attend(['fin'], 40000, () => !!sonnerie).then(m => (m ? 'annule' : new Promise(() => {})))]);
+      clearInterval(sonnerie); sonnerie = null; el.onclick = null;
+      if (decroche !== true) { quoi = decroche === 'annule' ? 'annule' : 'manque'; if (decroche === false) post('refus', { raison: 'sans reponse' }); return; }
+      fx.tone([[1319, 0.1]]);
+      el.querySelector('[data-sonne]').innerHTML = '<div style="font-size:15px;letter-spacing:.32em">◢ CONNEXION HOLOGRAPHIQUE…</div>';
+      audio = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      let video = null;
+      if (typeof VISION !== 'undefined' && VISION.isOn() && VISION.flux()) video = VISION.flux().getVideoTracks()[0];
+      else { propre = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } }); video = propre.getVideoTracks()[0]; }
+      const flux = new MediaStream([video, ...audio.getAudioTracks()]);
+      await post('pret');
+      const offre = await attend(['offre', 'fin'], 25000);
+      if (!offre || offre.type !== 'offre') { quoi = 'echec'; return; }
+      pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      flux.getTracks().forEach(t => pc.addTrack(t, flux));
+      const d = el.querySelector('[data-d]');
+      pc.ontrack = e => { if (d.srcObject !== e.streams[0]) { d.srcObject = e.streams[0]; d.play().catch(() => {}); } };
+      await pc.setRemoteDescription({ type: 'offer', sdp: String((offre.data || {}).sdp || '') });
+      await pc.setLocalDescription(await pc.createAnswer()); await recolte(pc);
+      await post('reponse', { sdp: pc.localDescription.sdp, rot: typeof VISION !== 'undefined' && VISION.rotation ? VISION.rotation() : 0 });
+      const raccroche = new Promise(r => { el.querySelector('[data-x]').onclick = e => { e.stopPropagation(); r('enfant'); }; });
+      const coupe = new Promise(r => { let t = 0; pc.onconnectionstatechange = () => { const s_ = pc.connectionState;
+        if (s_ === 'connected') { clearTimeout(t); el.querySelector('[data-sonne]').style.display = 'none'; el.querySelector('[data-holo]').style.display = 'block'; el.querySelector('[data-lab]').style.display = 'block'; el.querySelector('[data-x]').style.display = 'block'; }
+        if (s_ === 'failed') r('echec'); if (s_ === 'disconnected') { clearTimeout(t); t = setTimeout(() => r('coupe'), 8000); } }; });
+      const pasLa = new Promise(r => setTimeout(() => { if (!pc || pc.connectionState !== 'connected') r('echec'); }, 15000));
+      quoi = await Promise.race([raccroche, attend(['fin'], 20 * 60000).then(m => (m ? 'papa' : 'duree')), coupe, pasLa]);
+    } catch (e) { quoi = quoi || 'echec'; }
+    finally {
+      fini = true; if (sonnerie) clearInterval(sonnerie);
+      if (quoi === 'enfant' || quoi === 'echec' || quoi === 'coupe' || quoi === 'duree') post('fin');
+      try { if (pc) pc.close(); } catch (e) { /* rien */ }
+      if (audio) audio.getTracks().forEach(t => t.stop()); if (propre) propre.getTracks().forEach(t => t.stop());
+      el.style.transition = 'opacity .7s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 800);
+      OREILLES.mute(false); dlg.busy = false; enAppel = false;
+    }
+    if (quoi === 'manque' || quoi === 'annule') return;
+    face.flash('happy');
+    await say(quoi === 'echec' ? "Oh, la liaison holographique n'a pas marché. Papa pourra rappeler !" : pick(['Fin de la transmission holographique ! Papa t\'aime fort.', 'Transmission terminée ! C\'était papa, en direct.']));
+  }
   async function ecoute() {
     for (;;) {
       const r0 = root();
@@ -297,6 +373,7 @@ const LUMIERES = (() => {
       try {
         const j = await (await fetch(`${r0}/maison/canal/shadow?attente=25`, { cache: 'no-store' })).json();
         for (const m of j.messages || []) {
+          if (m.type === 'appel') { appelEntrant(m.texte); continue; } // l'appel holographique de papa (sans attendre : le canal continue d'écouter)
           if (m.type === 'fusee' && !dlg.busy && window.SHADOW_CHEZ_PAPA !== false) await fusee(true);
           // l'heure du coucher (la maison a allumé la salle de bain, la Fusée, sa radio et sa lumière)
           else if (m.type === 'lien') lienAttente = { mot: m.texte || '' };
@@ -379,5 +456,5 @@ const LUMIERES = (() => {
     if (!LAMPE.test(cible) && !connus.some(x => mots(x).some(w => nm.includes(w)))) return null;
     return () => pilote(cible, /^r?allume/.test(m[1]));
   }
-  return { route, pilote, regle, coucher, fusee, pourPapa, lampeHistoire, effet, journal: () => journal.slice(), _rafraichir: rafraichir };
+  return { route, pilote, regle, coucher, fusee, pourPapa, lampeHistoire, effet, journal: () => journal.slice(), _rafraichir: rafraichir, _appel: appelEntrant };
 })();
